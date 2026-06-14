@@ -15,7 +15,8 @@ jobs:
         run: rustup target add wasm32-wasip2
       - name: Unit tests
         working-directory: gate-contract
-        run: cargo test
+        # override the wasm default target (.cargo/config.toml) so tests run on host
+        run: cargo test --target x86_64-unknown-linux-gnu
       - name: Build wasm component
         working-directory: gate-contract
         run: cargo build --release --target wasm32-wasip2
