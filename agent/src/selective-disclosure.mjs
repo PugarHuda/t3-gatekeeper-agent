@@ -38,12 +38,17 @@ export async function issueRecord(claims) {
  * The hidden claim values are never included in the output.
  */
 export async function discloseOnly(cred, revealKeys) {
+  if (!Array.isArray(revealKeys) || revealKeys.length === 0) {
+    throw new Error("discloseOnly: reveal at least one claim");
+  }
+  for (const k of revealKeys) {
+    if (!cred.keys.includes(k)) {
+      throw new Error(`discloseOnly: unknown claim '${k}' (signed claims: ${cred.keys.join(", ")})`);
+    }
+  }
   const publicKey = toBytes(cred.issuerPublicKey);
   const messages = cred.keys.map((k) => encodeClaim(k, cred.claims[k]));
-  const revealed = revealKeys
-    .map((k) => cred.keys.indexOf(k))
-    .filter((i) => i >= 0)
-    .sort((a, b) => a - b);
+  const revealed = [...new Set(revealKeys.map((k) => cred.keys.indexOf(k)))].sort((a, b) => a - b);
   const nonce = randomBytes(32);
   const proof = await blsCreateProof({ signature: toBytes(cred.signature), publicKey, messages, revealed, nonce });
   // Disclosed messages in original-index order (verifier needs the same order).

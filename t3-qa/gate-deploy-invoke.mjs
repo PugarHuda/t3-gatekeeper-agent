@@ -14,7 +14,7 @@ const WASM_PATH =
   "C:/Hackathons/Terminal 3 Agent Dev Kit Bounty Challenge (Launch Ed)/gate-contract/target/wasm32-wasip2/release/gate_contract.wasm";
 const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 const TAIL = "gate";
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 const mandate = {
   max_amount_cents: 500_000,           // $5,000 cap
@@ -65,6 +65,17 @@ const mandate = {
       { kind: "rwa.buy", asset: "USDC", amount_cents: 900_000 });
     await run("REJECTED (DOGE swap — asset + kind not allowed)",
       { kind: "swap", asset: "DOGE", amount_cents: 100 });
+
+    // security: an EMPTY mandate must deny everything (deny-by-default), live in the TEE
+    console.log("\n-- deny-by-default check (empty mandate) --");
+    const denyOut = await tenant.contracts.execute(TAIL, {
+      version: VERSION, functionName: "evaluate",
+      input: { action: { kind: "rwa.buy", asset: "USDC", amount_cents: 1 },
+               mandate: { max_amount_cents: 1_000_000_000, allowed_assets: [], allowed_kinds: [], expires_at_secs: 0 } },
+    });
+    console.log("  empty-mandate result:", JSON.stringify(denyOut));
+    if (denyOut.decision !== "rejected") throw new Error("SECURITY: empty mandate did not deny!");
+    console.log("  ✅ empty mandate correctly DENIED in the TEE");
 
     console.log("\nRESULT: gate-contract deploy + invoke WORKS ✅");
   } catch (e) {

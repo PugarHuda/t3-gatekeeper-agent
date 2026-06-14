@@ -13,9 +13,13 @@ when* — bounds the agent itself cannot override.
 | Gate | Rule |
 | --- | --- |
 | amount | `action.amount_cents <= mandate.max_amount_cents` |
-| asset | `action.asset ∈ mandate.allowed_assets` (empty = no restriction) |
-| kind | `action.kind ∈ mandate.allowed_kinds` (empty = no restriction) |
+| asset | `action.asset ∈ mandate.allowed_assets` (**deny-by-default**: empty = nothing allowed; `"*"` = any) |
+| kind | `action.kind ∈ mandate.allowed_kinds` (**deny-by-default**: empty = nothing allowed; `"*"` = any) |
 | expiry | `cluster_timestamp <= mandate.expires_at_secs` (`0` = no expiry) |
+
+Allow-lists are **least-privilege**: an empty list permits nothing (an
+unconfigured mandate must not approve everything), and the wildcard `"*"`
+explicitly permits any value. Asset/kind matching is exact (case-sensitive).
 
 It reads the mandate from the tenant-provisioned `mandate` KV map
 (`z:<tid>:mandate`, key `default`) so the **calling agent cannot forge it**. An

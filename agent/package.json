@@ -8,7 +8,8 @@
     "setup": "node src/setup.mjs",
     "demo": "node src/agent.mjs",
     "demo:sd": "node src/agent-sd.mjs",
-    "auth": "node src/auth-check.mjs"
+    "auth": "node src/auth-check.mjs",
+    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs"
   },
   "dependencies": {
     "@terminal3/t3n-sdk": "^3.5.2",

@@ -48,9 +48,16 @@ pub struct Decision {
     pub audit: AuditRow,
 }
 
+/// Returns true if `value` is permitted by an allow-list. Deny-by-default: an
+/// EMPTY list permits nothing (least privilege — an unconfigured mandate must
+/// not approve everything). The wildcard `"*"` explicitly permits any value.
+fn list_allows(list: &[String], value: &str) -> bool {
+    list.iter().any(|x| x == "*" || x == value)
+}
+
 /// Pure gate logic. Returns `(approved, reasons)`. A failing check appends a
 /// human-readable reason; an empty reason list means every gate passed.
-/// Empty `allowed_*` lists are treated as "no restriction" on that dimension;
+/// `allowed_*` lists are deny-by-default (empty = nothing allowed; `"*"` = any);
 /// `expires_at_secs == 0` means "no expiry".
 pub fn decide(action: &Action, mandate: &Mandate, now_secs: u64) -> (bool, Vec<String>) {
     let mut reasons: Vec<String> = Vec::new();
@@ -61,11 +68,17 @@ pub fn decide(action: &Action, mandate: &Mandate, now_secs: u64) -> (bool, Vec<S
             mandate.expires_at_secs
         ));
     }
-    if !mandate.allowed_kinds.is_empty() && !mandate.allowed_kinds.iter().any(|k| k == &action.kind) {
-        reasons.push(format!("action kind '{}' not in allowed_kinds", action.kind));
+    if !list_allows(&mandate.allowed_kinds, &action.kind) {
+        reasons.push(format!(
+            "action kind '{}' not permitted (allowed_kinds={:?})",
+            action.kind, mandate.allowed_kinds
+        ));
     }
-    if !mandate.allowed_assets.is_empty() && !mandate.allowed_assets.iter().any(|a| a == &action.asset) {
-        reasons.push(format!("asset '{}' not in allowed_assets", action.asset));
+    if !list_allows(&mandate.allowed_assets, &action.asset) {
+        reasons.push(format!(
+            "asset '{}' not permitted (allowed_assets={:?})",
+            action.asset, mandate.allowed_assets
+        ));
     }
     if action.amount_cents > mandate.max_amount_cents {
         reasons.push(format!(
@@ -217,5 +230,48 @@ mod tests {
         let (ok, reasons) = decide(&a, &m, 2000);
         assert!(!ok);
         assert!(reasons.iter().any(|r| r.contains("expired")));
+    }
+
+    #[test]
+    fn amount_exactly_at_cap_is_approved() {
+        // boundary: amount == max must pass (<=, not <)
+        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 500_000 };
+        let (ok, _) = decide(&a, &mandate(), 0);
+        assert!(ok);
+    }
+
+    #[test]
+    fn one_cent_over_cap_is_rejected() {
+        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 500_001 };
+        let (ok, _) = decide(&a, &mandate(), 0);
+        assert!(!ok);
+    }
+
+    #[test]
+    fn empty_allowlists_deny_by_default() {
+        // security: an unconfigured mandate must NOT approve everything
+        let m = Mandate { max_amount_cents: u64::MAX, allowed_assets: vec![], allowed_kinds: vec![], expires_at_secs: 0 };
+        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 1 };
+        let (ok, reasons) = decide(&a, &m, 0);
+        assert!(!ok, "empty allow-lists must deny");
+        assert!(reasons.iter().any(|r| r.contains("allowed_kinds")));
+        assert!(reasons.iter().any(|r| r.contains("allowed_assets")));
+    }
+
+    #[test]
+    fn wildcard_allows_any_value() {
+        let m = Mandate { max_amount_cents: 1_000, allowed_assets: vec!["*".into()], allowed_kinds: vec!["*".into()], expires_at_secs: 0 };
+        let a = Action { kind: "anything".into(), asset: "DOGE".into(), amount_cents: 1_000 };
+        let (ok, _) = decide(&a, &m, 0);
+        assert!(ok);
+    }
+
+    #[test]
+    fn asset_match_is_case_sensitive() {
+        // documents intentional exact-match semantics (usdc != USDC)
+        let a = Action { kind: "rwa.buy".into(), asset: "usdc".into(), amount_cents: 1 };
+        let (ok, reasons) = decide(&a, &mandate(), 0);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("allowed_assets")));
     }
 }

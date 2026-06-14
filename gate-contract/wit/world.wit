@@ -35,6 +35,8 @@ interface contracts {
     /// Input  (JSON): { action: { kind, asset, amount_cents },
     ///                  mandate?: { max_amount_cents, allowed_assets[],
     ///                              allowed_kinds[], expires_at_secs } }
+    ///   allowed_* are deny-by-default: an empty list permits nothing; the
+    ///   wildcard "*" permits any value. expires_at_secs 0 means no expiry.
     ///   `mandate` is OPTIONAL: when omitted the contract reads the
     ///   tenant-provisioned mandate from the `mandate` KV map (key `default`),
     ///   which the agent CANNOT tamper with. When present (demo / dry-run) the
