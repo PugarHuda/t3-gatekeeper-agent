@@ -1,0 +1,17 @@
+# secrets — never commit
+.env
+**/.env
+
+# deps & build artifacts
+node_modules/
+**/node_modules/
+target/
+**/target/
+*.log
+
+# reference clone (Terminal 3's own repo, not part of this submission)
+z-tenant-flight/
+
+# os
+Thumbs.db
+.DS_Store

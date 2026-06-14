@@ -1,0 +1,17 @@
+{
+  "name": "t3-gatekeeper-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gatekeeper Agent — a delegated agent that executes permissioned actions only after a BBS+ verifiable-credential eligibility gate and a hardware-enforced TEE mandate, on the Terminal 3 Agent Dev Kit.",
+  "scripts": {
+    "setup": "node src/setup.mjs",
+    "demo": "node src/agent.mjs",
+    "auth": "node src/auth-check.mjs"
+  },
+  "dependencies": {
+    "@terminal3/t3n-sdk": "^3.5.2",
+    "@terminal3/vc_core": "^0.0.37",
+    "@terminal3/bbs_vc": "^0.2.36"
+  }
+}
