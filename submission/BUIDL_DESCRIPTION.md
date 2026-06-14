@@ -1,0 +1,76 @@
+# DoraHacks BUIDL Description — paste-ready
+
+**Title:** Gatekeeper Agent — VC-gated permissioned actions with a hardware mandate
+
+**Tagline:** A delegated AI agent that executes permissioned financial actions on
+behalf of a user without ever holding their credentials or sensitive data —
+eligibility proven by a BBS+ verifiable credential, the spending bound enforced by
+a Terminal 3 TEE contract, every action audited.
+
+---
+
+## The Problem
+AI agents that transact on your behalf normally need your credentials and your
+personal data in memory. That's an exploitable attack surface, a prompt-injection
+leak waiting to happen, and a non-starter for banks and institutions. And
+"eligibility" (accredited investor, licensed, KYC'd) is usually proven by handing
+over the raw documents — exposing far more than the one fact that matters.
+
+## The Solution
+The Gatekeeper Agent puts **two independent gates** in front of every outbound
+action, using the Terminal 3 Agent Dev Kit end-to-end:
+
+1. **Eligibility gate (verifiable credential).** A trusted issuer signs a **BBS+
+   credential** attesting only the predicate the action needs —
+   `{ accreditedInvestor: true }` — never the net worth, name, or DOB. The agent
+   verifies it cryptographically; a tampered claim fails verification.
+2. **Mandate gate (hardware).** A **Rust→WASM TEE contract** enforces the user's
+   spending mandate inside Terminal 3's enclave — max amount, allowed assets,
+   allowed action kinds, expiry — reading the mandate from a tenant KV map the
+   agent itself cannot forge.
+
+Every decision, approved or rejected, produces a structured audit row.
+
+## How It Works
+1. **Identity** — `T3nClient.handshake()` + `authenticate()` → the agent's
+   `did:t3n` over an encrypted TEE session.
+2. **VC gate** — `@terminal3/bbs_vc` `createBbsCredential` (issuer) +
+   `verifyBbsVCW3c` (agent). Eligible only if the BBS+ proof verifies AND the
+   predicate holds. No personal data is ever in the credential.
+3. **Mandate** — `TenantClient.contracts.execute("gate", "evaluate", …)` runs the
+   gate-contract **inside the enclave**; it resolves the tenant DID and a
+   cluster-pinned timestamp host-side and returns approved/rejected + reasons.
+4. **Audit** — one structured row per action (issuer, decision, reasons, ts).
+
+## Terminal 3 SDK Integration (the full stack, not just auth)
+- `@terminal3/t3n-sdk`: `loadWasmComponent`, `setEnvironment`, `eth_get_address`,
+  `metamask_sign`, `T3nClient.handshake/authenticate/getUsage`, and the tenant
+  control plane — `TenantClient.contracts.register()` / `execute()`.
+- `@terminal3/bbs_vc` + `@terminal3/vc_core`: BBS+ credential issuance,
+  verification, BLS keys and DIDs.
+- A custom **Rust → wasm32-wasip2 TEE contract** importing host `tenant-context`,
+  `kv-store`, and `logging` interfaces.
+
+## Verified end-to-end on T3N testnet
+- Auth: handshake → authenticate → getUsage (20,000 credits).
+- BBS+ VC: issue (`bbs-2023` DataIntegrityProof) + verify; tampered claim →
+  `isValid:false` (signature enforced, not a stub).
+- TEE contract: compiled to a wasm component, registered to the tenant
+  (on-chain `contract_id`), and `evaluate()` invoked inside the enclave returning
+  approved/rejected with the cluster timestamp and tenant DID.
+
+## Why This Matters
+This is the pattern a bank's trading desk or a permissioned-DeFi / RWA venue
+needs: delegate bounded execution to an AI agent **without** handing over
+credentials or data. Eligibility is a verifiable fact, the spending limit is
+enforced in hardware rather than by the agent's own promise, and every action
+leaves a cryptographic audit trail.
+
+## Links
+- Code: https://github.com/PugarHuda/t3-gatekeeper-agent
+- Demo video: <add link>
+
+## Tech Stack
+TypeScript · `@terminal3/t3n-sdk` · `@terminal3/bbs_vc` · `@terminal3/vc_core` ·
+Rust → `wasm32-wasip2` (wit-bindgen, serde) · Terminal 3 TEE / z-space tenant
+contracts.

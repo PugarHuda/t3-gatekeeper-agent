@@ -9,6 +9,26 @@ This submission deliberately exercises **all four layers** of the Terminal 3 SDK
 in one coherent flow — not just authentication — to maximise the *"how well
 integrated is the SDK in its entirety"* criterion.
 
+```mermaid
+flowchart TD
+    U([User]) -- delegates mandate --> A
+    subgraph AGENT["Gatekeeper Agent — @terminal3/t3n-sdk"]
+        A["1 · IDENTITY<br/>handshake + authenticate → did:t3n"]
+        V["2 · VC GATE<br/>bbs_vc.verifyBbsVCW3c(predicate)<br/>eligible, no PII revealed"]
+        AU["4 · AUDIT<br/>row per action: issuer, decision, reasons"]
+    end
+    ISS([Trusted KYC issuer]) -- "BBS+ predicate cred<br/>{accreditedInvestor:true}" --> V
+    A --> V
+    V -- eligible --> EX{{"3 · MANDATE — contracts.execute('gate','evaluate')"}}
+    subgraph TEE["Terminal 3 TEE / Enclave"]
+        GC["gate-contract (Rust → wasm32-wasip2)<br/>reads z:&lt;tid&gt;:mandate KV<br/>enforces amount · asset · kind · expiry"]
+    end
+    EX --> GC
+    GC -- "approved / rejected + reasons" --> AU
+    AU --> R([Action allowed or blocked])
+```
+
+
 ```
 ┌─ Gatekeeper Agent (TypeScript / @terminal3/t3n-sdk) ───────────────────────┐
 │ 1. IDENTITY   handshake() + authenticate()            → did:t3n            │
