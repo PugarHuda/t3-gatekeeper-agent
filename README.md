@@ -1,5 +1,7 @@
 # Gatekeeper Agent — Terminal 3 Agent Dev Kit Bounty (Launch Ed)
 
+[![ci](https://github.com/PugarHuda/t3-gatekeeper-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/PugarHuda/t3-gatekeeper-agent/actions/workflows/ci.yml)
+
 > A delegated agent that executes **permissioned financial actions on behalf of a
 > user without holding their credentials or sensitive data**. Eligibility is
 > proven by a **BBS+ verifiable credential**; the spending bound is enforced by a
