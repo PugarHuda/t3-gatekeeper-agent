@@ -48,7 +48,8 @@ flowchart TD
 | --- | --- |
 | `agent/` | The agent runtime (identity + VC gate + contract invoke + audit). `npm run demo`. |
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
-| `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke). |
+| `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
+| `submission/` | Demo script, BUIDL description, Track B bug reports, and a [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing trace + TDX quote byte layout, verified live). |
 
 ## Verified end-to-end on T3N testnet
 
