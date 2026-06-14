@@ -102,10 +102,21 @@ console.log(Object.keys(bbs).filter(k => /derive|disclos|present|reveal/i.test(k
 ```
 Cross-check: the "Smart VCs" page lists no SDK function names or code for
 issuing/deriving/verifying a selectively-disclosed VP.
+**The capability exists one layer down.** `@terminal3/bbs_vc`'s own transitive
+dependency `@mattrglobal/bbs-signatures` exports `createProof` (holder derive) and
+`verifyProof` (verify derived proof). We confirmed this by building the missing
+wrapper ourselves — bridging Terminal 3 BLS keys (`vc_core.randomKeyBls` +
+`blsG2PublicKeyFromPrivateKey`) to those primitives — and it works end-to-end:
+issuer signs 4 claims → holder derives a proof revealing only 1 → verifier
+accepts; forged value / wrong nonce rejected (`agent/src/selective-disclosure.mjs`,
+`t3-qa/smoke-sd.mjs`). So the gap is purely the missing W3C wrapper + docs, not a
+missing primitive.
+
 **Expected.** Either a documented derive-VP function with an example, or docs that
 state selective-disclosure derivation is not yet exposed.
-**Fix.** Add the holder-side derive API (or document its absence) and add an
-end-to-end issue→derive→verify code sample to the VC docs.
+**Fix.** Wrap `createProof`/`verifyProof` at the `bbs-2023` W3C layer (derive a
+VP that discloses a subset of `mandatoryPointers`/`selectivePointers`), or
+document its absence, and add an end-to-end issue→derive→verify code sample.
 
 ---
 

@@ -59,10 +59,19 @@ wraps only base issuance (`createBbsCredential`) and base verification
 (`verifyBbsVCW3c` → `blsVerify`); it does not wrap `createProof`/`verifyProof`.**
 So a holder cannot, via the T3 API, derive a VP that reveals a subset of claims.
 
-Our design response is the **predicate credential**: the trusted issuer signs only
-the fact the action needs — `{ accreditedInvestor: true }` — so the raw figure
-never enters the credential and base issue+verify (which the SDK *does* support)
-is sufficient. (See Track B Report 3 for the docs/API gap.)
+Two responses ship in this submission:
+1. **Predicate credential** (`agent.mjs`): the issuer signs only the needed fact,
+   so base issue+verify suffices.
+2. **True selective disclosure** (`agent/src/selective-disclosure.mjs`,
+   `agent-sd.mjs`): we bridge Terminal 3 BLS keys (`vc_core.randomKeyBls` +
+   `blsG2PublicKeyFromPrivateKey`) to `blsSign` / `blsCreateProof` /
+   `blsVerifyProof`, implementing the holder-side derive the T3 wrapper omits.
+   Verified live: issuer signs `{fullName, dateOfBirth, netWorthUSD,
+   accreditedInvestor}` (112 B sig) → holder derives a 479 B proof revealing
+   **only** `accreditedInvestor=true` → verifier accepts; a forged value or a
+   wrong nonce is rejected (`t3-qa/smoke-sd.mjs`).
+
+(See Track B Report 3 for the docs/API gap this fills.)
 
 ### Verified live
 - Issue → `bbs-2023` DataIntegrityProof; `verifyBbsVCW3c` → `{isValid:true}`.

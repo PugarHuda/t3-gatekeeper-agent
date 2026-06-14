@@ -35,16 +35,25 @@ npm run demo
 
 `npm run auth` is a quick connectivity check (authenticate + token balance).
 
-## Predicate-credential model
+## Two eligibility-gate modes
 
-Terminal 3's BBS+ packages ship credential **issuance** and **verification**, but
-not (yet) a turn-key holder-side selective-disclosure *derivation*. So instead of
-issuing a full credential and deriving a reduced presentation, a trusted issuer
-attests **only the predicate the action needs** — `{ accreditedInvestor: true }` —
-and never the underlying figures. The raw net worth / identity never enter the
-credential, so privacy is preserved with the issue+verify path that the SDK
-supports today. (In-contract `vp.verify` is a host interface available for a
-future fully-derived-VP upgrade.)
+**`npm run demo` — predicate credential.** A trusted issuer attests *only* the
+predicate the action needs — `{ accreditedInvestor: true }` — so the raw net
+worth / identity never enter the credential. Uses the SDK's supported
+issue + verify path (`createBbsCredential` / `verifyBbsVCW3c`).
+
+**`npm run demo:sd` — true selective disclosure.** The issuer signs the user's
+**full** KYC record once (`fullName, dateOfBirth, netWorthUSD, accreditedInvestor`);
+the holder derives a zero-knowledge proof revealing **only** `accreditedInvestor`,
+and the agent verifies it **without ever seeing** the hidden claims. See
+`src/selective-disclosure.mjs`.
+
+> Terminal 3's `@terminal3/bbs_vc` ships issuance + base verification but does not
+> wrap the holder-side derive step. The underlying `@mattrglobal/bbs-signatures`
+> *does* expose it (`createProof` / `verifyProof`), so `selective-disclosure.mjs`
+> bridges Terminal 3 BLS keys (`vc_core.randomKeyBls` +
+> `blsG2PublicKeyFromPrivateKey`) to those primitives to deliver real
+> selective disclosure. (See Track B Report 3.)
 
 ## Example output
 

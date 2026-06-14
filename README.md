@@ -58,6 +58,9 @@ Every layer was run against the live testnet, not mocked:
 - **Auth** — `handshake` → `authenticate` → `getUsage` (20,000 credits).
 - **BBS+ VC** — issue (`bbs-2023` DataIntegrityProof) + verify; a tampered claim
   is correctly rejected (`isValid:false`), so the signature is enforced.
+- **True selective disclosure** — issuer signs a full record, holder derives a ZK
+  proof revealing only one claim, verifier accepts; forged value / wrong nonce
+  rejected (`npm run demo:sd`).
 - **TEE contract** — `gate-contract` compiled to a 156 KB wasm component,
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
