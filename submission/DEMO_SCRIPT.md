@@ -55,7 +55,23 @@ npm run demo
 > **[4] Audit** — every decision, approved or rejected, produces a structured
 > audit row with the issuer, the action and the reason."
 
-## Scene 4 — Why it matters (2:10–2:30)
+## Scene 3.5 — True selective disclosure (the showstopper) (2:10–2:40)
+**Do:**
+```powershell
+npm run demo:sd
+```
+**Narrate the `[2] VC GATE` block:**
+> "Same flow — but watch the credential gate now. The issuer signed the user's
+> **full** KYC record: full name, date of birth, **net worth of five million
+> dollars**, and the accredited-investor flag. The holder derives a
+> zero-knowledge proof that reveals **only** the accredited flag. Look at what the
+> agent actually sees: `{ accreditedInvestor: true }`. The name, the birth date,
+> the net worth — **never revealed**, mathematically hidden, yet the agent is
+> cryptographically sure the issuer signed them. That's BBS+ selective disclosure
+> — and we had to build the holder-side derive ourselves because the SDK ships
+> the primitive but doesn't wrap it yet."
+
+## Scene 4 — Why it matters (2:40–3:00)
 **On screen:** the four-layer table from `agent/README.md`.
 **Say:**
 > "Identity, verifiable credentials, a hardware-enforced mandate contract, and

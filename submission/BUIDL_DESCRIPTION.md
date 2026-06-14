@@ -21,9 +21,14 @@ The Gatekeeper Agent puts **two independent gates** in front of every outbound
 action, using the Terminal 3 Agent Dev Kit end-to-end:
 
 1. **Eligibility gate (verifiable credential).** A trusted issuer signs a **BBS+
-   credential** attesting only the predicate the action needs —
-   `{ accreditedInvestor: true }` — never the net worth, name, or DOB. The agent
-   verifies it cryptographically; a tampered claim fails verification.
+   credential**; the agent verifies the user qualifies (e.g. accredited investor)
+   without seeing the underlying data. Two modes ship: a **predicate credential**
+   (`{ accreditedInvestor: true }`), and **true BBS+ selective disclosure** where
+   the issuer signs the user's *full* KYC record and the holder derives a
+   zero-knowledge proof revealing **only** the accredited flag — net worth, name
+   and DOB stay mathematically hidden. (We implemented the holder-side derive
+   ourselves: the SDK ships the primitive via `@mattrglobal/bbs-signatures`'
+   `createProof`/`verifyProof` but doesn't wrap it — see our Track B report.)
 2. **Mandate gate (hardware).** A **Rust→WASM TEE contract** enforces the user's
    spending mandate inside Terminal 3's enclave — max amount, allowed assets,
    allowed action kinds, expiry — reading the mandate from a tenant KV map the
