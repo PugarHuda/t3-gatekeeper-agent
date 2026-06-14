@@ -36,8 +36,21 @@ const bbs = require("@terminal3/bbs_vc");
 ```
 **Expected.** `message` names the actual failure cause (e.g. proof/hash mismatch).
 **Actual.** The cause renders as the literal `undefined`.
-**Fix.** Interpolate the real error variable at the throw/return site in the
-verify path (the `undefined` token indicates a wrong/unset identifier).
+
+**Root cause (confirmed in source).** `dist/verifyBbsVC.js`, function
+`verifyBbsSignature`:
+```js
+const isVerified = await blsVerify({ publicKey, messages, signature }); // @mattrglobal/bbs-signatures
+return { isValid: isVerified.verified,
+         message: isVerified.verified ? 'Verification successful'
+                                      : `BBS+ signature verification failed: ${isVerified.error}` };
+```
+On a normal signature mismatch, `@mattrglobal/bbs-signatures`'s `blsVerify`
+resolves `{ verified: false }` with **no** `error` field (the `error` field is
+only set when the call throws internally), so `${isVerified.error}` renders
+`undefined`. The same pattern is duplicated in the `BbsPlusSignature2020` branch.
+**Fix.** Provide a fallback (e.g. `isVerified.error ?? 'signature mismatch'`), or
+surface the verifier's actual failure reason.
 
 ---
 
