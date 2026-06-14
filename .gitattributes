@@ -1,0 +1,17 @@
+# Normalize line endings: store LF in the repo, check out native on each OS.
+* text=auto eol=lf
+
+# Explicit text types
+*.md      text eol=lf
+*.mjs     text eol=lf
+*.cjs     text eol=lf
+*.js      text eol=lf
+*.json    text eol=lf
+*.rs      text eol=lf
+*.toml    text eol=lf
+*.wit     text eol=lf
+
+# Binary — never touch
+*.wasm    binary
+*.png     binary
+*.jpg     binary
