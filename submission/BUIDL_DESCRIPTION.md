@@ -31,10 +31,26 @@ action, using the Terminal 3 Agent Dev Kit end-to-end:
    `createProof`/`verifyProof` but doesn't wrap it — see our Track B report.)
 2. **Mandate gate (hardware).** A **Rust→WASM TEE contract** enforces the user's
    spending mandate inside Terminal 3's enclave — max amount, allowed assets,
-   allowed action kinds, expiry — reading the mandate from a tenant KV map the
-   agent itself cannot forge.
+   allowed action kinds, allowed counterparties, a valid-after window, expiry —
+   reading the mandate from a tenant KV map the agent itself cannot forge. It also
+   enforces a **stateful cumulative velocity cap**: a running per-window total is
+   kept in the contract's KV store and the action is rejected once the total would
+   exceed the cap — held **across invocations in hardware**, so the agent cannot
+   reset its own budget.
 
 Every decision, approved or rejected, produces a structured audit row.
+
+## Beyond the core gate — ecosystem interop (all shipped, tested)
+The agent layer also implements two standards the ADK targets:
+- **Web Bot Auth (RFC 9421).** The agent signs its outbound action requests with
+  Ed25519 HTTP Message Signatures (`tag="web-bot-auth"`) so a destination — or a
+  Cloudflare/WAF in front of it — can cryptographically verify the request came
+  from this agent before acting. This is the "front door" already adopted by Visa
+  TAP and Mastercard Agent Pay.
+- **A2A capability exchange.** Two agents handshake by exchanging a BBS+
+  capability credential with **selective disclosure**: an agent proves it holds a
+  required capability (e.g. `payments.execute`) without revealing the rest of its
+  capability manifest.
 
 ## How It Works
 1. **Identity** — `T3nClient.handshake()` + `authenticate()` → the agent's
@@ -60,9 +76,14 @@ Every decision, approved or rejected, produces a structured audit row.
 - Auth: handshake → authenticate → getUsage (20,000 credits).
 - BBS+ VC: issue (`bbs-2023` DataIntegrityProof) + verify; tampered claim →
   `isValid:false` (signature enforced, not a stub).
+- True selective disclosure: issuer signs the full KYC record, holder derives a
+  ZK proof revealing only the accredited flag; forged value / wrong nonce rejected.
 - TEE contract: compiled to a wasm component, registered to the tenant
   (on-chain `contract_id`), and `evaluate()` invoked inside the enclave returning
   approved/rejected with the cluster timestamp and tenant DID.
+- Stateful velocity limit: `spend()` (gate@0.3.0, contract_id 160) — 3 spends in
+  one window, the 3rd rejected once the running total would exceed the cap.
+- Test coverage: 17 offline crypto/protocol tests + 15 Rust unit tests, CI green.
 
 ## Why This Matters
 This is the pattern a bank's trading desk or a permissioned-DeFi / RWA venue

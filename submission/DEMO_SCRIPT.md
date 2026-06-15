@@ -71,13 +71,28 @@ npm run demo:sd
 > — and we had to build the holder-side derive ourselves because the SDK ships
 > the primitive but doesn't wrap it yet."
 
+## Scene 3.6 — Hardware velocity limit (optional bonus, +0:20)
+**Do:**
+```powershell
+cd ../t3-qa
+node velocity-test.mjs
+```
+**Narrate the three `spend` lines:**
+> "One more guarantee: a cumulative spend cap, enforced in the enclave. The daily
+> limit is $5,000. The agent spends $2,000, then $2,000 — both approved. The third
+> $2,000 would push the running total to $6,000, so the contract **rejects** it.
+> That running total lives in the TEE's KV store — the agent can't reset its own
+> budget between calls."
+
 ## Scene 4 — Why it matters (2:40–3:00)
 **On screen:** the four-layer table from `agent/README.md`.
 **Say:**
 > "Identity, verifiable credentials, a hardware-enforced mandate contract, and
-> audit — the full Terminal 3 stack, in one agent. This is the pattern a bank's
-> trading desk or a permissioned-DeFi venue needs: delegate to an agent without
-> handing over data or trust. Thanks for watching."
+> audit — the full Terminal 3 stack, in one agent. And it speaks the ecosystem's
+> languages: it signs its requests with Web Bot Auth and proves its capabilities
+> to other agents over A2A. This is the pattern a bank's trading desk or a
+> permissioned-DeFi venue needs: delegate to an agent without handing over data or
+> trust. Thanks for watching."
 
 ---
 
