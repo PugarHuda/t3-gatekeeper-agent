@@ -1,0 +1,46 @@
+{
+  "$comment": "Agent Card for the Gatekeeper Agent — aligned with the A2A AgentCard and ERC-8004 agent-card shapes so it can be resolved by A2A clients, ERC-8004 registries, and Web Bot Auth verifiers (all protocols the Terminal 3 ADK targets).",
+  "protocolVersion": "0.3.0",
+  "name": "Gatekeeper Agent",
+  "description": "Executes permissioned financial actions on behalf of a user without holding their credentials or data: a BBS+ verifiable-credential eligibility gate plus a hardware-enforced TEE mandate, with per-action audit.",
+  "version": "0.2.0",
+  "url": "https://github.com/PugarHuda/t3-gatekeeper-agent",
+  "did": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
+  "provider": {
+    "organization": "PugarHuda",
+    "url": "https://github.com/PugarHuda"
+  },
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": true
+  },
+  "defaultInputModes": ["application/json"],
+  "defaultOutputModes": ["application/json"],
+  "skills": [
+    {
+      "id": "evaluate-gated-action",
+      "name": "Eligibility-gated permissioned action",
+      "description": "Verify the user is eligible via a BBS+ credential, then enforce a spending mandate (amount, asset, kind, counterparty, time window) inside a Terminal 3 TEE contract before any action is allowed.",
+      "tags": ["identity", "verifiable-credentials", "tee", "mandate", "audit", "permissioned-finance"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"],
+      "examples": [
+        "Prove I'm an accredited investor without revealing my net worth, then buy up to $5,000 of USDC RWA from an approved counterparty."
+      ]
+    }
+  ],
+  "registrations": [
+    { "protocol": "did:t3n", "identifier": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f", "status": "active" },
+    { "protocol": "ERC-8004", "note": "Trustless Agents identity (ERC-721 agent card) — registration is on the roadmap; this file is the resolvable card.", "status": "planned" },
+    { "protocol": "A2A", "note": "This document doubles as the A2A AgentCard.", "status": "active" },
+    { "protocol": "Web Bot Auth", "note": "RFC 9421 HTTP Message Signatures for outbound action requests — on the roadmap.", "status": "planned" }
+  ],
+  "trust": {
+    "execution": { "type": "Intel TDX TEE", "attestation": "verifyTdxQuote; REPORT_DATA bound to the ML-KEM session key" },
+    "credentials": { "type": "W3C Verifiable Credentials", "cryptosuite": "bbs-2023", "selectiveDisclosure": true }
+  },
+  "securitySchemes": {
+    "t3n-session": { "type": "mutualTLS", "description": "Encrypted, attested TEE session opened via T3nClient.handshake()." }
+  }
+}

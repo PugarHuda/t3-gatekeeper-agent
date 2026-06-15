@@ -14,7 +14,7 @@ const WASM_PATH =
   "C:/Hackathons/Terminal 3 Agent Dev Kit Bounty Challenge (Launch Ed)/gate-contract/target/wasm32-wasip2/release/gate_contract.wasm";
 const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 const TAIL = "gate";
-const VERSION = "0.1.1";
+const VERSION = "0.2.0";
 
 const mandate = {
   max_amount_cents: 500_000,           // $5,000 cap

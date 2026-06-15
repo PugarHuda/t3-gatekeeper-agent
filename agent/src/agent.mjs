@@ -33,9 +33,9 @@ console.log(`[2] VC GATE    issuer=${issuerDid.slice(0, 24)}…  verify=${verdic
 if (!eligible) { console.log("ABORT: eligibility gate failed — no action attempted."); process.exit(0); }
 
 // 3 + 4. MANDATE (TEE) + AUDIT
-async function act(label, action) {
+async function act(label, action, mandate = MANDATE) {
   const d = await tenant.contracts.execute(CONTRACT_TAIL, {
-    version: CONTRACT_VERSION, functionName: "evaluate", input: { action, mandate: MANDATE },
+    version: CONTRACT_VERSION, functionName: "evaluate", input: { action, mandate },
   });
   console.log(`\n[3] MANDATE    ${label}\n               TEE decision = ${d.decision.toUpperCase()}` +
     (d.reasons.length ? `  reasons=${JSON.stringify(d.reasons)}` : ""));
@@ -43,8 +43,21 @@ async function act(label, action) {
   return d.decision;
 }
 
+// Core mandate (amount / asset / kind)
 await act("buy $1,000 of USDC RWA", { kind: "rwa.buy", asset: "USDC", amount_cents: 100_000 });
 await act("buy $9,000 of USDC RWA (over mandate)", { kind: "rwa.buy", asset: "USDC", amount_cents: 900_000 });
 await act("swap into DOGE (asset + kind not allowed)", { kind: "swap", asset: "DOGE", amount_cents: 100 });
+
+// Counterparty allow-list (pay only approved payees)
+const CP_MANDATE = { ...MANDATE, allowed_counterparties: ["did:t3n:acme-treasury"] };
+await act("pay APPROVED counterparty (acme-treasury)",
+  { kind: "rwa.buy", asset: "USDC", amount_cents: 100_000, counterparty: "did:t3n:acme-treasury" }, CP_MANDATE);
+await act("pay UNKNOWN counterparty",
+  { kind: "rwa.buy", asset: "USDC", amount_cents: 100_000, counterparty: "did:t3n:unknown-payee" }, CP_MANDATE);
+
+// Valid-after window (a future-dated authorization not yet active)
+const FUTURE_MANDATE = { ...MANDATE, valid_after_secs: 4_102_444_800 }; // year 2100
+await act("future-dated mandate (not yet active)",
+  { kind: "rwa.buy", asset: "USDC", amount_cents: 100_000 }, FUTURE_MANDATE);
 
 console.log("\n✅ Gatekeeper Agent: identity + BBS+ VC gate + hardware mandate + audit — complete.");

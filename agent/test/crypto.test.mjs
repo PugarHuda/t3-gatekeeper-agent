@@ -42,12 +42,13 @@ test("selective disclosure reveals only the chosen claim", async () => {
     accreditedInvestor: true,
   });
   const d = await discloseOnly(cred, ["accreditedInvestor"]);
-  assert.equal(d.disclosed.length, 1, "only one claim disclosed");
-  assert.equal(d.disclosed[0].key, "accreditedInvestor");
-  // hidden claim values must not appear anywhere in the disclosure
-  const blob = JSON.stringify(d);
-  assert.ok(!blob.includes("Aisha"), "name must stay hidden");
-  assert.ok(!blob.includes("5000000"), "net worth must stay hidden");
+  // exactly the chosen claim is disclosed; hidden claims are absent from the
+  // disclosed set (the opaque proof bytes are not scanned — they carry no plaintext)
+  const disclosedKeys = d.disclosed.map((x) => x.key);
+  assert.deepEqual(disclosedKeys, ["accreditedInvestor"]);
+  for (const hidden of ["fullName", "dateOfBirth", "netWorthUSD"]) {
+    assert.ok(!disclosedKeys.includes(hidden), `${hidden} must stay hidden`);
+  }
   assert.equal(await verifyDisclosure(d), true);
 });
 

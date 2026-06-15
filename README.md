@@ -41,7 +41,8 @@ flowchart TD
         │                                   │
    @terminal3/bbs_vc + vc_core      gate-contract (Rust → wasm32-wasip2)
    (predicate credential)           reads mandate from z:<tid>:mandate KV,
-                                    enforces amount / asset / kind / expiry
+                                    enforces amount / asset / kind /
+                                    counterparty / valid-after / expiry
 ```
 
 ## Layout
@@ -51,7 +52,8 @@ flowchart TD
 | `agent/` | The agent runtime (identity + VC gate + contract invoke + audit). `npm run demo`. |
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
 | `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
-| `submission/` | Demo script, BUIDL description, Track B bug reports, and a [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing trace + TDX quote byte layout, verified live). |
+| `submission/` | Demo script, BUIDL description, Track B bug reports, [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing + TDX quote layout), [verification log](submission/VERIFICATION.md), and an [adoption roadmap](submission/ADOPTIONS.md) (A2A / ERC-8004 / Web Bot Auth — cheap/high/out-of-box). |
+| `agent/agent-card.json` | A2A + ERC-8004 style agent card (identity, skills, trust). |
 
 ## Verified end-to-end on T3N testnet
 

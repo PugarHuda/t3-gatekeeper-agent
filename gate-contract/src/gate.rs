@@ -9,6 +9,9 @@ pub struct Action {
     pub kind: String,
     pub asset: String,
     pub amount_cents: u64,
+    /// Optional destination (merchant / payee DID / address) for counterparty gating.
+    #[serde(default)]
+    pub counterparty: Option<String>,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -18,9 +21,17 @@ pub struct Mandate {
     pub allowed_assets: Vec<String>,
     #[serde(default)]
     pub allowed_kinds: Vec<String>,
+    /// Allowed payees. OPT-IN dimension: empty = not enforced; when non-empty the
+    /// action's `counterparty` must be present and listed (or `"*"`).
+    #[serde(default)]
+    pub allowed_counterparties: Vec<String>,
     /// Unix seconds; `0` means "no expiry".
     #[serde(default)]
     pub expires_at_secs: u64,
+    /// Unix seconds; `0` means "active immediately". The mandate is not usable
+    /// before this time (a scheduled / future-dated authorization).
+    #[serde(default)]
+    pub valid_after_secs: u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -36,6 +47,8 @@ pub struct AuditRow {
     pub asset: String,
     pub amount_cents: u64,
     pub max_amount_cents: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub counterparty: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -57,11 +70,18 @@ fn list_allows(list: &[String], value: &str) -> bool {
 
 /// Pure gate logic. Returns `(approved, reasons)`. A failing check appends a
 /// human-readable reason; an empty reason list means every gate passed.
-/// `allowed_*` lists are deny-by-default (empty = nothing allowed; `"*"` = any);
-/// `expires_at_secs == 0` means "no expiry".
+/// `allowed_assets`/`allowed_kinds` are deny-by-default (empty = nothing allowed;
+/// `"*"` = any). `allowed_counterparties` is opt-in (empty = not enforced).
+/// `expires_at_secs`/`valid_after_secs` of 0 disable that time bound.
 pub fn decide(action: &Action, mandate: &Mandate, now_secs: u64) -> (bool, Vec<String>) {
     let mut reasons: Vec<String> = Vec::new();
 
+    if mandate.valid_after_secs != 0 && now_secs < mandate.valid_after_secs {
+        reasons.push(format!(
+            "mandate not active until {} (now {now_secs})",
+            mandate.valid_after_secs
+        ));
+    }
     if mandate.expires_at_secs != 0 && now_secs > mandate.expires_at_secs {
         reasons.push(format!(
             "mandate expired at {} (now {now_secs})",
@@ -79,6 +99,18 @@ pub fn decide(action: &Action, mandate: &Mandate, now_secs: u64) -> (bool, Vec<S
             "asset '{}' not permitted (allowed_assets={:?})",
             action.asset, mandate.allowed_assets
         ));
+    }
+    if !mandate.allowed_counterparties.is_empty() {
+        match action.counterparty.as_deref() {
+            Some(cp) if list_allows(&mandate.allowed_counterparties, cp) => {}
+            Some(cp) => reasons.push(format!(
+                "counterparty '{cp}' not permitted (allowed_counterparties={:?})",
+                mandate.allowed_counterparties
+            )),
+            None => reasons.push(
+                "counterparty required by mandate but none supplied".to_string(),
+            ),
+        }
     }
     if action.amount_cents > mandate.max_amount_cents {
         reasons.push(format!(
@@ -109,6 +141,7 @@ fn build_decision(
             asset: action.asset.clone(),
             amount_cents: action.amount_cents,
             max_amount_cents: mandate.max_amount_cents,
+            counterparty: action.counterparty.clone(),
         },
     }
 }
@@ -126,7 +159,7 @@ pub fn evaluate(input: &[u8]) -> Result<Vec<u8>, String> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         // Host/test path: an inline mandate is required (no KV host available),
-        // and expiry is not enforced because there is no cluster timestamp.
+        // and time bounds are not enforced because there is no cluster timestamp.
         let mandate = req
             .mandate
             .ok_or("evaluate: inline mandate required off the wasm target")?;
@@ -194,29 +227,32 @@ mod tests {
             max_amount_cents: 500_000,
             allowed_assets: vec!["USDC".to_string(), "USD".to_string()],
             allowed_kinds: vec!["rwa.buy".to_string()],
+            allowed_counterparties: vec![],
             expires_at_secs: 0,
+            valid_after_secs: 0,
         }
+    }
+
+    fn action(kind: &str, asset: &str, amount: u64) -> Action {
+        Action { kind: kind.into(), asset: asset.into(), amount_cents: amount, counterparty: None }
     }
 
     #[test]
     fn approves_within_all_bounds() {
-        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 100_000 };
-        let (ok, reasons) = decide(&a, &mandate(), 0);
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 100_000), &mandate(), 0);
         assert!(ok, "expected approval, got {reasons:?}");
     }
 
     #[test]
     fn rejects_over_amount() {
-        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 900_000 };
-        let (ok, reasons) = decide(&a, &mandate(), 0);
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 900_000), &mandate(), 0);
         assert!(!ok);
         assert!(reasons.iter().any(|r| r.contains("exceeds mandate max")));
     }
 
     #[test]
     fn rejects_wrong_asset_and_kind() {
-        let a = Action { kind: "swap".into(), asset: "DOGE".into(), amount_cents: 1 };
-        let (ok, reasons) = decide(&a, &mandate(), 0);
+        let (ok, reasons) = decide(&action("swap", "DOGE", 1), &mandate(), 0);
         assert!(!ok);
         assert!(reasons.iter().any(|r| r.contains("allowed_assets")));
         assert!(reasons.iter().any(|r| r.contains("allowed_kinds")));
@@ -226,33 +262,27 @@ mod tests {
     fn rejects_when_expired() {
         let mut m = mandate();
         m.expires_at_secs = 1000;
-        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 1 };
-        let (ok, reasons) = decide(&a, &m, 2000);
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 1), &m, 2000);
         assert!(!ok);
         assert!(reasons.iter().any(|r| r.contains("expired")));
     }
 
     #[test]
     fn amount_exactly_at_cap_is_approved() {
-        // boundary: amount == max must pass (<=, not <)
-        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 500_000 };
-        let (ok, _) = decide(&a, &mandate(), 0);
+        let (ok, _) = decide(&action("rwa.buy", "USDC", 500_000), &mandate(), 0);
         assert!(ok);
     }
 
     #[test]
     fn one_cent_over_cap_is_rejected() {
-        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 500_001 };
-        let (ok, _) = decide(&a, &mandate(), 0);
+        let (ok, _) = decide(&action("rwa.buy", "USDC", 500_001), &mandate(), 0);
         assert!(!ok);
     }
 
     #[test]
     fn empty_allowlists_deny_by_default() {
-        // security: an unconfigured mandate must NOT approve everything
-        let m = Mandate { max_amount_cents: u64::MAX, allowed_assets: vec![], allowed_kinds: vec![], expires_at_secs: 0 };
-        let a = Action { kind: "rwa.buy".into(), asset: "USDC".into(), amount_cents: 1 };
-        let (ok, reasons) = decide(&a, &m, 0);
+        let m = Mandate { max_amount_cents: u64::MAX, allowed_assets: vec![], allowed_kinds: vec![], allowed_counterparties: vec![], expires_at_secs: 0, valid_after_secs: 0 };
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 1), &m, 0);
         assert!(!ok, "empty allow-lists must deny");
         assert!(reasons.iter().any(|r| r.contains("allowed_kinds")));
         assert!(reasons.iter().any(|r| r.contains("allowed_assets")));
@@ -260,18 +290,64 @@ mod tests {
 
     #[test]
     fn wildcard_allows_any_value() {
-        let m = Mandate { max_amount_cents: 1_000, allowed_assets: vec!["*".into()], allowed_kinds: vec!["*".into()], expires_at_secs: 0 };
-        let a = Action { kind: "anything".into(), asset: "DOGE".into(), amount_cents: 1_000 };
-        let (ok, _) = decide(&a, &m, 0);
+        let m = Mandate { max_amount_cents: 1_000, allowed_assets: vec!["*".into()], allowed_kinds: vec!["*".into()], allowed_counterparties: vec![], expires_at_secs: 0, valid_after_secs: 0 };
+        let (ok, _) = decide(&action("anything", "DOGE", 1_000), &m, 0);
         assert!(ok);
     }
 
     #[test]
     fn asset_match_is_case_sensitive() {
-        // documents intentional exact-match semantics (usdc != USDC)
-        let a = Action { kind: "rwa.buy".into(), asset: "usdc".into(), amount_cents: 1 };
-        let (ok, reasons) = decide(&a, &mandate(), 0);
+        let (ok, reasons) = decide(&action("rwa.buy", "usdc", 1), &mandate(), 0);
         assert!(!ok);
         assert!(reasons.iter().any(|r| r.contains("allowed_assets")));
+    }
+
+    // --- new dimension: counterparty allow-list (opt-in) ---
+    #[test]
+    fn approves_listed_counterparty() {
+        let mut m = mandate();
+        m.allowed_counterparties = vec!["did:t3n:acme".into()];
+        let mut a = action("rwa.buy", "USDC", 1);
+        a.counterparty = Some("did:t3n:acme".into());
+        let (ok, reasons) = decide(&a, &m, 0);
+        assert!(ok, "{reasons:?}");
+    }
+
+    #[test]
+    fn rejects_unlisted_counterparty() {
+        let mut m = mandate();
+        m.allowed_counterparties = vec!["did:t3n:acme".into()];
+        let mut a = action("rwa.buy", "USDC", 1);
+        a.counterparty = Some("did:t3n:evil".into());
+        let (ok, reasons) = decide(&a, &m, 0);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("counterparty 'did:t3n:evil'")));
+    }
+
+    #[test]
+    fn rejects_missing_counterparty_when_required() {
+        let mut m = mandate();
+        m.allowed_counterparties = vec!["did:t3n:acme".into()];
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 1), &m, 0);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("counterparty required")));
+    }
+
+    // --- new dimension: valid-after (not-before) window ---
+    #[test]
+    fn rejects_before_valid_after() {
+        let mut m = mandate();
+        m.valid_after_secs = 5000;
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 1), &m, 1000);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("not active until")));
+    }
+
+    #[test]
+    fn approves_after_valid_after() {
+        let mut m = mandate();
+        m.valid_after_secs = 5000;
+        let (ok, _) = decide(&action("rwa.buy", "USDC", 1), &m, 6000);
+        assert!(ok);
     }
 }
