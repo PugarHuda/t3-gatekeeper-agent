@@ -46,4 +46,13 @@ interface contracts {
     ///                  tenant_did, evaluated_at_secs, mandate_source,
     ///                  audit: { kind, asset, amount_cents, max_amount_cents } }
     evaluate: func(req: generic-input) -> result<list<u8>, string>;
+
+    /// Stateful cumulative-spend gate. Tracks the running total per `window` in
+    /// the `spent` KV map and approves only while `total + amount` stays within
+    /// `daily_limit_cents`. Demonstrates hardware-enforced velocity limits that
+    /// hold ACROSS invocations (the agent cannot reset the counter).
+    /// Input  (JSON): { action:{kind,asset,amount_cents}, daily_limit_cents, window }
+    /// Output (JSON): { decision, spent_before, spent_after, daily_limit_cents,
+    ///                  remaining, window }
+    spend: func(req: generic-input) -> result<list<u8>, string>;
 }

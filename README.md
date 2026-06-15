@@ -69,6 +69,25 @@ Every layer was run against the live testnet, not mocked:
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
   tenant DID resolved host-side.
+- **Stateful velocity limit** — `gate-contract` `spend()` (v0.3.0, contract_id
+  160) tracks a cumulative per-window total in the contract's KV map and rejects
+  once the running total would exceed the cap — **enforced across invocations in
+  hardware** (`t3-qa/velocity-test.mjs`: 3 spends, the 3rd correctly rejected).
+
+## Advanced SDK adoptions (shipped)
+
+Beyond the core gate, the agent layer ships two ecosystem integrations the ADK
+advertises (see [submission/ADOPTIONS.md](submission/ADOPTIONS.md)):
+
+- **Web Bot Auth (RFC 9421)** — `agent/src/web-bot-auth.mjs` signs the agent's
+  outbound action requests with Ed25519 HTTP Message Signatures
+  (`tag="web-bot-auth"`) so a destination can verify the request came from this
+  agent before acting. The "front door" used by Visa TAP / Mastercard Agent Pay.
+- **A2A capability exchange** — `agent/src/a2a.mjs` lets two agents handshake by
+  exchanging a BBS+ capability credential with **selective disclosure**: an agent
+  proves one capability without revealing the rest of its manifest.
+
+Both are covered by offline tests (`npm test` — 17 tests total).
 
 ## Quickstart
 

@@ -209,6 +209,70 @@ fn evaluate_wasm(req: EvaluateReq) -> Result<Vec<u8>, String> {
     serde_json::to_vec(&decision).map_err(|e| e.to_string())
 }
 
+// --- stateful cumulative-spend gate (demonstrates kv-store writes) ---
+
+#[derive(serde::Deserialize)]
+pub struct SpendReq {
+    pub action: Action,
+    pub daily_limit_cents: u64,
+    /// Spend window the running total is bucketed by (e.g. a day string).
+    #[serde(default)]
+    pub window: String,
+}
+
+pub fn spend(input: &[u8]) -> Result<Vec<u8>, String> {
+    let req: SpendReq =
+        serde_json::from_slice(input).map_err(|e| format!("spend: bad input: {e}"))?;
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        spend_wasm(req)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = req;
+        Err("spend is only implemented on the wasm target (needs kv-store)".to_string())
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn spend_wasm(req: SpendReq) -> Result<Vec<u8>, String> {
+    let tid = tenant_context::tenant_did();
+    let tid_hex = hex::encode(&tid);
+    let map = format!("z:{tid_hex}:spent");
+    let key = req.window.as_bytes();
+
+    let before: u64 = match kv_store::get(&map, key).map_err(|e| format!("kv get: {e}"))? {
+        Some(b) => String::from_utf8(b).ok().and_then(|s| s.parse().ok()).unwrap_or(0),
+        None => 0,
+    };
+    let after = before.saturating_add(req.action.amount_cents);
+    let approved = after <= req.daily_limit_cents;
+
+    if approved {
+        // only persist the new total when the action is admitted — the agent
+        // cannot roll this back, so the limit holds across invocations.
+        kv_store::put(&map, key, after.to_string().as_bytes())
+            .map_err(|e| format!("kv put: {e}"))?;
+    }
+
+    let settled = if approved { after } else { before };
+    let resp = serde_json::json!({
+        "decision": if approved { "approved" } else { "rejected" },
+        "spent_before": before,
+        "spent_after": settled,
+        "daily_limit_cents": req.daily_limit_cents,
+        "remaining": req.daily_limit_cents.saturating_sub(settled),
+        "window": req.window,
+    });
+    let _ = logging::info(&format!(
+        "spend window={} amount={} before={before} -> {}",
+        req.window, req.action.amount_cents, if approved { "approved" } else { "rejected" }
+    ));
+    serde_json::to_vec(&resp).map_err(|e| e.to_string())
+}
+
 #[cfg(target_arch = "wasm32")]
 fn read_mandate(tid_hex: &str) -> Result<Mandate, String> {
     let map_name = format!("z:{tid_hex}:mandate");

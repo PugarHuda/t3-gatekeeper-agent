@@ -20,7 +20,7 @@
 
 extern crate alloc;
 
-pub const CONTRACT_VERSION: &str = "0.2.0";
+pub const CONTRACT_VERSION: &str = "0.3.0";
 
 wit_bindgen::generate!({
     world: "gate-contract",
@@ -43,6 +43,13 @@ impl exports::z::gate_contract::contracts::Guest for Component {
     ) -> Result<alloc::vec::Vec<u8>, alloc::string::String> {
         let input = req.input.ok_or("evaluate: missing input")?;
         gate::evaluate(&input)
+    }
+
+    fn spend(
+        req: exports::z::gate_contract::contracts::GenericInput,
+    ) -> Result<alloc::vec::Vec<u8>, alloc::string::String> {
+        let input = req.input.ok_or("spend: missing input")?;
+        gate::spend(&input)
     }
 }
 

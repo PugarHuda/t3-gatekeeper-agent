@@ -7,7 +7,7 @@ import {
 
 export const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 export const CONTRACT_TAIL = "gate";
-export const CONTRACT_VERSION = "0.2.0";
+export const CONTRACT_VERSION = "0.3.0";
 
 // A user's spending mandate — provisioned by the tenant admin, enforced in the TEE.
 export const MANDATE = {

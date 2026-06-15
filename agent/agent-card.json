@@ -3,7 +3,7 @@
   "protocolVersion": "0.3.0",
   "name": "Gatekeeper Agent",
   "description": "Executes permissioned financial actions on behalf of a user without holding their credentials or data: a BBS+ verifiable-credential eligibility gate plus a hardware-enforced TEE mandate, with per-action audit.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "url": "https://github.com/PugarHuda/t3-gatekeeper-agent",
   "did": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
   "provider": {
@@ -28,13 +28,46 @@
       "examples": [
         "Prove I'm an accredited investor without revealing my net worth, then buy up to $5,000 of USDC RWA from an approved counterparty."
       ]
+    },
+    {
+      "id": "velocity-limited-spend",
+      "name": "Hardware-enforced velocity limit",
+      "description": "Track a cumulative per-window spend total inside the TEE contract's KV store and reject once the running total would exceed the cap — enforced across invocations so the agent cannot reset the counter.",
+      "tags": ["tee", "mandate", "velocity-limit", "stateful", "kv-store"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"],
+      "examples": [
+        "Let the agent spend up to $5,000 per day total, no matter how many transactions it splits that across."
+      ]
+    },
+    {
+      "id": "a2a-capability-exchange",
+      "name": "A2A capability exchange",
+      "description": "Prove to a peer agent that this agent holds a required capability via a BBS+ capability credential, disclosing only that capability and hiding the rest of the manifest.",
+      "tags": ["a2a", "verifiable-credentials", "selective-disclosure", "interoperability"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"],
+      "examples": [
+        "Prove I can execute payments to a counterparty agent without revealing my tier, limit, or region."
+      ]
+    },
+    {
+      "id": "web-bot-auth-signing",
+      "name": "Web Bot Auth signed requests",
+      "description": "Sign outbound action requests with RFC 9421 HTTP Message Signatures (Ed25519, web-bot-auth tag) so a destination can cryptographically verify the request came from this agent before acting.",
+      "tags": ["web-bot-auth", "rfc9421", "http-message-signatures", "agentic-commerce"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"],
+      "examples": [
+        "Sign my transfer request so the bank can verify it was issued by this authorized agent."
+      ]
     }
   ],
   "registrations": [
     { "protocol": "did:t3n", "identifier": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f", "status": "active" },
     { "protocol": "ERC-8004", "note": "Trustless Agents identity (ERC-721 agent card) — registration is on the roadmap; this file is the resolvable card.", "status": "planned" },
     { "protocol": "A2A", "note": "This document doubles as the A2A AgentCard.", "status": "active" },
-    { "protocol": "Web Bot Auth", "note": "RFC 9421 HTTP Message Signatures for outbound action requests — on the roadmap.", "status": "planned" }
+    { "protocol": "Web Bot Auth", "note": "RFC 9421 HTTP Message Signatures for outbound action requests — implemented in agent/src/web-bot-auth.mjs.", "status": "active" }
   ],
   "trust": {
     "execution": { "type": "Intel TDX TEE", "attestation": "verifyTdxQuote; REPORT_DATA bound to the ML-KEM session key" },
