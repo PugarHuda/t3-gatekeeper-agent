@@ -3,9 +3,12 @@
 //   2. VC GATE  : verify a BBS+ predicate credential -> eligibility without PII
 //   3. MANDATE  : invoke the gate-contract inside the TEE to enforce the mandate
 //   4. AUDIT    : emit one structured audit row (approved AND rejected)
+//   5. DISPATCH : on approval, sign the outbound action request (Web Bot Auth /
+//                 RFC 9421) so the destination can verify it came from this agent
 import * as vcCore from "@terminal3/vc_core";
 import * as bbs from "@terminal3/bbs_vc";
 import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE } from "./lib.mjs";
+import { generateAgentKey, signRequest, verifyRequest } from "./web-bot-auth.mjs";
 
 // A trusted KYC issuer attests ONLY the predicate the action needs — never the
 // underlying net worth, name, or DOB. (Predicate-credential model: see README.)
@@ -24,6 +27,12 @@ async function issueEligibilityCredential(subjectDid) {
 const { client, tenant, agentDid } = await connect(new URL("../.env", import.meta.url));
 console.log(`[1] IDENTITY   ${agentDid}`);
 
+// The agent's Web Bot Auth signing key (RFC 9421). In production this key is
+// published in a key directory the destination resolves via `keyid`.
+const wba = generateAgentKey();
+const WBA_KEYID = `${agentDid}#wba`;
+const ACTION_ENDPOINT = "https://broker.example/v1/orders"; // the approved action's destination
+
 // 2. VC GATE — verify eligibility before any action is attempted.
 const subject = new bbs.BbsDID(vcCore.randomKeyBls());
 const { vc, issuerDid } = await issueEligibilityCredential(subject.did);
@@ -40,6 +49,18 @@ async function act(label, action, mandate = MANDATE) {
   console.log(`\n[3] MANDATE    ${label}\n               TEE decision = ${d.decision.toUpperCase()}` +
     (d.reasons.length ? `  reasons=${JSON.stringify(d.reasons)}` : ""));
   console.log(`[4] AUDIT      ${JSON.stringify({ ts: d.evaluated_at_secs, agentDid, issuerDid, eligibility: "bbs+ verified", action, decision: d.decision, reasons: d.reasons })}`);
+
+  // 5. DISPATCH — only an APPROVED action is sent on, and it is signed so the
+  // destination (or a Cloudflare/WAF in front of it) can verify the caller.
+  if (d.decision === "approved") {
+    const req = { method: "POST", url: ACTION_ENDPOINT };
+    const headers = signRequest(req, { privateKey: wba.privateKey, keyid: WBA_KEYID });
+    const verifiable = verifyRequest(req, headers, wba.publicKey);
+    console.log(`[5] DISPATCH   POST ${ACTION_ENDPOINT}  signed (web-bot-auth)  destination-verifiable=${verifiable}`);
+    console.log(`               Signature-Input: ${headers["Signature-Input"].slice(0, 72)}…`);
+  } else {
+    console.log(`[5] DISPATCH   skipped — action not approved, nothing sent`);
+  }
   return d.decision;
 }
 

@@ -8,6 +8,8 @@
     "setup": "node src/setup.mjs",
     "demo": "node src/agent.mjs",
     "demo:sd": "node src/agent-sd.mjs",
+    "demo:a2a": "node src/a2a-demo.mjs",
+    "demo:velocity": "node src/velocity-demo.mjs",
     "auth": "node src/auth-check.mjs",
     "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs"
   },

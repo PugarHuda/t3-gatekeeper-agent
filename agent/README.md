@@ -21,6 +21,7 @@ Each action — approved or rejected — produces a structured audit row.
 | Verifiable credential | `@terminal3/bbs_vc` `createBbsCredential` / `verifyBbsVCW3c`, `@terminal3/vc_core` keys+DIDs | `src/agent.mjs` |
 | TEE mandate contract | `TenantClient.contracts.register()` / `execute()` + a Rust→WASM contract | `src/setup.mjs`, `../gate-contract` |
 | Audit | structured per-action row (issuer, decision, reasons) | `src/agent.mjs` |
+| Dispatch | RFC 9421 Web Bot Auth — approved requests are signed so the destination can verify the caller | `src/web-bot-auth.mjs`, `src/agent.mjs` |
 
 ## Run
 
@@ -29,11 +30,20 @@ cp .env.example .env          # paste your T3N_API_KEY + DID from the claim page
 npm install
 # build + register the TEE contract once (see ../gate-contract/README.md to build the wasm):
 npm run setup
-# run the agent: identity -> VC gate -> TEE mandate -> audit
+# run the agent: identity -> VC gate -> TEE mandate -> audit -> signed dispatch
 npm run demo
 ```
 
 `npm run auth` is a quick connectivity check (authenticate + token balance).
+
+### Other entry points
+
+| Command | What it runs |
+| --- | --- |
+| `npm run demo:sd` | True BBS+ selective disclosure (reveal one claim, hide the rest). |
+| `npm run demo:a2a` | A2A capability exchange — prove one capability to a peer, hide the manifest. *(offline)* |
+| `npm run demo:velocity` | Hardware velocity limit — cumulative per-window spend cap held in the TEE across calls. *(needs `npm run setup` first)* |
+| `npm test` | 17 offline tests (crypto, edge cases, A2A, Web Bot Auth). |
 
 ## Two eligibility-gate modes
 
@@ -61,6 +71,8 @@ and the agent verifies it **without ever seeing** the hidden claims. See
 [1] IDENTITY   did:t3n:3d7dd668…
 [2] VC GATE    issuer=did:key:zUC7…  verify=true  predicate=true  -> eligible=true
 [3] MANDATE    buy $1,000 of USDC RWA      TEE decision = APPROVED
+[4] AUDIT      {"decision":"approved",…}
+[5] DISPATCH   POST https://broker.example/v1/orders  signed (web-bot-auth)  destination-verifiable=true
 [3] MANDATE    buy $9,000 of USDC RWA      TEE decision = REJECTED  reasons=["amount 900000 exceeds mandate max 500000"]
-[3] MANDATE    swap into DOGE              TEE decision = REJECTED  reasons=["kind not in allowed_kinds","asset not in allowed_assets"]
+[5] DISPATCH   skipped — action not approved, nothing sent
 ```
