@@ -51,6 +51,10 @@ The agent layer also implements two standards the ADK targets:
   capability credential with **selective disclosure**: an agent proves it holds a
   required capability (e.g. `payments.execute`) without revealing the rest of its
   capability manifest.
+- **Credential-revocation pre-gate.** Before trusting the eligibility VC, the
+  agent checks `@terminal3/revoke_vc` `isRevoked()` against an on-chain status
+  registry — a kill-switch that blocks the action even if the BBS+ proof still
+  verifies. Config-gated (fail-open until a registry + RPC are set).
 
 ## How It Works
 1. **Identity** — `T3nClient.handshake()` + `authenticate()` → the agent's
@@ -83,7 +87,7 @@ The agent layer also implements two standards the ADK targets:
   approved/rejected with the cluster timestamp and tenant DID.
 - Stateful velocity limit: `spend()` (gate@0.5.0, contract_id 165) — 3 spends in
   one window, the 3rd rejected once the running total would exceed the cap.
-- Test coverage: 17 offline crypto/protocol tests + 15 Rust unit tests, CI green.
+- Test coverage: 23 offline crypto/protocol tests + 15 Rust unit tests, CI green.
 
 ## Why This Matters
 This is the pattern a bank's trading desk or a permissioned-DeFi / RWA venue

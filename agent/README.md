@@ -19,6 +19,7 @@ Each action — approved or rejected — produces a structured audit row.
 | --- | --- | --- |
 | Identity | `T3nClient` · `handshake()` · `authenticate()` · `loadWasmComponent()` · `metamask_sign` | `src/lib.mjs` |
 | Verifiable credential | `@terminal3/bbs_vc` `createBbsCredential` / `verifyBbsVCW3c`, `@terminal3/vc_core` keys+DIDs | `src/agent.mjs` |
+| Revocation pre-gate | `@terminal3/revoke_vc` `isRevoked()` — on-chain kill-switch checked before acting (config-gated) | `src/revocation.mjs` |
 | TEE mandate contract | `TenantClient.contracts.register()` / `execute()` + a Rust→WASM contract | `src/setup.mjs`, `../gate-contract` |
 | Audit | structured per-action row (issuer, decision, reasons) | `src/agent.mjs` |
 | Dispatch | RFC 9421 Web Bot Auth — approved requests are signed so the destination can verify the caller | `src/web-bot-auth.mjs`, `src/agent.mjs` |
@@ -43,7 +44,7 @@ npm run demo
 | `npm run demo:sd` | True BBS+ selective disclosure (reveal one claim, hide the rest). |
 | `npm run demo:a2a` | A2A capability exchange — prove one capability to a peer, hide the manifest. *(offline)* |
 | `npm run demo:velocity` | Hardware velocity limit — cumulative per-window spend cap held in the TEE across calls. *(needs `npm run setup` first)* |
-| `npm test` | 17 offline tests (crypto, edge cases, A2A, Web Bot Auth). |
+| `npm test` | 23 offline tests (crypto, edge cases, A2A, Web Bot Auth, revocation). |
 
 ## Two eligibility-gate modes
 
@@ -70,6 +71,7 @@ and the agent verifies it **without ever seeing** the hidden claims. See
 ```
 [1] IDENTITY   did:t3n:3d7dd668…
 [2] VC GATE    issuer=did:key:zUC7…  verify=true  predicate=true  -> eligible=true
+[2b] REVOCATION skipped  (revocation registry not configured)   # enforced when REVOCATION_* set
 [3] MANDATE    buy $1,000 of USDC RWA      TEE decision = APPROVED
 [4] AUDIT      {"decision":"approved",…}
 [5] DISPATCH   POST https://broker.example/v1/orders  signed (web-bot-auth)  destination-verifiable=true

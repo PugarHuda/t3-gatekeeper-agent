@@ -9,6 +9,7 @@ import * as vcCore from "@terminal3/vc_core";
 import * as bbs from "@terminal3/bbs_vc";
 import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE } from "./lib.mjs";
 import { generateAgentKey, signRequest, verifyRequest } from "./web-bot-auth.mjs";
+import { buildOptionsFromEnv, checkRevocation } from "./revocation.mjs";
 
 // A trusted KYC issuer attests ONLY the predicate the action needs — never the
 // underlying net worth, name, or DOB. (Predicate-credential model: see README.)
@@ -40,6 +41,14 @@ const verdict = await bbs.verifyBbsVCW3c(vc);
 const eligible = verdict.isValid === true && vc.credentialSubject.accreditedInvestor === true;
 console.log(`[2] VC GATE    issuer=${issuerDid.slice(0, 24)}…  verify=${verdict.isValid}  predicate=${vc.credentialSubject.accreditedInvestor}  -> eligible=${eligible}`);
 if (!eligible) { console.log("ABORT: eligibility gate failed — no action attempted."); process.exit(0); }
+
+// 2b. REVOCATION pre-gate — a revoked credential is a kill-switch even if the
+// BBS+ proof still verifies. Config-gated: skipped (fail-open) when no registry
+// is set; set REVOCATION_REGISTRY_ADDRESS + REVOCATION_RPC_URL in .env to enforce.
+const revOptions = await buildOptionsFromEnv();
+const rev = await checkRevocation("urn:vc:eligibility:demo", issuerDid, { options: revOptions, failClosed: false });
+console.log(`[2b] REVOCATION ${rev.checked ? (rev.revoked ? "REVOKED" : "valid (not revoked)") : "skipped"}  (${rev.reason})`);
+if (rev.revoked) { console.log("ABORT: credential revoked — no action attempted."); process.exit(0); }
 
 // 3 + 4. MANDATE (TEE) + AUDIT
 async function act(label, action, mandate = MANDATE) {

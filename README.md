@@ -87,7 +87,12 @@ advertises (see [submission/ADOPTIONS.md](submission/ADOPTIONS.md)):
   exchanging a BBS+ capability credential with **selective disclosure**: an agent
   proves one capability without revealing the rest of its manifest.
 
-Both are covered by offline tests (`npm test` — 17 tests total).
+Plus a **credential-revocation pre-gate** (`agent/src/revocation.mjs`,
+`@terminal3/revoke_vc` `isRevoked()`): a revoked credential blocks the action even
+if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
+`REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are set.
+
+These are covered by offline tests (`npm test` — 23 tests total).
 
 ## Quickstart
 
