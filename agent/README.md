@@ -22,7 +22,8 @@ Each action — approved or rejected — produces a structured audit row.
 | Revocation pre-gate | `@terminal3/revoke_vc` `isRevoked()` — on-chain kill-switch checked before acting (config-gated) | `src/revocation.mjs` |
 | TEE mandate contract | `TenantClient.contracts.register()` / `execute()` + a Rust→WASM contract | `src/setup.mjs`, `../gate-contract` |
 | Audit | structured per-action row (issuer, decision, reasons) | `src/agent.mjs` |
-| Dispatch | RFC 9421 Web Bot Auth — approved requests are signed so the destination can verify the caller | `src/web-bot-auth.mjs`, `src/agent.mjs` |
+| Dispatch (sign) | RFC 9421 Web Bot Auth — approved requests are signed so the destination can verify the caller | `src/web-bot-auth.mjs`, `src/agent.mjs` |
+| Dispatch (execute) | In-TEE outbound call via contract `dispatch_action` (host `http`) — action executes in the enclave; egress gated by the host allowlist | `../gate-contract` `dispatch_action`, `src/agent.mjs` |
 
 ## Run
 
@@ -76,6 +77,7 @@ and the agent verifies it **without ever seeing** the hidden claims. See
 [3] MANDATE    buy $1,000 of USDC RWA      TEE decision = APPROVED
 [4] AUDIT      {"decision":"approved",…}
 [5] DISPATCH   POST https://broker.example/v1/orders  signed (web-bot-auth)  destination-verifiable=true
+               in-TEE call -> egress gated: host/http.egress_denied (host not in authorised_hosts allowlist)
 [3] MANDATE    buy $9,000 of USDC RWA      TEE decision = REJECTED  reasons=["amount 900000 exceeds mandate max 500000"]
 [5] DISPATCH   skipped — action not approved, nothing sent
 ```

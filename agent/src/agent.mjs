@@ -59,14 +59,23 @@ async function act(label, action, mandate = MANDATE) {
     (d.reasons.length ? `  reasons=${JSON.stringify(d.reasons)}` : ""));
   console.log(`[4] AUDIT      ${JSON.stringify({ ts: d.evaluated_at_secs, agentDid, issuerDid, eligibility: "bbs+ verified", action, decision: d.decision, reasons: d.reasons })}`);
 
-  // 5. DISPATCH — only an APPROVED action is sent on, and it is signed so the
-  // destination (or a Cloudflare/WAF in front of it) can verify the caller.
+  // 5. DISPATCH — only an APPROVED action is sent on. The request is signed
+  // (web-bot-auth) so the destination can verify the caller, AND it is executed
+  // FROM INSIDE THE TEE via the contract's `dispatch_action` (host `http`), so
+  // the outbound call leaves the enclave — where credentials can be injected via
+  // http-with-placeholders without the agent ever holding them. Real egress is
+  // gated by the host's per-contract authorised_hosts allowlist.
   if (d.decision === "approved") {
     const req = { method: "POST", url: ACTION_ENDPOINT };
     const headers = signRequest(req, { privateKey: wba.privateKey, keyid: WBA_KEYID });
     const verifiable = verifyRequest(req, headers, wba.publicKey);
     console.log(`[5] DISPATCH   POST ${ACTION_ENDPOINT}  signed (web-bot-auth)  destination-verifiable=${verifiable}`);
-    console.log(`               Signature-Input: ${headers["Signature-Input"].slice(0, 72)}…`);
+    const teeResp = await tenant.contracts.execute(CONTRACT_TAIL, {
+      version: CONTRACT_VERSION, functionName: "dispatch_action",
+      input: { url: ACTION_ENDPOINT, method: "POST", body: JSON.stringify(action) },
+    });
+    const out = teeResp.ok ? `executed in TEE (HTTP ${teeResp.code})` : `egress gated: ${teeResp.error}`;
+    console.log(`               in-TEE call -> ${out}`);
   } else {
     console.log(`[5] DISPATCH   skipped — action not approved, nothing sent`);
   }

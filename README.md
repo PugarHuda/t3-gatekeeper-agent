@@ -69,8 +69,8 @@ Every layer was run against the live testnet, not mocked:
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
   tenant DID resolved host-side.
-- **Stateful velocity limit** — `gate-contract` `spend()` (v0.5.0, contract_id
-  165) tracks a cumulative per-window total in the contract's KV map and rejects
+- **Stateful velocity limit** — `gate-contract` `spend()` (v0.6.0, contract_id
+  175) tracks a cumulative per-window total in the contract's KV map and rejects
   once the running total would exceed the cap — **enforced across invocations in
   hardware** (`t3-qa/velocity-test.mjs`: 3 spends, the 3rd correctly rejected).
 
@@ -93,6 +93,16 @@ if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 `REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are set.
 
 These are covered by offline tests (`npm test` — 23 tests total).
+
+And an **in-TEE action dispatch**: on approval, step [5] not only signs the
+request but also executes it **from inside the enclave** via the contract's
+`dispatch_action` (host `http` interface) — the path where `http-with-placeholders`
+injects credentials so the agent never holds them. Verified live: the TEE really
+performs the call and returns a typed `egress_denied` until the destination is on
+the host's per-contract `authorised_hosts` allowlist (a Terminal 3-side config).
+An ERC-8004 on-chain identity is also one funded transaction away
+(`npm run register:erc8004`, real EIP-8004 ABI). See
+[submission/ADOPTIONS.md](submission/ADOPTIONS.md).
 
 ## Quickstart
 

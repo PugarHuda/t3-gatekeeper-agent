@@ -18,6 +18,7 @@ world gate-contract {
     import host:tenant/tenant-context@1.0.0;
     import host:interfaces/logging@2.1.0;
     import host:interfaces/kv-store@2.1.0;
+    import host:interfaces/http@2.1.0;
 
     export contracts;
 }
@@ -55,4 +56,14 @@ interface contracts {
     /// Output (JSON): { decision, spent_before, spent_after, daily_limit_cents,
     ///                  remaining, window }
     spend: func(req: generic-input) -> result<list<u8>, string>;
+
+    /// Dispatch an APPROVED action by making the outbound call FROM INSIDE THE
+    /// TEE via the host `http` interface — so the action executes in the enclave
+    /// (where, via `http-with-placeholders`, credentials can be injected without
+    /// the agent ever holding them). Egress is gated by the host's per-contract
+    /// `authorised_hosts` allowlist: an un-allowlisted host returns a typed
+    /// `egress_denied` rather than executing.
+    /// Input  (JSON): { url, method?("GET"|"POST"...), body? }
+    /// Output (JSON): { ok, code?, body_len?, error? }
+    dispatch-action: func(req: generic-input) -> result<list<u8>, string>;
 }

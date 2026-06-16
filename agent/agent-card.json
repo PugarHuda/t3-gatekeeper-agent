@@ -3,7 +3,7 @@
   "protocolVersion": "0.3.0",
   "name": "Gatekeeper Agent",
   "description": "Executes permissioned financial actions on behalf of a user without holding their credentials or data: a BBS+ verifiable-credential eligibility gate plus a hardware-enforced TEE mandate, with per-action audit.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "url": "https://github.com/PugarHuda/t3-gatekeeper-agent",
   "did": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
   "provider": {

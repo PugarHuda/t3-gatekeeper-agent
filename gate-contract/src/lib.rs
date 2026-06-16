@@ -13,14 +13,14 @@
 //!
 //! # Host-capability requirements
 //! ```json
-//! { "host_capabilities": ["kv_store", "logging", "tenant_context"] }
+//! { "host_capabilities": ["kv_store", "logging", "tenant_context", "http"] }
 //! ```
 #![warn(clippy::style)]
 #![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 
 extern crate alloc;
 
-pub const CONTRACT_VERSION: &str = "0.5.0";
+pub const CONTRACT_VERSION: &str = "0.6.0";
 
 wit_bindgen::generate!({
     world: "gate-contract",
@@ -50,6 +50,13 @@ impl exports::z::gate_contract::contracts::Guest for Component {
     ) -> Result<alloc::vec::Vec<u8>, alloc::string::String> {
         let input = req.input.ok_or("spend: missing input")?;
         gate::spend(&input)
+    }
+
+    fn dispatch_action(
+        req: exports::z::gate_contract::contracts::GenericInput,
+    ) -> Result<alloc::vec::Vec<u8>, alloc::string::String> {
+        let input = req.input.ok_or("dispatch_action: missing input")?;
+        gate::dispatch_action(&input)
     }
 }
 

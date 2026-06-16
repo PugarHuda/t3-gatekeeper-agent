@@ -1,7 +1,7 @@
-// On-chain agent registration via the T3 host `agent-registry` interface.
-// Deploys the registry-enabled wasm under a SEPARATE tail ("idreg") so the
-// production "gate" tail (id 175) is never at risk. First sanity-checks that the
-// new host import didn't break execution (evaluate), then calls register_agent.
+// Does importing host:interfaces/http@2.1.0 work on this testnet host?
+// The official z-tenant-flight example imports it, so it SHOULD — unlike vp /
+// agent-registry. Deploy under a separate tail "httptest"; check evaluate still
+// runs (import is provided, not a brick), then probe an outbound GET.
 import { readFileSync } from "node:fs";
 import {
   T3nClient, TenantClient, loadWasmComponent, setEnvironment,
@@ -13,8 +13,7 @@ for (const line of readFileSync(new URL("./.env", import.meta.url), "utf8").spli
 }
 const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 const WASM = "C:/Hackathons/Terminal 3 Agent Dev Kit Bounty Challenge (Launch Ed)/gate-contract/target/wasm32-wasip2/release/gate_contract.wasm";
-const TAIL = "idreg", VERSION = "0.1.0";
-const AGENT_URI = "https://raw.githubusercontent.com/PugarHuda/t3-gatekeeper-agent/master/agent/agent-card.json";
+const TAIL = "httptest", VERSION = "0.1.0";
 
 setEnvironment("testnet");
 const key = process.env.T3N_API_KEY, tenantDid = process.env.DID;
@@ -30,24 +29,18 @@ try {
   console.log("registered:", JSON.stringify(reg));
 } catch (e) { console.log("register note:", e.message?.slice(0, 160)); }
 
-// 1) sanity: does the agent-registry import leave normal execution intact?
-console.log("\n[1] sanity — evaluate on the registry-enabled contract:");
+console.log("\n[1] sanity — evaluate on the http-enabled contract:");
 try {
   const d = await tenant.contracts.execute(TAIL, { version: VERSION, functionName: "evaluate",
     input: { action: { kind: "rwa.buy", asset: "USDC", amount_cents: 100000 },
              mandate: { max_amount_cents: 500000, allowed_assets: ["USDC"], allowed_kinds: ["rwa.buy"], expires_at_secs: 0 } } });
-  console.log("    evaluate OK ->", d.decision, "(import is harmless ✅)");
+  console.log("    evaluate OK ->", d.decision, "(http import is provided, not a brick ✅)");
 } catch (e) { console.log("    evaluate ERROR:", e.message?.slice(0, 200)); }
 
-// 2) the real thing: register the agent on-chain via the host interface.
-console.log("\n[2] register_agent (on-chain via host agent-registry):");
-try {
-  const r = await tenant.contracts.execute(TAIL, { version: VERSION, functionName: "register_agent",
-    input: { agent_uri: AGENT_URI, owner_eth_hex: address } });
-  console.log("    result:", JSON.stringify(r));
-  if (r && r.registered) console.log(`\nRESULT: on-chain agent registration WORKS ✅ (registry result: ${r.result})`);
-  else console.log(`\nRESULT: host returned a typed failure: ${r?.error ?? JSON.stringify(r)}`);
-} catch (e) {
-  console.log("    execute error:", e.message);
-  console.log("\nRESULT: host rejected register_agent — see error (capability not granted / not exposed at this host).");
+console.log("\n[2] http_probe — outbound GET from inside the TEE:");
+for (const url of ["https://api.github.com/zen", "https://cn-api.sg.testnet.t3n.terminal3.io/"]) {
+  try {
+    const r = await tenant.contracts.execute(TAIL, { version: VERSION, functionName: "http_probe", input: { url } });
+    console.log(`    GET ${url} ->`, JSON.stringify(r));
+  } catch (e) { console.log(`    GET ${url} -> execute error:`, e.message?.slice(0, 160)); }
 }

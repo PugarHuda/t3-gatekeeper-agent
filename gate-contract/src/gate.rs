@@ -273,6 +273,55 @@ fn spend_wasm(req: SpendReq) -> Result<Vec<u8>, String> {
     serde_json::to_vec(&resp).map_err(|e| e.to_string())
 }
 
+// --- in-TEE action dispatch via the host `http` interface ---
+
+#[derive(serde::Deserialize)]
+pub struct DispatchReq {
+    pub url: String,
+    /// HTTP method; defaults to GET.
+    #[serde(default)]
+    pub method: String,
+    /// Optional request body (sent as UTF-8 bytes).
+    #[serde(default)]
+    pub body: String,
+}
+
+pub fn dispatch_action(input: &[u8]) -> Result<Vec<u8>, String> {
+    let req: DispatchReq =
+        serde_json::from_slice(input).map_err(|e| format!("dispatch_action: bad input: {e}"))?;
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        dispatch_action_wasm(req)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = req;
+        Err("dispatch_action is only implemented on the wasm target (needs host http)".to_string())
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn dispatch_action_wasm(req: DispatchReq) -> Result<Vec<u8>, String> {
+    use crate::host::interfaces::http;
+    let method = match req.method.to_ascii_uppercase().as_str() {
+        "POST" => http::Verb::Post,
+        "PUT" => http::Verb::Put,
+        "PATCH" => http::Verb::Patch,
+        "DELETE" => http::Verb::Delete,
+        _ => http::Verb::Get,
+    };
+    let payload = if req.body.is_empty() { None } else { Some(req.body.into_bytes()) };
+    let request = http::Request { method, url: req.url.clone(), headers: None, payload };
+    let json = match http::call(&request) {
+        Ok(resp) => serde_json::json!({ "ok": true, "code": resp.code, "body_len": resp.payload.len() }),
+        Err(e) => serde_json::json!({ "ok": false, "error": e }),
+    };
+    let _ = logging::info(&format!("dispatch_action url={} -> {}", req.url, json));
+    serde_json::to_vec(&json).map_err(|e| e.to_string())
+}
+
 #[cfg(target_arch = "wasm32")]
 fn read_mandate(tid_hex: &str) -> Result<Mandate, String> {
     let map_name = format!("z:{tid_hex}:mandate");

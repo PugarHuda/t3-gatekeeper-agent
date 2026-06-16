@@ -55,6 +55,14 @@ The agent layer also implements two standards the ADK targets:
   agent checks `@terminal3/revoke_vc` `isRevoked()` against an on-chain status
   registry — a kill-switch that blocks the action even if the BBS+ proof still
   verifies. Config-gated (fail-open until a registry + RPC are set).
+- **In-TEE action dispatch.** An approved action is executed from *inside the
+  enclave* via the contract's `dispatch_action` (host `http` interface) — the path
+  where `http-with-placeholders` injects credentials so the agent never holds
+  them. Verified live: the TEE performs the call and returns a typed
+  `egress_denied` until the merchant host is on the per-contract allowlist.
+- **ERC-8004 on-chain identity.** `npm run register:erc8004` mints the agent as an
+  ERC-721 Trustless Agent via the real EIP-8004 `register(agentURI)` ABI (refuses
+  to run without a funded wallet — no fake mint).
 
 ## How It Works
 1. **Identity** — `T3nClient.handshake()` + `authenticate()` → the agent's
@@ -85,7 +93,7 @@ The agent layer also implements two standards the ADK targets:
 - TEE contract: compiled to a wasm component, registered to the tenant
   (on-chain `contract_id`), and `evaluate()` invoked inside the enclave returning
   approved/rejected with the cluster timestamp and tenant DID.
-- Stateful velocity limit: `spend()` (gate@0.5.0, contract_id 165) — 3 spends in
+- Stateful velocity limit: `spend()` (gate@0.6.0, contract_id 175) — 3 spends in
   one window, the 3rd rejected once the running total would exceed the cap.
 - Test coverage: 23 offline crypto/protocol tests + 15 Rust unit tests, CI green.
 
