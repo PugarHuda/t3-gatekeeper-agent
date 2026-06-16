@@ -65,7 +65,7 @@
   ],
   "registrations": [
     { "protocol": "did:t3n", "identifier": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f", "status": "active" },
-    { "protocol": "ERC-8004", "note": "Trustless Agents identity (ERC-721 agent card) — registration is on the roadmap; this file is the resolvable card.", "status": "planned" },
+    { "protocol": "ERC-8004", "note": "Trustless Agents identity (ERC-721, agentURI -> this card). Registration script ready: `npm run register:erc8004` calls IdentityRegistry.register(agentURI); needs a gas-funded wallet + registry address.", "status": "ready-to-register" },
     { "protocol": "A2A", "note": "This document doubles as the A2A AgentCard.", "status": "active" },
     { "protocol": "Web Bot Auth", "note": "RFC 9421 HTTP Message Signatures for outbound action requests — implemented in agent/src/web-bot-auth.mjs.", "status": "active" }
   ],

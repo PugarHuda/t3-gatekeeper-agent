@@ -10,6 +10,7 @@
     "demo:sd": "node src/agent-sd.mjs",
     "demo:a2a": "node src/a2a-demo.mjs",
     "demo:velocity": "node src/velocity-demo.mjs",
+    "register:erc8004": "node src/erc8004-register.mjs",
     "auth": "node src/auth-check.mjs",
     "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs"
   },

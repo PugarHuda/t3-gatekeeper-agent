@@ -28,7 +28,7 @@ Gatekeeper Agent, graded by effort-to-value, with what's shipped vs. roadmap.
 ## 🟣 Out-of-box adopt — differentiators
 | Adoption | What & why |
 | --- | --- |
-| **ERC-8004 on-chain identity + reputation** | Mint the agent as an **ERC-721 "Trustless Agent"** pointing to `agent-card.json`, and accrue on-chain **reputation** from audited outcomes. ERC-8004 went live on Ethereum mainnet **29 Jan 2026** with 21k+ agents; authored by MetaMask/EF/Google/Coinbase. Our per-action audit rows are exactly the signal a reputation oracle consumes. |
+| **ERC-8004 on-chain identity + reputation** | Mint the agent as an **ERC-721 "Trustless Agent"** whose `agentURI` resolves to our `agent-card.json`, and accrue on-chain **reputation** from audited outcomes. ERC-8004 went live on Ethereum mainnet **29 Jan 2026** with 21k+ agents; authored by MetaMask/EF/Google/Coinbase. Our per-action audit rows are exactly the signal a reputation oracle consumes. **Registration script shipped** (`agent/src/erc8004-register.mjs`, `npm run register:erc8004`): real `ethers` call to `IdentityRegistry.register(agentURI)` with the exact EIP-8004 ABI, reads back the minted `agentId` from the `Registered` event. Refuses to run until a gas-funded wallet + registry address are configured (no fake mint) — so the only thing left to "turn it on" is funding, not code. |
 | **AP2 / agentic-commerce rails** | Align the mandate + Web Bot Auth path with **Google AP2** and **Visa/Mastercard** agent-pay so the Gatekeeper can transact at real merchants under hardware-bounded delegation. |
 
 ## References
