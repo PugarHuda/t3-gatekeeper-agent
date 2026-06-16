@@ -174,33 +174,44 @@ claim → HTTP 500: Internal error [<request_id>] ({"code":"internal_error", ...
 
 ---
 
-## Report 7 — Contract importing `host:interfaces/vp@2.1.0` registers, but every `execute` then returns HTTP 500
-**Type:** bug (backend / WIT) · **Severity:** high · **Surface:** host `vp` interface + contract runtime
+## Report 7 — A tenant contract that imports ANY host interface beyond the base three registers, but then 500s on every `execute`
+**Type:** bug (backend / WIT) · **Severity:** high · **Surface:** host interfaces + contract runtime
 
-**Description.** The `interfaces` world in `wit/deps/host-interfaces-2.1.0/package.wit`
-exports `vp` (line ~694), and the `vp` interface defines `verify: func(verify-vp-request)
--> result<verify-vp-response, verify-vp-error>`. However, the doc comment on that
-function says it is *"host:interfaces@2.2.0"* — i.e. the **verify** capability post-dates
-the 2.1.0 package it ships in. We added `import host:interfaces/vp@2.1.0;` to a contract
-world and an entry point that calls `vp::verify`. The wasm builds and **registers
-successfully** (`contract_id 164` on testnet), but invoking ANY function on that
-contract returns:
+**Description.** A working tenant contract imports only `host:tenant/tenant-context`,
+`host:interfaces/logging`, and `host:interfaces/kv-store`. The `interfaces` world in
+`wit/deps/host-interfaces-2.1.0/package.wit` exports many more (`vp`, `agent-registry`,
+`did-registry`, `signing`, `http`, `token`, …). But importing any of those *extra*
+interfaces produces a contract that **registers successfully yet 500s on EVERY
+invocation** — including functions that don't touch the new import.
+
+We hit this twice, independently:
+- `import host:interfaces/vp@2.1.0;` + a `verify_vp` calling `vp::verify` → registers as
+  `contract_id 164`; both `verify_vp` AND the pre-existing `evaluate` then return HTTP 500.
+  (Aside: `vp.verify`'s own doc comment says it is `host:interfaces@2.2.0`, i.e. it
+  post-dates the 2.1.0 package it's declared in.)
+- `import host:interfaces/agent-registry@2.1.0;` + a `register_agent` calling
+  `agent_registry::register_agent` → registers as `contract_id 170`; both `register_agent`
+  AND `evaluate` return HTTP 500.
+
+In every case the error is a generic
 ```
 HTTP 500: Internal error [<request_id>] ({"code":"internal_error","request_id":"…"})
 ```
-— not a typed `verify-vp-error` (e.g. `issuer-untrusted`), and not only for `verify_vp`
-but for the contract's *other* functions too (`evaluate` 500s as well). So merely
-importing `vp` at 2.1.0 makes the whole contract un-executable on the current testnet host.
+never a typed result/error from the interface. So the WIT advertises host capabilities to
+tenant contracts that the runtime does not actually provide, and the failure surfaces only
+at invoke time (and bricks the whole contract, not just the new function).
 
-**Reproduction.** `t3-qa/vp-verify-test.mjs` (targets the already-deployed
-`contract_id 164`): register a contract whose world imports `host:interfaces/vp@2.1.0`
-and exports a `verify_vp` that calls `vp::verify`, then `contracts.execute(... "verify_vp" ...)`.
-**Expected.** Either the host satisfies the `vp` import and `verify` returns a typed
-result/error, OR registration is rejected up-front if the host can't provide `vp` at that
-version. **Actual.** Registration succeeds; every execute traps to a generic HTTP 500.
-**Fix.** Gate `vp.verify` behind the version that actually implements it (2.2.0) and reject
-registration of a contract whose imports the host can't satisfy, instead of accepting it
-and 500-ing at invoke time. Document the minimum host-interfaces version for `vp.verify`.
+**Reproduction.** `t3-qa/vp-verify-test.mjs` (vs deployed `contract_id 164`) and
+`t3-qa/agent-registry-test.mjs` (vs deployed `contract_id 170`): each registers a contract
+importing one extra host interface and then `execute`s it — register succeeds, execute 500s.
+**Expected.** Either the host satisfies these imports for tenant contracts, OR registration
+is **rejected up-front** when the host can't provide an imported interface — not accepted and
+500-ed at invoke time. **Impact.** A developer following the WIT (which lists `vp`,
+`agent-registry`, etc. as available) builds a contract that deploys cleanly and only fails,
+opaquely, in production. **Fix.** Validate a contract's imported world against the host's
+actually-provided interface set at register time and return a typed rejection; document which
+`host:interfaces` are available to tenant contracts at each host version (today: only
+`tenant-context`, `logging`, `kv-store`).
 
 ---
 
