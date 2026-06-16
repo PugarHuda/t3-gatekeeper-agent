@@ -1,7 +1,9 @@
-# Gatekeeper Agent — Demo Video Script (~2.5 min)
+# Gatekeeper Agent — Demo Video Script (~3 min)
 
-Goal: show the agent chaining **all four** Terminal 3 SDK layers, live on testnet.
-Record the terminal at ~120 cols. Total ~2.5 min. Keep the API key off-screen.
+Goal: show the agent chaining the Terminal 3 SDK end to end, live on testnet —
+identity, BBS+ VC gate, revocation, hardware mandate, audit, and a signed +
+in-TEE-executed dispatch. Record the terminal at ~120 cols. Keep the API key
+off-screen.
 
 ---
 
@@ -24,7 +26,7 @@ Record the terminal at ~120 cols. Total ~2.5 min. Keep the API key off-screen.
 cd gate-contract
 cargo +stable-x86_64-pc-windows-gnu test --target x86_64-pc-windows-gnu
 ```
-> "Five gate tests, green."
+> "Fifteen gate tests, green."
 
 ## Scene 2 — Build + deploy (0:45–1:15)
 **Do:**
@@ -37,7 +39,7 @@ npm run setup
 > "We compile to a wasm component and register it to our tenant on testnet —
 > that's a real on-chain contract id."
 
-## Scene 3 — Run the agent (1:15–2:10)
+## Scene 3 — Run the agent (1:15–2:15)
 **Do:**
 ```powershell
 npm run demo
@@ -49,11 +51,20 @@ npm run demo
 > *accredited investor = true*. Notice what's NOT here: no net worth, no name,
 > no date of birth. We verify it cryptographically — and a tampered claim would
 > fail.
+> **[2b] Revocation** — before acting, the agent checks an on-chain revocation
+> registry. A revoked credential is a kill-switch, even if the proof still
+> verifies. (Here it's skipped until a registry is configured.)
 > **[3] Mandate** — now the agent asks the TEE contract to approve an action.
 > A $1,000 RWA buy is **approved**. A $9,000 buy is **rejected** — over the cap.
 > A DOGE swap is **rejected** — wrong asset and wrong action kind.
 > **[4] Audit** — every decision, approved or rejected, produces a structured
-> audit row with the issuer, the action and the reason."
+> audit row with the issuer, the action and the reason.
+> **[5] Dispatch** — and only on approval, the request is **signed with Web Bot
+> Auth** so the destination can verify the caller, *and* executed **from inside
+> the TEE** via the contract's `dispatch_action`. Watch the in-TEE call: it
+> returns `egress_denied` — the enclave really made the outbound call; the host's
+> per-contract allowlist just hasn't whitelisted this merchant yet. That's the
+> credential-injection path where the agent never holds the secret."
 
 ## Scene 3.5 — True selective disclosure (the showstopper) (2:10–2:40)
 **Do:**
@@ -84,20 +95,21 @@ node velocity-test.mjs
 > That running total lives in the TEE's KV store — the agent can't reset its own
 > budget between calls."
 
-## Scene 4 — Why it matters (2:40–3:00)
-**On screen:** the four-layer table from `agent/README.md`.
+## Scene 4 — Why it matters (2:40–3:05)
+**On screen:** the SDK-layer table from `agent/README.md`.
 **Say:**
-> "Identity, verifiable credentials, a hardware-enforced mandate contract, and
-> audit — the full Terminal 3 stack, in one agent. And it speaks the ecosystem's
-> languages: it signs its requests with Web Bot Auth and proves its capabilities
-> to other agents over A2A. This is the pattern a bank's trading desk or a
-> permissioned-DeFi venue needs: delegate to an agent without handing over data or
-> trust. Thanks for watching."
+> "Identity, verifiable credentials, revocation, a hardware-enforced mandate
+> contract, audit, and an action that's both signed and executed inside the
+> enclave — the full Terminal 3 stack, in one agent. It also speaks the
+> ecosystem's languages: Web Bot Auth on the way out and A2A capability exchange
+> agent-to-agent. This is the pattern a bank's trading desk or a permissioned-DeFi
+> venue needs: delegate to an agent without handing over data or trust. Thanks for
+> watching."
 
 ---
 
 ### Capture checklist
 - [ ] `.env` filled with a FRESH key (rotate the exposed one first).
-- [ ] Terminal font large enough to read the tagged `[1]…[4]` lines.
+- [ ] Terminal font large enough to read the tagged `[1]…[5]` lines.
 - [ ] Pause ~1s on `contract_id` and on each APPROVED/REJECTED line.
 - [ ] Don't show the key: run `npm run setup` in a shell where `.env` was already loaded, or clear scrollback.
