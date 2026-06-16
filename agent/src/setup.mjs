@@ -23,13 +23,24 @@ try {
 }
 
 // The stateful velocity gate (`spend`) keeps its running total in this KV map.
-// Restrict writers to the contract so the agent can't tamper with the counter.
+// Restrict BOTH read and write to THIS contract so the agent can neither read
+// nor tamper with the counter (spend() reads the running total, then writes it).
+// The contract id changes on every re-register, so we always (re)point the map's
+// ACL at the current contract — create it the first time, update it after.
+const acl = contractId ? { only: [contractId] } : "all";
 try {
-  const map = await tenant.maps.create({
-    tail: "spent", visibility: "private",
-    writers: contractId ? { only: [contractId] } : "all",
-  });
+  const map = await tenant.maps.create({ tail: "spent", visibility: "private", readers: acl, writers: acl });
   console.log("Spend map ✅", JSON.stringify(map));
 } catch (e) {
-  console.log("Spend map note (ok if it already exists):", e.message);
+  // Map already exists — re-sync its reader/writer ACL to the current contract id.
+  if (contractId) {
+    try {
+      await tenant.maps.update("spent", { readers: acl, writers: acl });
+      console.log(`Spend map ACL re-pointed to contract ${contractId} ✅`);
+    } catch (e2) {
+      console.log("Spend map ACL update note:", e2.message);
+    }
+  } else {
+    console.log("Spend map note (exists; re-register the contract to re-point its ACL):", e.message);
+  }
 }

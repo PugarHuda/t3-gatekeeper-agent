@@ -171,3 +171,60 @@ a fresh `request_id` and confirm it isn't environment-specific before submitting
 ```
 claim → HTTP 500: Internal error [<request_id>] ({"code":"internal_error", ...})
 ```
+
+---
+
+## Report 7 — Contract importing `host:interfaces/vp@2.1.0` registers, but every `execute` then returns HTTP 500
+**Type:** bug (backend / WIT) · **Severity:** high · **Surface:** host `vp` interface + contract runtime
+
+**Description.** The `interfaces` world in `wit/deps/host-interfaces-2.1.0/package.wit`
+exports `vp` (line ~694), and the `vp` interface defines `verify: func(verify-vp-request)
+-> result<verify-vp-response, verify-vp-error>`. However, the doc comment on that
+function says it is *"host:interfaces@2.2.0"* — i.e. the **verify** capability post-dates
+the 2.1.0 package it ships in. We added `import host:interfaces/vp@2.1.0;` to a contract
+world and an entry point that calls `vp::verify`. The wasm builds and **registers
+successfully** (`contract_id 164` on testnet), but invoking ANY function on that
+contract returns:
+```
+HTTP 500: Internal error [<request_id>] ({"code":"internal_error","request_id":"…"})
+```
+— not a typed `verify-vp-error` (e.g. `issuer-untrusted`), and not only for `verify_vp`
+but for the contract's *other* functions too (`evaluate` 500s as well). So merely
+importing `vp` at 2.1.0 makes the whole contract un-executable on the current testnet host.
+
+**Reproduction.** `t3-qa/vp-verify-test.mjs` (targets the already-deployed
+`contract_id 164`): register a contract whose world imports `host:interfaces/vp@2.1.0`
+and exports a `verify_vp` that calls `vp::verify`, then `contracts.execute(... "verify_vp" ...)`.
+**Expected.** Either the host satisfies the `vp` import and `verify` returns a typed
+result/error, OR registration is rejected up-front if the host can't provide `vp` at that
+version. **Actual.** Registration succeeds; every execute traps to a generic HTTP 500.
+**Fix.** Gate `vp.verify` behind the version that actually implements it (2.2.0) and reject
+registration of a contract whose imports the host can't satisfy, instead of accepting it
+and 500-ing at invoke time. Document the minimum host-interfaces version for `vp.verify`.
+
+---
+
+## Report 8 — Registering a new version under a tail makes the host run the LATEST version for every `execute`, so a broken deploy bricks previously-working versions
+**Type:** bug (backend) · **Severity:** high · **Surface:** `contracts.register` / `contracts.execute` versioning
+
+**Description.** After a working `gate@0.3.0` (`contract_id 160`), we registered a
+`gate@0.4.0` that imports `vp` (see Report 7). From that point, `contracts.execute("gate",
+{ version: "0.3.0", … })` — explicitly pinning the **old, good** version — began returning
+HTTP 500 as well. I.e. the host appears to resolve `execute` to the **latest** registered
+version for the tail regardless of the `version` field, so deploying a broken newer version
+takes down callers that pinned an older, working one. Recovery required registering a
+*higher* clean version (`gate@0.5.0`, `contract_id 165`) to make "latest" healthy again.
+**Expected.** `execute` honours the pinned `version` (a bad `0.4.0` must not break a pinned
+`0.3.0`), or registration of a non-executable contract is refused (Report 7). **Actual.**
+The newest registered version shadows all prior versions for execution.
+**Secondary (doc gap).** There is no API to fetch the current `contract_id` for a tail; after
+a re-register the id changes, which matters because a private KV map's reader/writer ACL is
+keyed by `contract_id`. Re-registering a contract silently breaks any map ACL pinned to the
+previous id, and a contract needs to be in **both** the `readers` AND `writers` set of a
+private map to read-modify-write its own state (a write-only ACL yields `read denied`). None
+of this is documented.
+
+---
+
+> Reports 7–8 were found while extending the contract to do in-TEE VP verification; the
+> Gatekeeper Agent ships on the clean `gate@0.5.0` and does not import `vp`.

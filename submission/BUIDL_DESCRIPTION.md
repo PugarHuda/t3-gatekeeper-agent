@@ -81,7 +81,7 @@ The agent layer also implements two standards the ADK targets:
 - TEE contract: compiled to a wasm component, registered to the tenant
   (on-chain `contract_id`), and `evaluate()` invoked inside the enclave returning
   approved/rejected with the cluster timestamp and tenant DID.
-- Stateful velocity limit: `spend()` (gate@0.3.0, contract_id 160) — 3 spends in
+- Stateful velocity limit: `spend()` (gate@0.5.0, contract_id 165) — 3 spends in
   one window, the 3rd rejected once the running total would exceed the cap.
 - Test coverage: 17 offline crypto/protocol tests + 15 Rust unit tests, CI green.
 

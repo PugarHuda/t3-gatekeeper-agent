@@ -69,8 +69,8 @@ Every layer was run against the live testnet, not mocked:
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
   tenant DID resolved host-side.
-- **Stateful velocity limit** — `gate-contract` `spend()` (v0.3.0, contract_id
-  160) tracks a cumulative per-window total in the contract's KV map and rejects
+- **Stateful velocity limit** — `gate-contract` `spend()` (v0.5.0, contract_id
+  165) tracks a cumulative per-window total in the contract's KV map and rejects
   once the running total would exceed the cap — **enforced across invocations in
   hardware** (`t3-qa/velocity-test.mjs`: 3 spends, the 3rd correctly rejected).
 

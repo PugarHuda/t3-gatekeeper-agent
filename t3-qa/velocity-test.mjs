@@ -1,4 +1,4 @@
-// Stateful velocity limit: register gate@0.3.0, create the `spent` KV map, then
+// Stateful velocity limit: register gate@0.5.0, create the `spent` KV map, then
 // spend 3x in one window — the running total is held in the TEE across calls.
 import { readFileSync } from "node:fs";
 import {
@@ -11,7 +11,7 @@ for (const line of readFileSync(new URL("./.env", import.meta.url), "utf8").spli
 }
 const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 const WASM = "C:/Hackathons/Terminal 3 Agent Dev Kit Bounty Challenge (Launch Ed)/gate-contract/target/wasm32-wasip2/release/gate_contract.wasm";
-const TAIL = "gate", VERSION = "0.3.0";
+const TAIL = "gate", VERSION = "0.5.0";
 
 setEnvironment("testnet");
 const key = process.env.T3N_API_KEY, tenantDid = process.env.DID;
