@@ -7,6 +7,21 @@ Deadline: **22 Jun 2026 23:59 GMT+8**. Repo: https://github.com/PugarHuda/t3-gat
 
 ## 1. Record the demo video (~2.5–3 min)
 Script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). Capture at ~120 cols, key off-screen.
+
+**Credit budget** (measured: 1 contract `execute` ≈ **31 credits**; `getUsage`/auth ~free):
+| Command | ~Executes | ~Credits |
+| --- | --- | --- |
+| `npm run setup` (register/deploy) | — | **expensive — SKIP, gate@0.6.0/175 is already deployed** |
+| `npm run demo` | ~8 (6 evaluate + 2 dispatch) | ~250 |
+| `npm run demo:sd` | full SD flow | ~250 |
+| `npm run demo:velocity` | 3 spends | ~95 |
+| `npm run demo:a2a`, `register:erc8004` | 0 (offline) | 0 |
+> One full recording pass ≈ **~600 credits**. **Do NOT run `npm run setup`** during
+> recording — the contract is already live, and re-deploying is the only expensive
+> op. With a fresh 20,000-token key that's ~30 passes; even a partially-used key
+> with ~2,000 left is ~3 passes. Re-claiming a key for the **same** Google account
+> returns the **same** DID and does **not** refill credits — a fresh balance needs a
+> new account (which would orphan the deployed contracts, so prefer to conserve).
 - [ ] Scene 1–2: contract unit tests + build (`cargo +stable-x86_64-pc-windows-gnu test --target x86_64-pc-windows-gnu`, then `--release` build)
 - [ ] Scene 3: `npm run demo` — narrate `[1] identity → [2] VC gate → [2b] revocation → [3] mandate (approve/reject) → [4] audit → [5] sign + in-TEE dispatch`
 - [ ] Scene 3.5: `npm run demo:sd` — true selective disclosure (the showstopper)
