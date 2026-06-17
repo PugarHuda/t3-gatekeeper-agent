@@ -1,6 +1,6 @@
 // Gatekeeper Agent (selective-disclosure variant).
 //
-// Same four-layer flow as agent.mjs, but the eligibility gate now uses TRUE BBS+
+// Same core flow as agent.mjs, but the eligibility gate now uses TRUE BBS+
 // selective disclosure: the issuer signs the user's FULL KYC record once, the
 // holder derives a proof revealing ONLY `accreditedInvestor`, and the agent
 // verifies it without ever seeing the name / DOB / net worth.

@@ -7,9 +7,11 @@
 > proven by a **BBS+ verifiable credential**; the spending bound is enforced by a
 > **TEE contract in hardware**; every action is **audited**.
 
-This submission deliberately exercises **all four layers** of the Terminal 3 SDK
-in one coherent flow — not just authentication — to maximise the *"how well
-integrated is the SDK in its entirety"* criterion.
+This submission deliberately exercises **the full breadth** of the Terminal 3 SDK
+in one coherent flow — identity, verifiable credentials, revocation, a
+hardware-enforced TEE contract, audit, and a signed + in-TEE-executed dispatch —
+not just authentication — to maximise the *"how well integrated is the SDK in its
+entirety"* criterion.
 
 ```mermaid
 flowchart TD
@@ -65,7 +67,7 @@ Every layer was run against the live testnet, not mocked:
 - **True selective disclosure** — issuer signs a full record, holder derives a ZK
   proof revealing only one claim, verifier accepts; forged value / wrong nonce
   rejected (`npm run demo:sd`).
-- **TEE contract** — `gate-contract` compiled to a 156 KB wasm component,
+- **TEE contract** — `gate-contract` compiled to a ~187 KB wasm component,
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
   tenant DID resolved host-side.
