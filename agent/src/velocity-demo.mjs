@@ -9,7 +9,9 @@ const { tenant } = await connect(new URL("../.env", import.meta.url));
 
 const DAILY_LIMIT = 500_000; // $5,000
 const window = "demo-" + Math.floor(Date.now() / 1000); // fresh window per run
+const PAUSE_MS = Number(process.env.DEMO_PAUSE_MS || 0); // recording pacing
 const spend = async (amount) => {
+  if (PAUSE_MS > 0) await new Promise((r) => setTimeout(r, PAUSE_MS));
   const r = await tenant.contracts.execute(CONTRACT_TAIL, {
     version: CONTRACT_VERSION, functionName: "spend",
     input: { action: { kind: "rwa.buy", asset: "USDC", amount_cents: amount }, daily_limit_cents: DAILY_LIMIT, window },

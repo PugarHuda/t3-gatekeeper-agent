@@ -34,6 +34,11 @@ const wba = generateAgentKey();
 const WBA_KEYID = `${agentDid}#wba`;
 const ACTION_ENDPOINT = "https://broker.example/v1/orders"; // the approved action's destination
 
+// Optional pacing for demo recording: `DEMO_PAUSE_MS=2500 npm run demo` waits
+// between scenarios so a live voice-over can land on each line. Default 0 (off).
+const PAUSE_MS = Number(process.env.DEMO_PAUSE_MS || 0);
+const pace = () => (PAUSE_MS > 0 ? new Promise((r) => setTimeout(r, PAUSE_MS)) : Promise.resolve());
+
 // 2. VC GATE — verify eligibility before any action is attempted.
 const subject = new bbs.BbsDID(vcCore.randomKeyBls());
 const { vc, issuerDid } = await issueEligibilityCredential(subject.did);
@@ -55,6 +60,7 @@ const briefErr = (e) => String(e?.message ?? e).replace(/\s+/g, " ").slice(0, 16
 
 // 3 + 4. MANDATE (TEE) + AUDIT
 async function act(label, action, mandate = MANDATE) {
+  await pace(); // recording pacing (no-op unless DEMO_PAUSE_MS is set)
   let d;
   try {
     d = await tenant.contracts.execute(CONTRACT_TAIL, {

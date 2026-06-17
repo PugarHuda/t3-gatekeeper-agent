@@ -10,6 +10,10 @@ import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE } from "./lib.mjs";
 const { tenant, agentDid } = await connect(new URL("../.env", import.meta.url));
 console.log(`[1] IDENTITY   ${agentDid}`);
 
+// Optional pacing for demo recording (DEMO_PAUSE_MS=2500 npm run demo:sd).
+const PAUSE_MS = Number(process.env.DEMO_PAUSE_MS || 0);
+const pace = () => (PAUSE_MS > 0 ? new Promise((r) => setTimeout(r, PAUSE_MS)) : Promise.resolve());
+
 // --- 2. VC GATE via selective disclosure ---
 // Issuer (trusted KYC provider) signs the full record.
 const fullRecord = {
@@ -37,6 +41,7 @@ if (!eligible) { console.log("ABORT: eligibility gate failed."); process.exit(0)
 
 // --- 3 + 4. MANDATE (TEE) + AUDIT ---
 async function act(label, action) {
+  await pace(); // recording pacing (no-op unless DEMO_PAUSE_MS is set)
   const d = await tenant.contracts.execute(CONTRACT_TAIL, {
     version: CONTRACT_VERSION, functionName: "evaluate", input: { action, mandate: MANDATE },
   });
