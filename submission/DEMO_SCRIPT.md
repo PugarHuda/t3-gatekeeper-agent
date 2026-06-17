@@ -66,7 +66,7 @@ npm run demo
 > per-contract allowlist just hasn't whitelisted this merchant yet. That's the
 > credential-injection path where the agent never holds the secret."
 
-## Scene 3.5 — True selective disclosure (the showstopper) (2:10–2:40)
+## Scene 3.5 — True selective disclosure (the showstopper) (2:15–2:45)
 **Do:**
 ```powershell
 npm run demo:sd
@@ -95,7 +95,7 @@ node velocity-test.mjs
 > That running total lives in the TEE's KV store — the agent can't reset its own
 > budget between calls."
 
-## Scene 4 — Why it matters (2:40–3:05)
+## Scene 4 — Why it matters (2:45–3:10)
 **On screen:** the SDK-layer table from `agent/README.md`.
 **Say:**
 > "Identity, verifiable credentials, revocation, a hardware-enforced mandate
