@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0}
+  #stage{width:480px;height:480px}
+</style>
+</head>
+<body>
+<div id="stage">
+<svg width="480" height="480" viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"   stop-color="#0B1B3A"/>
+      <stop offset="0.55" stop-color="#16335F"/>
+      <stop offset="1"   stop-color="#0E5C5A"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5EE6C8"/>
+      <stop offset="1" stop-color="#2BB8E8"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7CF2D6"/>
+      <stop offset="1" stop-color="#2BB8E8"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- background tile -->
+  <rect x="0" y="0" width="480" height="480" rx="104" fill="url(#bg)"/>
+
+  <!-- faint enclave grid -->
+  <g stroke="#3AA0C8" stroke-width="1.2" opacity="0.14">
+    <path d="M70 150 H410 M70 240 H410 M70 330 H410"/>
+    <path d="M160 70 V410 M240 70 V410 M320 70 V410"/>
+  </g>
+
+  <!-- gate pillars (the 'gatekeeper') -->
+  <g fill="#9FE8FF" opacity="0.16">
+    <rect x="92"  y="150" width="26" height="206" rx="8"/>
+    <rect x="362" y="150" width="26" height="206" rx="8"/>
+    <rect x="80"  y="150" width="320" height="22" rx="11"/>
+  </g>
+
+  <!-- shield -->
+  <g filter="url(#soft)">
+    <path d="M240 86
+             C 300 120, 352 128, 388 132
+             C 388 250, 360 332, 240 396
+             C 120 332, 92 250, 92 132
+             C 128 128, 180 120, 240 86 Z"
+          fill="url(#shield)"/>
+    <path d="M240 86
+             C 300 120, 352 128, 388 132
+             C 388 250, 360 332, 240 396
+             C 120 332, 92 250, 92 132
+             C 128 128, 180 120, 240 86 Z"
+          fill="none" stroke="url(#rim)" stroke-width="6" opacity="0.9"/>
+  </g>
+
+  <!-- inner shield darken for contrast -->
+  <path d="M240 116
+           C 292 144, 334 150, 362 153
+           C 362 244, 338 312, 240 366
+           C 142 312, 118 244, 118 153
+           C 146 150, 188 144, 240 116 Z"
+        fill="#0C2444" opacity="0.92"/>
+
+  <!-- keyhole (credential / privacy) -->
+  <g fill="url(#shield)">
+    <circle cx="240" cy="214" r="40"/>
+    <path d="M222 240 h36 l10 78 h-56 z"/>
+  </g>
+
+  <!-- verified checkmark badge -->
+  <g transform="translate(300,300)">
+    <circle cx="0" cy="0" r="46" fill="#0C2444"/>
+    <circle cx="0" cy="0" r="46" fill="none" stroke="#5EE6C8" stroke-width="5"/>
+    <path d="M-20 2 L-6 18 L22 -18" fill="none" stroke="#5EE6C8"
+          stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+</body>
+</html>
