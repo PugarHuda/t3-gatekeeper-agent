@@ -95,13 +95,13 @@ The agent layer also implements two standards the ADK targets:
   approved/rejected with the cluster timestamp and tenant DID.
 - Stateful velocity limit: `spend()` (gate@0.6.0, contract_id 175) — 3 spends in
   one window, the 3rd rejected once the running total would exceed the cap.
-- Test coverage: 23 offline crypto/protocol tests + 15 Rust unit tests, CI green.
+- Test coverage: 27 offline crypto/protocol tests + 15 Rust unit tests, CI green.
 
 ## How to verify (no API key needed)
 You can confirm the crypto and the TEE contract logic **without any testnet
 credentials** — clone the repo and run the offline suite:
 ```bash
-cd agent && npm install && npm test          # 23 tests: BBS+ issue/verify, tamper,
+cd agent && npm install && npm test          # 27 tests: BBS+ issue/verify, tamper,
                                               # selective disclosure, A2A, Web Bot Auth, revocation
 cd ../gate-contract && cargo test             # 15 unit + 1 doc test: the mandate gate logic
 ```

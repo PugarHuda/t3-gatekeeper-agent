@@ -10,7 +10,7 @@ runs the offline subset on every push.
 | BBS+ issue + verify | `node t3-qa/smoke-vc.cjs` | `bbs-2023` proof, `{isValid:true}` |
 | Signature enforced | `node t3-qa/smoke-vc-negative.cjs` | tampered claim → `{isValid:false}` |
 | True selective disclosure | `node t3-qa/smoke-sd.mjs` | reveal 1 of 4 claims; forged value / wrong nonce → `verified:false` |
-| Offline unit tests | `cd agent && npm test` | 23/23 pass (issue/verify, tamper, SD, edge cases, A2A, Web Bot Auth, revocation) |
+| Offline unit tests | `cd agent && npm test` | 27/27 pass (issue/verify, tamper, SD, edge cases, A2A, Web Bot Auth, revocation) |
 | TEE contract unit tests | `cd gate-contract && cargo test` | 15 unit + 1 doc test pass |
 | TEE contract build | `cargo build --release --target wasm32-wasip2` | ~187 KB wasm component |
 | Contract deploy | `cd agent && npm run setup` | registered (latest `contract_id` 175, tail `gate@0.6.0`) |

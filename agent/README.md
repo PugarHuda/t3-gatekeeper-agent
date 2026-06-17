@@ -46,7 +46,7 @@ npm run demo
 | `npm run demo:a2a` | A2A capability exchange — prove one capability to a peer, hide the manifest. *(offline)* |
 | `npm run demo:velocity` | Hardware velocity limit — cumulative per-window spend cap held in the TEE across calls. *(needs `npm run setup` first)* |
 | `npm run register:erc8004` | Mint the agent's ERC-8004 on-chain identity (`IdentityRegistry.register(agentURI)`). Needs a gas-funded wallet + registry address; refuses to run unconfigured. |
-| `npm test` | 23 offline tests (crypto, edge cases, A2A, Web Bot Auth, revocation). |
+| `npm test` | 27 offline tests (crypto, edge cases, A2A, Web Bot Auth, revocation). |
 
 ## Two eligibility-gate modes
 

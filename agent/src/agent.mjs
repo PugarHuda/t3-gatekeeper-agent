@@ -50,11 +50,20 @@ const rev = await checkRevocation("urn:vc:eligibility:demo", issuerDid, { option
 console.log(`[2b] REVOCATION ${rev.checked ? (rev.revoked ? "REVOKED" : "valid (not revoked)") : "skipped"}  (${rev.reason})`);
 if (rev.revoked) { console.log("ABORT: credential revoked — no action attempted."); process.exit(0); }
 
+// Trim a (sometimes huge / obfuscated) SDK error down to one readable line.
+const briefErr = (e) => String(e?.message ?? e).replace(/\s+/g, " ").slice(0, 160);
+
 // 3 + 4. MANDATE (TEE) + AUDIT
 async function act(label, action, mandate = MANDATE) {
-  const d = await tenant.contracts.execute(CONTRACT_TAIL, {
-    version: CONTRACT_VERSION, functionName: "evaluate", input: { action, mandate },
-  });
+  let d;
+  try {
+    d = await tenant.contracts.execute(CONTRACT_TAIL, {
+      version: CONTRACT_VERSION, functionName: "evaluate", input: { action, mandate },
+    });
+  } catch (e) {
+    console.log(`\n[3] MANDATE    ${label}\n               TEE call failed: ${briefErr(e)}`);
+    return "error";
+  }
   console.log(`\n[3] MANDATE    ${label}\n               TEE decision = ${d.decision.toUpperCase()}` +
     (d.reasons.length ? `  reasons=${JSON.stringify(d.reasons)}` : ""));
   console.log(`[4] AUDIT      ${JSON.stringify({ ts: d.evaluated_at_secs, agentDid, issuerDid, eligibility: "bbs+ verified", action, decision: d.decision, reasons: d.reasons })}`);
@@ -66,16 +75,21 @@ async function act(label, action, mandate = MANDATE) {
   // http-with-placeholders without the agent ever holding them. Real egress is
   // gated by the host's per-contract authorised_hosts allowlist.
   if (d.decision === "approved") {
-    const req = { method: "POST", url: ACTION_ENDPOINT };
+    const body = JSON.stringify(action);
+    const req = { method: "POST", url: ACTION_ENDPOINT, body };
     const headers = signRequest(req, { privateKey: wba.privateKey, keyid: WBA_KEYID });
-    const verifiable = verifyRequest(req, headers, wba.publicKey);
-    console.log(`[5] DISPATCH   POST ${ACTION_ENDPOINT}  signed (web-bot-auth)  destination-verifiable=${verifiable}`);
-    const teeResp = await tenant.contracts.execute(CONTRACT_TAIL, {
-      version: CONTRACT_VERSION, functionName: "dispatch_action",
-      input: { url: ACTION_ENDPOINT, method: "POST", body: JSON.stringify(action) },
-    });
-    const out = teeResp.ok ? `executed in TEE (HTTP ${teeResp.code})` : `egress gated: ${teeResp.error}`;
-    console.log(`               in-TEE call -> ${out}`);
+    const verifiable = verifyRequest(req, headers, wba.publicKey); // covers method+authority+path+body
+    console.log(`[5] DISPATCH   POST ${ACTION_ENDPOINT}  signed (web-bot-auth, body digest)  destination-verifiable=${verifiable}`);
+    try {
+      const teeResp = await tenant.contracts.execute(CONTRACT_TAIL, {
+        version: CONTRACT_VERSION, functionName: "dispatch_action",
+        input: { url: ACTION_ENDPOINT, method: "POST", body },
+      });
+      const out = teeResp.ok ? `executed in TEE (HTTP ${teeResp.code})` : `egress gated: ${teeResp.error}`;
+      console.log(`               in-TEE call -> ${out}`);
+    } catch (e) {
+      console.log(`               in-TEE call -> failed: ${briefErr(e)}`);
+    }
   } else {
     console.log(`[5] DISPATCH   skipped — action not approved, nothing sent`);
   }

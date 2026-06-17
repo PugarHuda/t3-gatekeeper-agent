@@ -94,7 +94,7 @@ Plus a **credential-revocation pre-gate** (`agent/src/revocation.mjs`,
 if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 `REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are set.
 
-These are covered by offline tests (`npm test` — 23 tests total).
+These are covered by offline tests (`npm test` — 27 tests total).
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the
 request but also executes it **from inside the enclave** via the contract's
