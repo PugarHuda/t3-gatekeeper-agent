@@ -12,6 +12,9 @@ target/
 # reference clone (Terminal 3's own repo, not part of this submission)
 z-tenant-flight/
 
+# generated voice-over audio (regenerate with submission/voiceover/generate-vo.ps1)
+submission/voiceover/*.wav
+
 # os
 Thumbs.db
 .DS_Store
