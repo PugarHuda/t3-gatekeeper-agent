@@ -201,6 +201,17 @@ it is `host:interfaces@2.2.0`, i.e. it post-dates the 2.1.0 package it ships in.
 
 **Reproduction.** `t3-qa/vp-verify-test.mjs` (id 164), `t3-qa/agent-registry-test.mjs`
 (id 170), and the contrast case `t3-qa/http-probe-test.mjs` (id 174, where `http` works).
+
+**Re-verified 2026-06-19 (execute-only, still reproduces).** Re-running `execute`
+against the already-deployed contracts — no re-registration — still 500s, with
+fresh `request_id`s:
+- `idreg@0.1.0` `evaluate` → HTTP 500 `[a7f453ab-2be9-4f76-9119-0dc33512f5f3]`
+- `idreg@0.1.0` `register_agent` → HTTP 500 `[814ad336-bdf1-40a4-8b44-77446d564295]`
+- `gate@0.4.0` `verify_vp` (imports `vp`) → HTTP 500 `[040d6434-7d3a-4d84-ac3a-e6c589315db9]`
+
+Control in the same session: `gate@0.6.0` `evaluate` (imports `http`, id 175)
+returned `approved` ✅ — so the testnet host is healthy and the 500s are specific
+to the `vp` / `agent-registry` imports, not an outage. Bug stands.
 **Expected.** Reject registration up-front when the host can't satisfy an imported interface,
 returning a typed error — not accept it and 500 opaquely at invoke time. At minimum, document
 which `host:interfaces` are actually available to tenant contracts at each host version.
@@ -230,6 +241,12 @@ keyed by `contract_id`. Re-registering a contract silently breaks any map ACL pi
 previous id, and a contract needs to be in **both** the `readers` AND `writers` set of a
 private map to read-modify-write its own state (a write-only ACL yields `read denied`). None
 of this is documented.
+
+**Re-verify status 2026-06-19.** Not re-run live: directly reproducing the
+version-shadow needs registering a *new* version (the one expensive op), which we
+deliberately skipped to conserve testnet credits. The mechanism is unchanged on
+the current host — consistent with Report 7, which **was** re-verified today: a
+pinned `gate@0.4.0` still 500s while `gate@0.6.0` (latest, clean) executes fine.
 
 ---
 
