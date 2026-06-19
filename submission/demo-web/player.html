@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Gatekeeper Agent — demo</title>
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#0e141b; --bar:#161d27; --fg:#d7e0ea; --dim:#5f7287;
+    --ok:#5ad17e; --bad:#ff6b6b; --tag:#7cc4ff; --json:#c8a6ff; --cmd:#ffd479;
+    --accent:#7cc4ff; --accent2:#5ad17e;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); }
+  body {
+    width:1280px; height:720px; overflow:hidden;
+    font-family:"Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
+    color:var(--fg); display:flex; align-items:center; justify-content:center;
+  }
+  /* terminal window chrome */
+  .win {
+    width:1180px; height:660px; background:var(--panel);
+    border-radius:12px; box-shadow:0 24px 80px rgba(0,0,0,.6), 0 0 0 1px #1c2733;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .titlebar {
+    height:44px; flex:0 0 44px; background:var(--bar); display:flex; align-items:center;
+    padding:0 16px; gap:8px; border-bottom:1px solid #0a0f15;
+  }
+  .dot { width:12px; height:12px; border-radius:50%; }
+  .dot.r{background:#ff5f56;} .dot.y{background:#ffbd2e;} .dot.g{background:#27c93f;}
+  .title { margin-left:14px; color:var(--dim); font-size:14px; letter-spacing:.3px; }
+  .badge { margin-left:auto; color:var(--accent); font-size:12px; opacity:.85;
+           border:1px solid #243445; border-radius:6px; padding:3px 9px; }
+  .body { position:relative; flex:1 1 auto; overflow:hidden; }
+
+  /* terminal text */
+  .term {
+    position:absolute; inset:0; padding:18px 22px; overflow-y:hidden;
+    font-size:17px; line-height:1.5;
+  }
+  .ln { white-space:pre-wrap; word-break:break-word; opacity:0; transform:translateY(3px);
+        transition:opacity .18s ease, transform .18s ease; }
+  .ln.show { opacity:1; transform:none; }
+  .ln.cmd  { color:var(--cmd); }
+  .ln.tag  { color:var(--tag); }
+  .ln.ok   { color:var(--ok); }
+  .ln.bad  { color:var(--bad); }
+  .ln.dim  { color:var(--dim); }
+  .ln.json { color:var(--json); opacity:.0; }
+  .ln.json.show { opacity:.9; }
+  .ln.plain{ color:var(--fg); }
+  .cursor { display:inline-block; width:9px; height:18px; background:var(--accent2);
+            vertical-align:-3px; margin-left:2px; animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 50%{opacity:0;} }
+
+  /* diagram scenes */
+  .diagram { position:absolute; inset:0; display:flex; align-items:center;
+             justify-content:center; padding:30px; opacity:0; transition:opacity .5s ease; }
+  .diagram.show { opacity:1; }
+  .hero { text-align:center; max-width:1040px; }
+  .hero-title { font-size:54px; font-weight:700; letter-spacing:1px;
+                background:linear-gradient(90deg,var(--accent),var(--accent2));
+                -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero-sub { color:var(--dim); font-size:20px; margin:10px 0 38px; }
+  .flow { display:flex; align-items:stretch; justify-content:center; gap:10px; flex-wrap:nowrap; }
+  .flow .node, .flow .gate {
+    border-radius:10px; padding:14px 14px; min-width:120px; display:flex;
+    flex-direction:column; gap:6px; font-size:15px; justify-content:center;
+  }
+  .flow .node { background:#121a23; border:1px solid #223040; }
+  .flow .gate { background:#10211b; border:1px solid #1f4030; }
+  .flow .gate.g2 { background:#1a1726; border:1px solid #3a2f55; }
+  .flow span { color:var(--dim); font-size:12px; }
+  .flow .gate.g1 { color:var(--accent2); } .flow .gate.g2 { color:var(--json); }
+  .flow .arrow { display:flex; align-items:center; color:var(--dim); font-size:22px; }
+  .hero-foot { margin-top:38px; color:var(--accent); font-size:16px; opacity:.9; }
+
+  .why { width:100%; max-width:1000px; }
+  .why-title { text-align:center; font-size:30px; font-weight:700; margin-bottom:22px; color:var(--fg); }
+  .why-table { width:100%; border-collapse:collapse; font-size:15.5px; }
+  .why-table th { text-align:left; color:var(--dim); font-weight:600; padding:8px 12px;
+                  border-bottom:1px solid #223040; }
+  .why-table td { padding:9px 12px; border-bottom:1px solid #141d27; }
+  .why-table td.layer { color:var(--accent); white-space:nowrap; width:210px; }
+  .why-table td.surface { color:var(--fg); opacity:.92; }
+  .why-foot { margin-top:18px; text-align:center; color:var(--accent2); font-size:15px; }
+  .why-close { margin-top:14px; text-align:center; font-size:21px; color:var(--fg); font-weight:600; }
+
+  /* start overlay (manual viewing only) */
+  #start {
+    position:fixed; inset:0; background:rgba(6,9,13,.92); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; z-index:10; cursor:pointer;
+  }
+  #start h1 { color:var(--fg); font-weight:600; font-size:26px; margin:0; }
+  #start .play { width:84px; height:84px; border-radius:50%; border:2px solid var(--accent);
+    display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:34px; }
+  #start p { color:var(--dim); font-size:14px; }
+</style>
+</head>
+<body>
+  <div class="win">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="title" id="winTitle">gatekeeper-agent</span>
+      <span class="badge">Terminal&nbsp;3 · testnet</span>
+    </div>
+    <div class="body">
+      <div class="term" id="term"></div>
+      <div class="diagram" id="diagram"></div>
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="play">▶</div>
+    <h1>Gatekeeper Agent — demo</h1>
+    <p>click to play (with narration)</p>
+  </div>
+
+<script type="module">
+import { scenes } from "./scenes.mjs";
+
+const term = document.getElementById("term");
+const diagram = document.getElementById("diagram");
+const winTitle = document.getElementById("winTitle");
+const startEl = document.getElementById("start");
+const params = new URLSearchParams(location.search);
+const AUTO = params.get("auto") === "1";
+const VO_DIR = "../voiceover/";
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function clearTerm() { term.innerHTML = ""; }
+
+function appendLine(line) {
+  const div = document.createElement("div");
+  div.className = "ln " + (line.c || "plain");
+  div.textContent = line.t;
+  term.appendChild(div);
+  return div;
+}
+
+function setCursorOn(el) {
+  const c = document.createElement("span");
+  c.className = "cursor";
+  el.appendChild(c);
+  return c;
+}
+
+// Reveal queued line elements across the first ~62% of the clip so each line
+// "lands" while it is narrated, then holds.
+function reveal(els, durSec) {
+  const span = Math.max(0.5, durSec * 0.62);
+  const step = els.length ? (span / els.length) : 0;
+  els.forEach((el, i) => {
+    setTimeout(() => {
+      el.classList.add("show");
+      term.scrollTop = term.scrollHeight; // auto-scroll
+    }, i * step * 1000);
+  });
+}
+
+async function playScene(scene) {
+  window.__SCENE__ = scene.id;
+  winTitle.textContent = scene.title || "gatekeeper-agent";
+
+  if (scene.kind === "diagram") {
+    term.style.display = "none";
+    diagram.style.display = "flex";
+    diagram.innerHTML = scene.html;
+    requestAnimationFrame(() => diagram.classList.add("show"));
+  } else {
+    diagram.classList.remove("show");
+    diagram.style.display = "none";
+    term.style.display = "block";
+    if (scene.clear) clearTerm();
+    const els = [];
+    if (scene.cmd) {
+      const cmdEl = appendLine({ t: "$ " + scene.cmd, c: "cmd" });
+      cmdEl.classList.add("show"); // command appears immediately
+    }
+    for (const line of (scene.lines || [])) els.push(appendLine(line));
+    term.scrollTop = term.scrollHeight;
+    // reveal after we know the duration (scheduled below)
+    scene.__reveal = (dur) => reveal(els, dur);
+    if (els.length) setCursorOn(els[els.length - 1]);
+  }
+
+  // Drive timing from the actual audio clip; fall back to the estimate.
+  await new Promise((resolve) => {
+    let resolved = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(); } };
+    const audio = new Audio(VO_DIR + scene.wav);
+    audio.preload = "auto";
+    let dur = scene.est;
+    let revealed = false;
+    const doReveal = (d) => { if (!revealed) { revealed = true; scene.__reveal && scene.__reveal(d); } };
+
+    audio.addEventListener("loadedmetadata", () => {
+      if (isFinite(audio.duration) && audio.duration > 0.2) dur = audio.duration;
+      diagram.classList.add("show");
+      doReveal(dur);
+    });
+    audio.addEventListener("ended", done);
+    audio.addEventListener("error", () => { doReveal(scene.est); setTimeout(done, scene.est * 1000); });
+
+    // hard safety: never hang a scene
+    setTimeout(() => { doReveal(scene.est); done(); }, (scene.est + 4) * 1000);
+
+    audio.play().catch(() => { doReveal(scene.est); setTimeout(done, scene.est * 1000); });
+  });
+}
+
+async function run() {
+  window.__DEMO_DONE__ = false;
+  for (const scene of scenes) await playScene(scene);
+  await sleep(1800);            // hold the closing frame so muxed video isn't clipped
+  window.__DEMO_DONE__ = true;
+}
+
+if (AUTO) {
+  startEl.style.display = "none";
+  run();
+} else {
+  startEl.addEventListener("click", () => { startEl.style.display = "none"; run(); }, { once: true });
+}
+</script>
+</body>
+</html>
