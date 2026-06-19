@@ -118,7 +118,8 @@ leaves a cryptographic audit trail.
 
 ## Links
 - Code: https://github.com/PugarHuda/t3-gatekeeper-agent
-- Demo video: <add link>
+- Demo video: https://youtu.be/gVY3y4j6XT4
+- Author: [LinkedIn](https://www.linkedin.com/in/pugar-huda-mantoro/) · [X/Twitter](https://x.com/BangDropID) · [GitHub](https://github.com/PugarHuda)
 
 ## Tech Stack
 TypeScript · `@terminal3/t3n-sdk` · `@terminal3/bbs_vc` · `@terminal3/vc_core` ·

@@ -2,6 +2,8 @@
 
 [![ci](https://github.com/PugarHuda/t3-gatekeeper-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/PugarHuda/t3-gatekeeper-agent/actions/workflows/ci.yml)
 
+**▶ [Demo video (4 min)](https://youtu.be/gVY3y4j6XT4)** — identity → BBS+ VC gate → revocation → hardware mandate → audit → signed in-TEE dispatch, plus true selective disclosure and a stateful velocity limit.
+
 > A delegated agent that executes **permissioned financial actions on behalf of a
 > user without holding their credentials or sensitive data**. Eligibility is
 > proven by a **BBS+ verifiable credential**; the spending bound is enforced by a
@@ -124,3 +126,11 @@ npm run demo                # identity -> VC gate -> TEE mandate -> audit
 
 The T3N API key grants full sandbox access and is shown only once on the claim
 page. Keep it in `agent/.env` (gitignored); never commit or share it.
+
+## Author / links
+
+Pugar Huda Mantoro —
+[LinkedIn](https://www.linkedin.com/in/pugar-huda-mantoro/) ·
+[X/Twitter](https://x.com/BangDropID) ·
+[GitHub](https://github.com/PugarHuda) ·
+[Demo video](https://youtu.be/gVY3y4j6XT4)

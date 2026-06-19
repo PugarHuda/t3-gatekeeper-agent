@@ -17,7 +17,14 @@ Gatekeeper Agent — VC-gated permissioned actions with a hardware mandate
 **BUIDL logo** — **[YOU]** JPEG/PNG, <2 MB, 480×480 px recommended. Optional but
 recommended. (If you have none, the architecture diagram cropped square works.)
 
-**Vision (Describe the problem which this project solves)** — paste the whole block:
+**Vision (Describe the problem which this project solves)** — the live form caps
+this at **256 characters**. Paste this 255-char version:
+```
+AI agents that transact for you normally hold your credentials and data in memory. Gatekeeper Agent gates every action with a BBS+ verifiable credential (selective-disclosure eligibility) and a hardware-TEE spending mandate — so the agent holds neither.
+```
+
+The long description below goes in the **Details** rich-text field, not Vision
+(source of truth: `BUIDL_DESCRIPTION.md`):
 ```
 THE PROBLEM
 AI agents that transact on your behalf normally need your credentials and your personal data in memory. That's an exploitable attack surface, a prompt-injection leak waiting to happen, and a non-starter for banks and institutions. And "eligibility" (accredited investor, licensed, KYC'd) is usually proven by handing over the raw documents — exposing far more than the one fact that matters.
@@ -68,13 +75,17 @@ https://github.com/PugarHuda/t3-gatekeeper-agent
 https://github.com/PugarHuda/t3-gatekeeper-agent#readme
 ```
 
-**Demo video (optional)** — **[YOU]** paste the YouTube link after recording.
-
-**Social links (at least one REQUIRED)** — use your GitHub profile as the safe default:
+**Demo video (REQUIRED)**
 ```
+https://youtu.be/gVY3y4j6XT4
+```
+
+**Social links (at least one REQUIRED — up to 3)**
+```
+https://www.linkedin.com/in/pugar-huda-mantoro/
+https://x.com/BangDropID
 https://github.com/PugarHuda
 ```
-(Add your X/Twitter or LinkedIn in the other two slots if you have them.)
 
 ---
 
@@ -103,10 +114,9 @@ referrer's email if someone referred you.
 ---
 
 ## Still owed by you (cannot be auto-filled)
-1. **[YOU]** BUIDL logo (480×480 PNG/JPG) — optional
-2. **[YOU]** Demo video link (record, upload unlisted, paste into BUIDL + into
-   `BUIDL_DESCRIPTION.md` where it says `<add link>`)
-3. **[YOU]** At least one social link (GitHub profile above works)
+1. ✅ BUIDL logo — `submission/logo/logo.png` (480×480 PNG)
+2. ✅ Demo video — https://youtu.be/gVY3y4j6XT4
+3. ✅ Social links — LinkedIn / X / GitHub (above)
 4. **[YOU]** The 8 Track B bug reports are submitted SEPARATELY — see
    `TRACK_B_BUG_REPORTS.md` / `TRACK_B_DORAHACKS.md` (paste-ready)
-5. **[YOU]** Rotate the dev API key before recording
+5. **[YOU]** Rotate the dev API key (the one used during dev) if not already done

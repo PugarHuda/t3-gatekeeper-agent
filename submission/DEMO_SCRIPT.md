@@ -130,4 +130,4 @@ npm run demo:velocity
 - [ ] `DEMO_PAUSE_MS` set (≈2500) so audio lands on each line.
 - [ ] Terminal font large enough to read the tagged `[1]…[5]` lines.
 - [ ] Don't show the key on screen (run `npm run setup` with `.env` already loaded, or clear scrollback).
-- [ ] Add the final video link to `BUIDL_DESCRIPTION.md` (`<add link>`).
+- [x] Final video link added to `BUIDL_DESCRIPTION.md` + root README → https://youtu.be/gVY3y4j6XT4
