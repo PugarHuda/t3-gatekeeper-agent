@@ -56,7 +56,7 @@ flowchart TD
 | `agent/` | The agent runtime (identity + VC gate + contract invoke + audit). `npm run demo`. |
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
 | `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
-| `submission/` | Demo script, BUIDL description, Track B bug reports, [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing + TDX quote layout), [verification log](submission/VERIFICATION.md), and an [adoption roadmap](submission/ADOPTIONS.md) (A2A / ERC-8004 / Web Bot Auth — cheap/high/out-of-box). |
+| `submission/` | Demo script, BUIDL description, [Track B bug reports](submission/TRACK_B_BUG_REPORTS.md) (8 onboarding/SDK/doc issues found while building), [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing + TDX quote layout), [verification log](submission/VERIFICATION.md), and an [adoption roadmap](submission/ADOPTIONS.md) (A2A / ERC-8004 / Web Bot Auth — cheap/high/out-of-box). |
 | `agent/agent-card.json` | A2A + ERC-8004 style agent card (identity, skills, trust). |
 
 ## Verified end-to-end on T3N testnet
@@ -126,6 +126,22 @@ npm run demo                # identity -> VC gate -> TEE mandate -> audit
 
 The T3N API key grants full sandbox access and is shown only once on the claim
 page. Keep it in `agent/.env` (gitignored); never commit or share it.
+
+## Bugs & doc gaps found while building (Track B)
+
+Building this end-to-end surfaced **8 SDK / backend / onboarding / documentation
+issues**, written up with repro steps in
+[`submission/TRACK_B_BUG_REPORTS.md`](submission/TRACK_B_BUG_REPORTS.md) (paste-ready
+form versions in [`TRACK_B_DORAHACKS.md`](submission/TRACK_B_DORAHACKS.md)):
+
+1. `verifyBbsVc` returns literal `undefined` instead of the failure reason (`@terminal3/bbs_vc`, low)
+2. `getNodeUrl("testnet")` returns the string `"testnet"`; `getNodeUrl()` returns the PROD url (`@terminal3/t3n-sdk`, medium)
+3. "Smart VCs" docs claim ZK selective-disclosure VPs, but the SDK ships no holder-side derive (doc gap, medium)
+4. Referenced onboarding repo `Terminal-3/adk-getting-start` is empty (onboarding, low)
+5. Building a TEE contract on Windows fails (no native linker) and it's undocumented (doc gap, medium)
+6. `tenant.claim()` returns HTTP 500 for an already-provisioned tenant (backend, medium)
+7. Importing `vp` / `agent-registry` deploys but 500s on every `execute`; no register-time validation (backend/WIT, high)
+8. Newest contract version shadows pinned versions; no get-contract-id API; private-map ACL re-register footgun (backend, high)
 
 ## Author / links
 
