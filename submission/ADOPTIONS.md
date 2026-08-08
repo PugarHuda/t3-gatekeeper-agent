@@ -10,7 +10,7 @@ Gatekeeper Agent, graded by effort-to-value, with what's shipped vs. roadmap.
 | **Agent Card** (`agent/agent-card.json`) | A2A `AgentCard` + ERC-8004 agent-card shape: name, skills, DID, endpoints, trust (TDX + BBS+). Resolvable by A2A clients / ERC-8004 registries. | shipped |
 | **Richer mandate dimensions** | Added **counterparty allow-list** (pay only approved payees) and a **valid-after window** (future-dated authorizations) to the TEE contract (v0.2.0). 6 live demo scenarios. | shipped |
 | **Deny-by-default + wildcard** | Least-privilege allow-lists found & fixed during QA. | shipped |
-| **CI + tests + MIT license** | `npm test` (27 offline crypto/protocol tests), 15 Rust unit tests, GitHub Actions. | shipped |
+| **CI + tests + MIT license** | `npm test` (40 offline crypto/protocol tests), 28 Rust unit tests, GitHub Actions. | shipped |
 
 ## ✅ High adopt — now shipped
 | Adoption | What & why | Status |

@@ -25,7 +25,7 @@ npm run record              # → out/gatekeeper-demo.mp4   (~4 min, 1280×720, 
 Then upload `out/gatekeeper-demo.mp4` (YouTube, unlisted) and paste the link into
 `../BUIDL_DESCRIPTION.md` and the DoraHacks form (see `../FORM_ANSWERS_FILLED.md`).
 
-Published: **https://youtu.be/gVY3y4j6XT4**
+Published: **https://gatekeeper-evidence.vercel.app** (superseded by `../../video/`, a Remotion render)
 
 ## Preview the visuals (no recording)
 

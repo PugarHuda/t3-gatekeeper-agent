@@ -26,11 +26,11 @@ Script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). Capture at ~120 cols, key off-screen
 - [ ] Scene 3: `npm run demo` — narrate `[1] identity → [2] VC gate → [2b] revocation → [3] mandate (approve/reject) → [4] audit → [5] sign + in-TEE dispatch`
 - [ ] Scene 3.5: `npm run demo:sd` — true selective disclosure (the showstopper)
 - [ ] Optional: `npm run demo:velocity`, `npm run demo:a2a`
-- [x] Uploaded to YouTube → https://youtu.be/gVY3y4j6XT4 (linked in `BUIDL_DESCRIPTION.md` + root README)
+- [x] Superseded — the demo is now a Remotion render hosted at https://gatekeeper-evidence.vercel.app (source in `video/`)
 
 ## 2. Submit the BUIDL on DoraHacks
 - [ ] Title + description from [`BUIDL_DESCRIPTION.md`](BUIDL_DESCRIPTION.md) (paste-ready)
-- [x] Repo link (https://github.com/PugarHuda/t3-gatekeeper-agent) + demo video (https://youtu.be/gVY3y4j6XT4)
+- [x] Repo link (https://github.com/PugarHuda/t3-gatekeeper-agent) + demo video (https://gatekeeper-evidence.vercel.app)
 - [ ] Tech stack line
 
 ## 3. Fill the registration form

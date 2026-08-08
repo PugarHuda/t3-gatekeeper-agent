@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/PugarHuda/t3-gatekeeper-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/PugarHuda/t3-gatekeeper-agent/actions/workflows/ci.yml)
 
-**▶ [Demo video (4 min)](https://youtu.be/gVY3y4j6XT4)** — identity → BBS+ VC gate → revocation → hardware mandate → audit → signed in-TEE dispatch, plus true selective disclosure and a stateful velocity limit.
+**▶ [Demo video (2½ min)](https://gatekeeper-evidence.vercel.app)** — identity → BBS+ VC gate → revocation → hardware mandate → audit → signed in-TEE dispatch, plus true selective disclosure and a stateful velocity limit.
 
 ## The problem, concretely
 
@@ -72,6 +72,7 @@ flowchart TD
 | --- | --- |
 | `agent/` | The agent runtime (identity + VC gate + contract invoke + audit). `npm run demo`. |
 | `qa-console/` | Browser console + Playwright E2E over the contract's **real** Rust decision logic — happy path, wrong paths, API abuse. Runs offline, spends no credits. |
+| `video/` | The demo video, rendered programmatically (Remotion + neural TTS + burned-in captions). Scene lengths derive from the measured audio, so narration cannot drift. |
 | `site/` | The published evidence page ([gatekeeper-evidence.vercel.app](https://gatekeeper-evidence.vercel.app)). |
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
 | `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
@@ -82,13 +83,13 @@ flowchart TD
 
 Every layer was run against the live testnet, not mocked:
 
-- **Auth** — `handshake` → `authenticate` → `getUsage` (20,000 credits).
+- **Auth** — `handshake` → `authenticate` → `getUsage` (live balance returned).
 - **BBS+ VC** — issue (`bbs-2023` DataIntegrityProof) + verify; a tampered claim
   is correctly rejected (`isValid:false`), so the signature is enforced.
 - **True selective disclosure** — issuer signs a full record, holder derives a ZK
   proof revealing only one claim, verifier accepts; forged value / wrong nonce
   rejected (`npm run demo:sd`).
-- **TEE contract** — `gate-contract` compiled to a ~187 KB wasm component,
+- **TEE contract** — `gate-contract` compiled to a ~213 KB wasm component,
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
   tenant DID resolved host-side.
@@ -97,7 +98,7 @@ Every layer was run against the live testnet, not mocked:
   once the running total would exceed the cap — **enforced across invocations in
   hardware** (`t3-qa/velocity-test.mjs`: 3 spends, the 3rd correctly rejected).
 
-## The enclave is the enforcement point (v0.7.0)
+## The enclave is the enforcement point (v0.7.0 — v0.8.0)
 
 `evaluate` and `dispatch_action` are two host calls, so an agent could simply
 skip the first — the mandate held only while the agent cooperated. And `evaluate`
@@ -108,6 +109,16 @@ call in the *same* invocation — so a rejected action cannot reach the network.
 The velocity window is likewise derived from the cluster clock, not from the
 caller, who could otherwise reset the running total by renaming the window.
 
+**v0.8.0 adds two more mandate dimensions.** `allowed_issuers`: a BBS+ signature
+proves the *issuer* signed the claim, never that the issuer is anyone the fund
+trusts — and the agent generates its own issuer key, so without this it could
+mint its own "accredited investor" credential. And `counterparty_limits`, a
+per-payee ceiling applied *in addition* to the global cap, never instead of it.
+
+> **Deployment state.** v0.8.0 is built and unit-tested but **not registered** —
+> the account's testnet credits ran out (see bug #16). The version live on the
+> network is v0.7.0, `contract_id 479`.
+
 ## Advanced SDK adoptions (shipped)
 
 Beyond the core gate, the agent layer ships two ecosystem integrations the ADK
@@ -117,6 +128,13 @@ advertises (see [submission/ADOPTIONS.md](submission/ADOPTIONS.md)):
   outbound action requests with Ed25519 HTTP Message Signatures
   (`tag="web-bot-auth"`) so a destination can verify the request came from this
   agent before acting. The "front door" used by Visa TAP / Mastercard Agent Pay.
+  The public key is **published** at
+  [`/.well-known/http-message-signatures-directory`](https://gatekeeper-evidence.vercel.app/.well-known/http-message-signatures-directory),
+  and a test signs locally, fetches that key over the internet, and verifies —
+  nothing shared in advance, which is the whole point of a key directory.
+  Signatures are **freshness-bounded** (default 5 minutes, clock-skew tolerant):
+  `created` is inside the signature base, so it cannot be back-dated, but it has
+  to actually be checked or a captured payment instruction replays forever.
 - **A2A capability exchange** — `agent/src/a2a.mjs` lets two agents handshake by
   exchanging a BBS+ capability credential with **selective disclosure**: an agent
   proves one capability without revealing the rest of its manifest.
@@ -126,7 +144,21 @@ Plus a **credential-revocation pre-gate** (`agent/src/revocation.mjs`,
 if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 `REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are set.
 
-These are covered by offline tests (`npm test` — 27 tests total).
+## Tests — 107, all offline except where noted
+
+| Suite | Count | What it covers |
+| --- | --- | --- |
+| Rust (`gate-contract`) | 28 | the mandate rules, every dimension, deny-by-default |
+| Node (`agent`) | 40 | BBS+, selective disclosure, A2A, revocation, Web Bot Auth + key directory + replay window |
+| QA console (`qa-console`) | 13 | Playwright over the **real** Rust `decide()` — happy path, 6 wrong paths, 4 API-abuse cases |
+| Live site | 10 | the deployed page, incl. a Web Bot Auth key round trip over the public internet |
+| Doc / docx / video | 16 | the submission artifacts actually render, and the video decodes with audio |
+
+```bash
+cd gate-contract && cargo test                    # 28
+cd agent        && npm test                       # 40
+cd qa-console   && node --test e2e.test.mjs       # 13
+```
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the
 request but also executes it **from inside the enclave** via the contract's
@@ -187,4 +219,4 @@ Pugar Huda Mantoro —
 [LinkedIn](https://www.linkedin.com/in/pugar-huda-mantoro/) ·
 [X/Twitter](https://x.com/BangDropID) ·
 [GitHub](https://github.com/PugarHuda) ·
-[Demo video](https://youtu.be/gVY3y4j6XT4)
+[Demo video](https://gatekeeper-evidence.vercel.app)

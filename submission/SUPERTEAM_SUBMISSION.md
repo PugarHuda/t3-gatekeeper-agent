@@ -33,7 +33,7 @@ mandate.
 | Screenshot completion | ✅ | §7 — 13 screenshots, all from real command output |
 | Highlight bugs | ✅ | §6 — **19 issues**, each with repro steps and request IDs |
 | **Bonus:** go beyond the first contract, provide a use case | ✅ | §5 |
-| **Bonus:** QA — happy path & wrong paths under Playwright | ✅ | §5.1 — 82 automated tests |
+| **Bonus:** QA — happy path & wrong paths under Playwright | ✅ | §5.1 — 107 automated tests |
 
 > **About the video.** The demo is rendered programmatically with
 > [Remotion](https://remotion.dev) — the scenes are React, the narration is a
@@ -116,7 +116,7 @@ an empty mandate rejects.
 | Build | `cargo build --lib --target wasm32-wasip2 --release` → 213 KB wasm **component** (`0d 00 01 00` magic) — see bug **#5** for the Windows blocker + the fix that worked |
 | Register | `TenantClient.contracts.register({tail,version,wasm})` → **v0.6.0 = `contract_id 175`**, **v0.7.0 = `contract_id 479`** |
 | Invoke | `contracts.execute("gate","evaluate")` → approved/rejected **inside the TEE** |
-| Test | 28 Rust host tests + 33 offline Node tests + 13 Playwright, all green |
+| Test | 28 Rust + 40 Node + 39 integration/artifact tests, all green |
 
 > **Current state, stated plainly:** v0.7.0 (`contract_id 479`) is registered and
 > is the version the host now runs for this tail. Its two new enclave-only
@@ -137,7 +137,7 @@ script_name      z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
 current_version  0.6.0
 ```
 
-📷 **Screenshot 07 — `07-tests.png`** — 33/33 offline tests pass.
+📷 **Screenshot 07 — `07-tests.png`** — the offline Node suite (40 tests as of 8 Aug).
 
 ---
 
@@ -288,13 +288,30 @@ self-issued "accredited investor" credential refused as untrusted.
 | Abuse | malformed JSON / missing action / unknown route | 400 / 400 / 404, no crash |
 | Abuse | negative amount | must not approve — no unsigned wrap-around past the cap |
 
-**82 automated tests total:** 28 Rust, 33 Node, 13 Playwright E2E, and 8 against
+**107 automated tests total:** 28 Rust, 40 Node, 13 Playwright E2E, and 10 against
 the live deployed site — including that every screenshot actually renders (an
 evidence page of broken images is a real defect) and a **Web Bot Auth key round
 trip over the public internet**: sign locally, fetch the public key from
 `/.well-known/http-message-signatures-directory`, verify. Nothing shared in
 advance, which is the entire point of a key directory and exactly what an
-ephemeral per-run key could never demonstrate.
+ephemeral per-run key could never demonstrate. Plus 16 artifact checks: the
+submission exports actually render, and the demo video decodes **with an audio
+track** — Remotion produces a silent file if the audio tags resolve to nothing,
+and a muted demo looks perfect until someone presses play.
+
+### 5.3 A fifth hole, in the signature layer
+
+`verifyRequest` read the `created` timestamp and never checked it. So a Web Bot
+Auth signature verified **forever**: anyone who captured one request could replay
+it unchanged for the life of the key — and the request being signed here is a
+payment instruction. Signatures are now freshness-bounded (5 minutes by default,
+tolerant of a destination clock running slightly ahead), and verification can be
+bound to an expected `keyid`, because "signed by this key" and "is the agent I
+think it is" stop being the same question once keys are resolved from a
+directory. `created` sits inside the signature base, so it cannot be back-dated —
+but that only helps if something actually checks it. Seven tests cover it,
+including one asserting that editing `created` invalidates the signature rather
+than merely ageing it.
 
 ### 5.2 Three security holes I found in my own contract, and fixed
 
@@ -536,7 +553,7 @@ each with the raw `.txt` it was rendered from.
 | 04 | `04-agent-registered.png` | Agent ID registered — URI, timestamps, owner (and bug #10) |
 | 05 | `05-full-flow.png` | The whole agent: VC gate → TEE mandate → audit → in-TEE dispatch (HTTP 200) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` accepted — the caller authorising enclave egress |
-| 07 | `07-tests.png` | 27/27 offline tests |
+| 07 | `07-tests.png` | the offline Node suite |
 | 08 | `08-bug-token-balance.png` | Bug #9 — `token balance` fails |
 | 09 | `09-bug-host-card.png` | Bug #11 — documented `host-card` step fails |
 | 10 | `10-bug-node-version.png` | Bug #12 — node runs `tee:organisation/contracts` 0.4.1 |
@@ -565,7 +582,7 @@ With your own key:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent && cd t3-gatekeeper-agent/agent
 cp .env.example .env      # your T3N_API_KEY + DID
-npm install && npm test   # 27 offline tests, no credits spent
+npm install && npm test   # 40 offline tests, no credits spent
 npm run setup             # register the Rust contract + seed the mandate
 npm run grant:egress      # authorise the enclave's outbound host
 npm run demo              # the full chain
@@ -583,4 +600,4 @@ worth building next is in
 [`submission/STATUS_AND_ROADMAP.md`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/STATUS_AND_ROADMAP.md).
 
 Repo: https://github.com/PugarHuda/t3-gatekeeper-agent ·
-Video: https://youtu.be/gVY3y4j6XT4
+Video: https://gatekeeper-evidence.vercel.app

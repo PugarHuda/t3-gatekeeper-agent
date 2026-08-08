@@ -25,6 +25,9 @@ Each action — approved or rejected — produces a structured audit row.
 | Dispatch (sign) | RFC 9421 Web Bot Auth — approved requests are signed so the destination can verify the caller | `src/web-bot-auth.mjs`, `src/agent.mjs` |
 | Dispatch (execute) | In-TEE outbound call via contract `dispatch_action` (host `http`) — the action executes in the enclave (verified: HTTP 200) | `../gate-contract` `dispatch_action`, `src/agent.mjs` |
 | Egress grant | `tee:user/contracts::agent-auth-update` — the *caller* authorises which hosts the enclave may reach, per contract + function | `src/grant-egress.mjs` (`npm run grant:egress`) |
+| Atomic decide-and-act | `execute_action` — mandate read from KV (no inline override), decision and outbound call in one enclave invocation | `../gate-contract` `execute_action` |
+| Issuer trust | mandate `allowed_issuers` — a self-issued eligibility credential is refused | `../gate-contract`, `src/agent.mjs` |
+| Web Bot Auth key directory | published JWKS so a destination can resolve `keyid` and verify with nothing shared in advance | `src/web-bot-auth.mjs`, `../site/.well-known/…` |
 
 ## Run
 
@@ -50,7 +53,7 @@ npm run demo
 | `npm run demo:velocity` | Hardware velocity limit — cumulative per-window spend cap held in the TEE across calls. *(needs `npm run setup` first)* |
 | `npm run grant:egress` | Self-grant the enclave's outbound-HTTP allowlist for `ACTION_ENDPOINT`'s host (`agent-auth-update`). Without it, in-TEE dispatch returns `egress_denied`. |
 | `npm run register:erc8004` | Mint the agent's ERC-8004 on-chain identity (`IdentityRegistry.register(agentURI)`). Needs a gas-funded wallet + registry address; refuses to run unconfigured. |
-| `npm test` | 27 offline tests (crypto, edge cases, A2A, Web Bot Auth, revocation). |
+| `npm test` | 40 offline tests (crypto, edge cases, A2A, revocation, Web Bot Auth incl. the published key directory and the signature freshness window). |
 
 ## Two eligibility-gate modes
 

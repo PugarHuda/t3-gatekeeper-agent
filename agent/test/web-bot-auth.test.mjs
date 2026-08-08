@@ -66,6 +66,58 @@ test("uses a real (non-fixed) created timestamp", () => {
   assert.ok(created > 1_700_000_000, "created should be a recent unix time, not the old fixed default");
 });
 
+// --- replay: a signature that verifies forever is a reusable payment order ---
+
+test("a stale signature is rejected", () => {
+  const old = Math.floor(Date.now() / 1000) - 3600;
+  const headers = signRequest(req, { privateKey, keyid, created: old });
+  assert.equal(verifyRequest(req, headers, publicKey), false,
+    "an hour-old signature must not still verify");
+});
+
+test("a signature just inside the window still verifies", () => {
+  const recent = Math.floor(Date.now() / 1000) - 60;
+  const headers = signRequest(req, { privateKey, keyid, created: recent });
+  assert.equal(verifyRequest(req, headers, publicKey), true);
+});
+
+test("a signature dated in the future is rejected", () => {
+  const ahead = Math.floor(Date.now() / 1000) + 3600;
+  const headers = signRequest(req, { privateKey, keyid, created: ahead });
+  assert.equal(verifyRequest(req, headers, publicKey), false);
+});
+
+test("small clock skew is tolerated", () => {
+  // A destination whose clock runs slightly ahead must not reject good traffic.
+  const slightlyAhead = Math.floor(Date.now() / 1000) + 10;
+  const headers = signRequest(req, { privateKey, keyid, created: slightlyAhead });
+  assert.equal(verifyRequest(req, headers, publicKey), true);
+});
+
+test("the freshness window can be widened deliberately", () => {
+  const old = Math.floor(Date.now() / 1000) - 3600;
+  const headers = signRequest(req, { privateKey, keyid, created: old });
+  assert.equal(verifyRequest(req, headers, publicKey, { maxAgeSeconds: 7200 }), true);
+});
+
+test("created cannot be back-dated without breaking the signature", () => {
+  // The defence only works because `created` is inside the signature base.
+  const headers = signRequest(req, { privateKey, keyid });
+  const fresh = Math.floor(Date.now() / 1000);
+  headers["Signature-Input"] = headers["Signature-Input"].replace(/created=\d+/, `created=${fresh}`);
+  assert.equal(verifyRequest(req, headers, publicKey), true); // unchanged value, still valid
+  headers["Signature-Input"] = headers["Signature-Input"].replace(/created=\d+/, `created=${fresh - 9999}`);
+  assert.equal(verifyRequest(req, headers, publicKey, { maxAgeSeconds: 1e9 }), false,
+    "editing created must invalidate the signature, not just age it");
+});
+
+test("a signature from an unexpected keyid is rejected", () => {
+  const headers = signRequest(req, { privateKey, keyid });
+  assert.equal(verifyRequest(req, headers, publicKey, { expectedKeyid: "did:t3n:someone-else#wba" }),
+    false, "verifying against a key is not the same as identifying the agent");
+  assert.equal(verifyRequest(req, headers, publicKey, { expectedKeyid: keyid }), true);
+});
+
 // --- key directory: the part that makes a signature verifiable by a stranger ---
 
 test("a persisted key round-trips through WBA_PRIVATE_KEY", () => {

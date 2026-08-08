@@ -123,8 +123,23 @@ export function signRequest(req, { privateKey, keyid, created = Math.floor(Date.
   return headers;
 }
 
-/** Verify a signed request against a public key. Returns true/false. */
-export function verifyRequest(req, headers, publicKey) {
+/**
+ * Verify a signed request against a public key. Returns true/false.
+ *
+ * `maxAgeSeconds` bounds how old a signature may be (default 5 minutes). Without
+ * it a signature verifies forever: anyone who captures one request can replay it
+ * unchanged for as long as the key lives, which for a payment instruction is the
+ * whole attack. `created` is signed, so it cannot be moved without breaking the
+ * signature — but it has to actually be *checked*. `skewSeconds` allows for a
+ * destination clock that runs a little ahead of the signer's.
+ *
+ * `expectedKeyid` binds the signature to a specific agent. Verification against
+ * a key alone answers "was this signed by that key", not "is this the agent I
+ * think it is" — which differ the moment keys are resolved from a directory.
+ */
+export function verifyRequest(req, headers, publicKey, {
+  maxAgeSeconds = 300, skewSeconds = 30, expectedKeyid, now = Math.floor(Date.now() / 1000),
+} = {}) {
   const sigInput = headers["Signature-Input"] || "";
   const sigHeader = headers["Signature"] || "";
   const m = sigInput.match(/^sig1=(.+)$/);
@@ -134,6 +149,13 @@ export function verifyRequest(req, headers, publicKey) {
   if (!sigParamsValue.includes('tag="web-bot-auth"')) return false;
   const keyid = (sigParamsValue.match(/keyid="([^"]+)"/) || [])[1];
   const created = Number((sigParamsValue.match(/created=(\d+)/) || [])[1]);
+
+  if (expectedKeyid != null && keyid !== expectedKeyid) return false;
+  if (!Number.isFinite(created)) return false;
+  if (maxAgeSeconds != null) {
+    if (created > now + skewSeconds) return false;      // signed in the future
+    if (now - created > maxAgeSeconds) return false;    // stale — replayed
+  }
   // Recover the exact covered-component set from the signature input.
   const inner = sigParamsValue.match(/^\(([^)]*)\)/);
   if (!inner) return false;

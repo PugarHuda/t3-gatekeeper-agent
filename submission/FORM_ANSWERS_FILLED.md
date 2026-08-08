@@ -51,7 +51,7 @@ TERMINAL 3 SDK INTEGRATION (the full stack, not just auth)
 - A custom Rust → wasm32-wasip2 TEE contract importing host tenant-context, kv-store, and logging interfaces.
 
 VERIFIED END-TO-END ON T3N TESTNET
-Auth (20,000 credits), BBS+ issue/verify with tamper-rejection, true selective disclosure (forged value / wrong nonce rejected), TEE contract registered on-chain (contract_id 175, gate@0.6.0) and evaluated inside the enclave, stateful velocity limit (3 spends, 3rd rejected). 27 offline crypto/protocol tests + 15 Rust unit tests, CI green. The crypto and contract logic can be verified with no API key: cd agent && npm test, cd gate-contract && cargo test.
+Auth (live balance returned), BBS+ issue/verify with tamper-rejection, true selective disclosure (forged value / wrong nonce rejected), TEE contract registered on-chain (contract_id 175, gate@0.6.0) and evaluated inside the enclave, stateful velocity limit (3 spends, 3rd rejected). 107 automated tests (28 Rust, 40 Node, 39 integration), CI green. The crypto and contract logic can be verified with no API key: cd agent && npm test, cd gate-contract && cargo test.
 
 WHY THIS MATTERS
 This is the pattern a bank's trading desk or a permissioned-DeFi / RWA venue needs: delegate bounded execution to an AI agent without handing over credentials or data. Eligibility is a verifiable fact, the spending limit is enforced in hardware rather than by the agent's own promise, and every action leaves a cryptographic audit trail.
@@ -77,7 +77,7 @@ https://github.com/PugarHuda/t3-gatekeeper-agent#readme
 
 **Demo video (REQUIRED)**
 ```
-https://youtu.be/gVY3y4j6XT4
+https://gatekeeper-evidence.vercel.app
 ```
 
 **Social links (at least one REQUIRED — up to 3)**
@@ -115,7 +115,7 @@ referrer's email if someone referred you.
 
 ## Still owed by you (cannot be auto-filled)
 1. ✅ BUIDL logo — `submission/logo/logo.png` (480×480 PNG)
-2. ✅ Demo video — https://youtu.be/gVY3y4j6XT4
+2. ✅ Demo video — https://gatekeeper-evidence.vercel.app
 3. ✅ Social links — LinkedIn / X / GitHub (above)
 4. **[YOU]** The 8 Track B bug reports are submitted SEPARATELY — see
    `TRACK_B_BUG_REPORTS.md` / `TRACK_B_DORAHACKS.md` (paste-ready)

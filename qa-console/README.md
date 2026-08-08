@@ -14,9 +14,17 @@ cd ../gate-contract && cargo build --bin gate_cli --release
 
 cd ../qa-console
 npm start          # http://localhost:4173 — click through the scenarios
-npm test           # 10 Playwright tests: happy path, wrong paths, API abuse
-npm run test:site  # 5 tests against the deployed evidence site
+npm test           # 13 Playwright tests: happy paths, wrong paths, API abuse
+npm run test:site  # 10 tests against the deployed evidence site
 npm run shots      # regenerate the console screenshots
+```
+
+Three more suites live here because they guard artifacts rather than code:
+
+```bash
+node --test doc.test.mjs     # 5  — the Google-Doc export renders, no markdown leaked
+node --test docx.test.mjs    # 6  — submission.docx package integrity
+node --test video.test.mjs   # 5  — the demo video decodes, and has an audio track
 ```
 
 Playwright comes from `../submission/demo-web/node_modules` via a directory
@@ -31,10 +39,13 @@ New-Item -ItemType Junction -Path node_modules -Target ..\submission\demo-web\no
 | Path | Case | Asserts |
 | --- | --- | --- |
 | Happy | in-mandate purchase | approved, **and no reasons attached** |
+| Happy | credential from a trusted issuer | approved |
 | Wrong | over the cap | rejected, `exceeds mandate max` |
 | Wrong | disallowed asset + kind | **both** failures reported, not just the first |
 | Wrong | unlisted counterparty | rejected, names the offending payee |
 | Wrong | expired mandate | rejected, `expired` |
+| Wrong | **self-issued credential** | rejected as untrusted — the agent minting its own accreditation |
+| Wrong | payee sub-limit under the global cap | rejected, `per-counterparty limit` |
 | Wrong | unconfigured mandate | denies by default — the fail-closed guarantee |
 | Abuse | malformed JSON | 400, no crash |
 | Abuse | missing action | 400 |

@@ -100,7 +100,7 @@ The agent layer also implements two standards the ADK targets:
   `kv-store`, and `logging` interfaces.
 
 ## Verified end-to-end on T3N testnet
-- Auth: handshake → authenticate → getUsage (20,000 credits).
+- Auth: handshake → authenticate → getUsage (live balance returned).
 - BBS+ VC: issue (`bbs-2023` DataIntegrityProof) + verify; tampered claim →
   `isValid:false` (signature enforced, not a stub).
 - True selective disclosure: issuer signs the full KYC record, holder derives a
@@ -110,13 +110,13 @@ The agent layer also implements two standards the ADK targets:
   approved/rejected with the cluster timestamp and tenant DID.
 - Stateful velocity limit: `spend()` (gate@0.6.0, contract_id 175) — 3 spends in
   one window, the 3rd rejected once the running total would exceed the cap.
-- Test coverage: 27 offline crypto/protocol tests + 15 Rust unit tests, CI green.
+- Test coverage: 107 automated tests — 28 Rust, 40 Node, 39 integration/artifact. CI green.
 
 ## How to verify (no API key needed)
 You can confirm the crypto and the TEE contract logic **without any testnet
 credentials** — clone the repo and run the offline suite:
 ```bash
-cd agent && npm install && npm test          # 27 tests: BBS+ issue/verify, tamper,
+cd agent && npm install && npm test          # 40 tests: BBS+ issue/verify, tamper,
                                               # selective disclosure, A2A, Web Bot Auth, revocation
 cd ../gate-contract && cargo test             # 15 unit + 1 doc test: the mandate gate logic
 ```
@@ -133,7 +133,7 @@ leaves a cryptographic audit trail.
 
 ## Links
 - Code: https://github.com/PugarHuda/t3-gatekeeper-agent
-- Demo video: https://youtu.be/gVY3y4j6XT4
+- Demo video: https://gatekeeper-evidence.vercel.app
 - Author: [LinkedIn](https://www.linkedin.com/in/pugar-huda-mantoro/) · [X/Twitter](https://x.com/BangDropID) · [GitHub](https://github.com/PugarHuda)
 
 ## Tech Stack

@@ -63,7 +63,7 @@
   </p>
   <div class="links">
     <a href="https://github.com/PugarHuda/t3-gatekeeper-agent">GitHub repo →</a>
-    <a href="https://youtu.be/gVY3y4j6XT4">Demo video →</a>
+    <a href="#demo">Demo video →</a>
   </div>
   <div class="meta">
     Agent DID · did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f<br>
@@ -71,7 +71,7 @@
   </div>
 </div></header>
 
-<section><div class="wrap">
+<section id="demo"><div class="wrap">
   <h2>Demo — 2½ minutes</h2>
   <video controls preload="metadata" playsinline poster="shots/05-full-flow.png"
          style="width:100%;border:1px solid var(--line);border-radius:12px;background:#000">
@@ -120,7 +120,7 @@
   <h2>What shipped</h2>
   <div class="cards">
     <div class="card"><b>0.7.0</b><span>Rust → WASM contract, live on testnet</span></div>
-    <div class="card"><b>82</b><span>automated tests — 28 Rust, 33 Node, 21 Playwright</span></div>
+    <div class="card"><b>107</b><span>automated tests — 28 Rust, 40 Node, 39 integration</span></div>
     <div class="card"><b>19</b><span>bugs &amp; doc gaps reported with repro steps</span></div>
     <div class="card"><b>8</b><span>mandate dimensions enforced in hardware</span></div>
   </div>
@@ -197,7 +197,7 @@
 
   <figure>
     <img src="shots/07-tests.png" alt="Node test suite output">
-    <figcaption><span class="pill ok">Tests</span><b>33 offline tests</b>, no credits spent.</figcaption>
+    <figcaption><span class="pill ok">Tests</span><b>40 offline tests</b>, no credits spent.</figcaption>
   </figure>
 
   <figure>
@@ -231,7 +231,7 @@
 npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre>
   <p>Or run the whole suite offline, no credits:</p>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
-cd t3-gatekeeper-agent/agent && npm install && npm test   # 27 tests
+cd t3-gatekeeper-agent/agent && npm install && npm test   # 40 tests
 cd ../qa-console && node --test e2e.test.mjs              # 10 Playwright tests</pre>
 </div></section>
 

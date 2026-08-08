@@ -31,8 +31,11 @@ I do not have is listed as such, not quietly claimed.
 | 17 | **Evidence site** | `site/` | 5 Playwright tests, deployed |
 | 18 | **Reproducible screenshots** — commands run for real, output rendered | `submission/screenshots/capture.mjs` | 12 shots |
 
-**Test totals: 82** — 28 Rust, 33 Node, 13 Playwright E2E, 8 live-site (incl. the
-Web Bot Auth key round trip).
+| 19 | **Signature freshness window** — a Web Bot Auth signature expires (default 5 min, skew-tolerant); `created` is inside the signature base so it cannot be back-dated | `agent/src/web-bot-auth.mjs` | 7 Node tests |
+
+**Test totals: 107** — 28 Rust, 40 Node, 13 QA-console E2E, 10 live-site (incl.
+the Web Bot Auth key round trip over the public internet), 16 artifact checks
+(doc export, .docx package, rendered video).
 
 ---
 
