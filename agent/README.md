@@ -23,7 +23,8 @@ Each action — approved or rejected — produces a structured audit row.
 | TEE mandate contract | `TenantClient.contracts.register()` / `execute()` + a Rust→WASM contract | `src/setup.mjs`, `../gate-contract` |
 | Audit | structured per-action row (issuer, decision, reasons) | `src/agent.mjs` |
 | Dispatch (sign) | RFC 9421 Web Bot Auth — approved requests are signed so the destination can verify the caller | `src/web-bot-auth.mjs`, `src/agent.mjs` |
-| Dispatch (execute) | In-TEE outbound call via contract `dispatch_action` (host `http`) — action executes in the enclave; egress gated by the host allowlist | `../gate-contract` `dispatch_action`, `src/agent.mjs` |
+| Dispatch (execute) | In-TEE outbound call via contract `dispatch_action` (host `http`) — the action executes in the enclave (verified: HTTP 200) | `../gate-contract` `dispatch_action`, `src/agent.mjs` |
+| Egress grant | `tee:user/contracts::agent-auth-update` — the *caller* authorises which hosts the enclave may reach, per contract + function | `src/grant-egress.mjs` (`npm run grant:egress`) |
 
 ## Run
 
@@ -32,7 +33,9 @@ cp .env.example .env          # paste your T3N_API_KEY + DID from the claim page
 npm install
 # build + register the TEE contract once (see ../gate-contract/README.md to build the wasm):
 npm run setup
-# run the agent: identity -> VC gate -> TEE mandate -> audit -> signed dispatch
+# authorise the enclave to reach ACTION_ENDPOINT's host (agent-auth grant)
+npm run grant:egress
+# run the agent: identity -> VC gate -> TEE mandate -> audit -> signed in-TEE dispatch
 npm run demo
 ```
 
@@ -45,6 +48,7 @@ npm run demo
 | `npm run demo:sd` | True BBS+ selective disclosure (reveal one claim, hide the rest). |
 | `npm run demo:a2a` | A2A capability exchange — prove one capability to a peer, hide the manifest. *(offline)* |
 | `npm run demo:velocity` | Hardware velocity limit — cumulative per-window spend cap held in the TEE across calls. *(needs `npm run setup` first)* |
+| `npm run grant:egress` | Self-grant the enclave's outbound-HTTP allowlist for `ACTION_ENDPOINT`'s host (`agent-auth-update`). Without it, in-TEE dispatch returns `egress_denied`. |
 | `npm run register:erc8004` | Mint the agent's ERC-8004 on-chain identity (`IdentityRegistry.register(agentURI)`). Needs a gas-funded wallet + registry address; refuses to run unconfigured. |
 | `npm test` | 27 offline tests (crypto, edge cases, A2A, Web Bot Auth, revocation). |
 
@@ -76,8 +80,9 @@ and the agent verifies it **without ever seeing** the hidden claims. See
 [2b] REVOCATION skipped  (revocation registry not configured)   # enforced when REVOCATION_* set
 [3] MANDATE    buy $1,000 of USDC RWA      TEE decision = APPROVED
 [4] AUDIT      {"decision":"approved",…}
-[5] DISPATCH   POST https://broker.example/v1/orders  signed (web-bot-auth)  destination-verifiable=true
-               in-TEE call -> egress gated: host/http.egress_denied (host not in authorised_hosts allowlist)
+[5] DISPATCH   POST https://your-endpoint/…  signed (web-bot-auth)  destination-verifiable=true
+               in-TEE call -> executed in TEE (HTTP 200)          # after `npm run grant:egress`
+               in-TEE call -> egress gated: host/http.egress_denied … no matching agent_auth grant   # without it
 [3] MANDATE    buy $9,000 of USDC RWA      TEE decision = REJECTED  reasons=["amount 900000 exceeds mandate max 500000"]
 [5] DISPATCH   skipped — action not approved, nothing sent
 ```

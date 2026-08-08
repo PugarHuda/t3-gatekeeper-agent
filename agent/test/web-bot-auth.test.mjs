@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateAgentKey, signRequest, verifyRequest } from "../src/web-bot-auth.mjs";
+import {
+  generateAgentKey, signRequest, verifyRequest,
+  loadAgentKey, exportPrivateKey, keyDirectory, keyFromDirectory,
+} from "../src/web-bot-auth.mjs";
 
 const { publicKey, privateKey } = generateAgentKey();
 const keyid = "did:t3n:3d7dd668…#wba";
@@ -61,4 +64,49 @@ test("uses a real (non-fixed) created timestamp", () => {
   const headers = signRequest(req, { privateKey, keyid });
   const created = Number(headers["Signature-Input"].match(/created=(\d+)/)[1]);
   assert.ok(created > 1_700_000_000, "created should be a recent unix time, not the old fixed default");
+});
+
+// --- key directory: the part that makes a signature verifiable by a stranger ---
+
+test("a persisted key round-trips through WBA_PRIVATE_KEY", () => {
+  const fresh = generateAgentKey();
+  const loaded = loadAgentKey({ WBA_PRIVATE_KEY: exportPrivateKey(fresh.privateKey) });
+  assert.equal(loaded.ephemeral, false);
+  // Same key => a signature made by one verifies under the other.
+  const headers = signRequest(req, { privateKey: fresh.privateKey, keyid });
+  assert.equal(verifyRequest(req, headers, loaded.publicKey), true);
+});
+
+test("an unset WBA_PRIVATE_KEY is reported as ephemeral, not silently accepted", () => {
+  assert.equal(loadAgentKey({}).ephemeral, true);
+});
+
+test("the directory is a well-formed Ed25519 JWKS", () => {
+  const [jwk] = keyDirectory(publicKey, keyid).keys;
+  assert.equal(jwk.kty, "OKP");
+  assert.equal(jwk.crv, "Ed25519");
+  assert.equal(jwk.kid, keyid);
+  assert.equal(Buffer.from(jwk.x, "base64url").length, 32, "x must be the raw 32-byte key");
+});
+
+test("a destination can verify using ONLY the published directory", () => {
+  // The end-to-end property: fetch the JWKS, resolve keyid, verify. No shared
+  // secret, no out-of-band key exchange — which is what made the old ephemeral
+  // key worthless in practice.
+  const headers = signRequest({ ...req, body: '{"amount":100}' }, { privateKey, keyid });
+  const published = JSON.parse(JSON.stringify(keyDirectory(publicKey, keyid))); // over the wire
+  const resolved = keyFromDirectory(published, keyid);
+  assert.ok(resolved, "keyid must resolve in the directory");
+  assert.equal(verifyRequest({ ...req, body: '{"amount":100}' }, headers, resolved), true);
+});
+
+test("a keyid missing from the directory does not resolve", () => {
+  assert.equal(keyFromDirectory(keyDirectory(publicKey, keyid), "did:t3n:someone-else#wba"), null);
+});
+
+test("a directory key cannot verify a different agent's signature", () => {
+  const other = generateAgentKey();
+  const headers = signRequest(req, { privateKey: other.privateKey, keyid });
+  const resolved = keyFromDirectory(keyDirectory(publicKey, keyid), keyid);
+  assert.equal(verifyRequest(req, headers, resolved), false);
 });

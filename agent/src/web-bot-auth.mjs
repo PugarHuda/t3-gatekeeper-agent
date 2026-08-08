@@ -7,13 +7,73 @@
 // derived-component signing in RFC 9421 §2.2 + the `web-bot-auth` tag profile.
 // When the request carries a body, its SHA-256 `Content-Digest` (RFC 9530) is
 // covered by the signature too, so the body cannot be tampered in flight.
-import { generateKeyPairSync, sign as edSign, verify as edVerify, createPublicKey, createHash } from "node:crypto";
+import {
+  generateKeyPairSync, sign as edSign, verify as edVerify,
+  createPublicKey, createPrivateKey, createHash,
+} from "node:crypto";
 
 const BASE_COMPONENTS = ["@method", "@authority", "@path"];
 
 export function generateAgentKey() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
   return { publicKey, privateKey };
+}
+
+/**
+ * Load the agent's signing key from `WBA_PRIVATE_KEY` (PKCS#8 base64), or mint
+ * an ephemeral one.
+ *
+ * A per-run key cannot be verified by anyone: the destination resolves `keyid`
+ * against a published directory, and a key that changes every process start can
+ * never appear there. `ephemeral` is returned so callers can say which mode
+ * they are in rather than implying a verifiable identity they do not have.
+ */
+export function loadAgentKey(env = process.env) {
+  const b64 = env.WBA_PRIVATE_KEY;
+  if (!b64) return { ...generateAgentKey(), ephemeral: true };
+  const privateKey = createPrivateKey({
+    key: Buffer.from(b64, "base64"), format: "der", type: "pkcs8",
+  });
+  return { privateKey, publicKey: createPublicKey(privateKey), ephemeral: false };
+}
+
+/** Export a private key as base64 PKCS#8 — what `WBA_PRIVATE_KEY` expects. */
+export function exportPrivateKey(privateKey) {
+  return privateKey.export({ format: "der", type: "pkcs8" }).toString("base64");
+}
+
+/** base64url of the raw 32-byte Ed25519 public key (the JWK `x` parameter). */
+function rawPublicKey(publicKey) {
+  // SPKI for Ed25519 is a fixed 12-byte header followed by the raw key.
+  const spki = publicKey.export({ format: "der", type: "spki" });
+  return spki.subarray(spki.length - 32).toString("base64url");
+}
+
+/**
+ * Build the Web Bot Auth key directory (a JWKS) that a destination fetches to
+ * resolve `keyid` → public key. Served at
+ * `/.well-known/http-message-signatures-directory`.
+ */
+export function keyDirectory(publicKey, keyid) {
+  return {
+    keys: [{
+      kty: "OKP", crv: "Ed25519", alg: "EdDSA", use: "sig",
+      kid: keyid, x: rawPublicKey(publicKey),
+    }],
+  };
+}
+
+/** Resolve a `keyid` against a fetched directory → a verifying public key. */
+export function keyFromDirectory(directory, keyid) {
+  const jwk = (directory?.keys ?? []).find((k) => k.kid === keyid);
+  if (!jwk) return null;
+  if (jwk.kty !== "OKP" || jwk.crv !== "Ed25519") {
+    throw new Error(`unsupported key type ${jwk.kty}/${jwk.crv}`);
+  }
+  // Rebuild SPKI from the raw key: fixed Ed25519 header + 32 raw bytes.
+  const header = Buffer.from("302a300506032b6570032100", "hex");
+  const der = Buffer.concat([header, Buffer.from(jwk.x, "base64url")]);
+  return createPublicKey({ key: der, format: "der", type: "spki" });
 }
 
 /** RFC 9530 Content-Digest of a body: `sha-256=:<base64(sha256)>:`. */

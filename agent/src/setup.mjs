@@ -1,9 +1,9 @@
 // One-time setup: register the compiled gate-contract WASM to your tenant.
 // Build the WASM first (see ../../gate-contract/README.md):
-//   cargo +stable-x86_64-pc-windows-gnu build --target wasm32-wasip2 --release
+//   cargo +stable-x86_64-pc-windows-gnu build --lib --target wasm32-wasip2 --release
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { connect, CONTRACT_TAIL, CONTRACT_VERSION } from "./lib.mjs";
+import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE } from "./lib.mjs";
 
 const WASM_PATH = fileURLToPath(
   new URL("../../gate-contract/target/wasm32-wasip2/release/gate_contract.wasm", import.meta.url),
@@ -20,6 +20,42 @@ try {
   console.log("Registered ✅", JSON.stringify(reg));
 } catch (e) {
   console.log("Note (bump CONTRACT_VERSION if already registered):", e.message);
+}
+
+// The MANDATE the enclave enforces. This is the whole trust story: the tenant
+// admin (the user's platform) provisions it once here, the contract reads it
+// from KV at decision time, and `execute_action` has no inline-mandate escape
+// hatch — so the agent cannot widen its own limits. Readable by the contract,
+// writable by nobody at runtime (the control plane wrote it).
+const mandateAcl = contractId ? { only: [contractId] } : "all";
+try {
+  const map = await tenant.maps.create({
+    tail: "mandate", visibility: "private", readers: mandateAcl, writers: { only: [] },
+  });
+  console.log("Mandate map ✅", JSON.stringify(map));
+} catch (e) {
+  if (contractId) {
+    try {
+      await tenant.maps.update("mandate", { readers: mandateAcl, writers: { only: [] } });
+      console.log(`Mandate map ACL re-pointed to contract ${contractId} ✅`);
+    } catch (e2) {
+      console.log("Mandate map ACL update note:", e2.message);
+    }
+  } else {
+    console.log("Mandate map note:", e.message);
+  }
+}
+
+// Seed the mandate itself via the control plane (bypasses the map ACL).
+try {
+  await tenant.executeControl("map-entry-set", {
+    map_name: tenant.canonicalName("mandate"),
+    key: "default",
+    value: JSON.stringify(MANDATE),
+  });
+  console.log("Mandate seeded ✅", JSON.stringify(MANDATE));
+} catch (e) {
+  console.log("Mandate seed note:", e.message);
 }
 
 // The stateful velocity gate (`spend`) keeps its running total in this KV map.

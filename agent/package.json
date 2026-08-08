@@ -6,6 +6,7 @@
   "description": "Gatekeeper Agent — a delegated agent that executes permissioned actions only after a BBS+ verifiable-credential eligibility gate and a hardware-enforced TEE mandate, on the Terminal 3 Agent Dev Kit.",
   "scripts": {
     "setup": "node src/setup.mjs",
+    "grant:egress": "node src/grant-egress.mjs",
     "demo": "node src/agent.mjs",
     "demo:sd": "node src/agent-sd.mjs",
     "demo:a2a": "node src/a2a-demo.mjs",
