@@ -31,7 +31,7 @@ mandate.
 | Complete **Walkthrough** (write/build/register/invoke/test contract) | ✅ | §3 · screenshots 03, 05 |
 | Agent Auth + register an Agent ID | ✅ | §4 · screenshots 02, 04 |
 | Screenshot completion | ✅ | §7 — 13 screenshots, all from real command output |
-| Highlight bugs | ✅ | §6 — **17 issues**, each with repro steps and request IDs |
+| Highlight bugs | ✅ | §6 — **18 issues**, each with repro steps and request IDs |
 | **Bonus:** go beyond the first contract, provide a use case | ✅ | §5 |
 | **Bonus:** QA — happy path & wrong paths under Playwright | ✅ | §5.1 — 82 automated tests |
 
@@ -89,7 +89,7 @@ docs throws) and **#2** (`getNodeUrl`).
 
 I wrote a real mandate-enforcement contract rather than a hello-world:
 [`gate-contract/`](https://github.com/PugarHuda/t3-gatekeeper-agent/tree/master/gate-contract),
-Rust → `wasm32-wasip2` component, ~187 KB.
+Rust → `wasm32-wasip2` component, ~213 KB.
 
 **What it enforces inside the enclave** — amount cap, allowed assets, allowed
 action kinds, a counterparty allow-list, a valid-after window, expiry, and a
@@ -99,11 +99,11 @@ an empty mandate rejects.
 
 | Step | Result |
 | --- | --- |
-| Write | `gate-contract/src/gate.rs`, 20 Rust unit tests |
+| Write | `gate-contract/src/gate.rs`, 28 Rust unit tests |
 | Build | `cargo build --lib --target wasm32-wasip2 --release` → 213 KB wasm **component** (`0d 00 01 00` magic) — see bug **#5** for the Windows blocker + the fix that worked |
 | Register | `TenantClient.contracts.register({tail,version,wasm})` → **v0.6.0 = `contract_id 175`**, **v0.7.0 = `contract_id 479`** |
 | Invoke | `contracts.execute("gate","evaluate")` → approved/rejected **inside the TEE** |
-| Test | 20 Rust host tests + 27 offline Node tests + 10 Playwright, all green |
+| Test | 28 Rust host tests + 33 offline Node tests + 13 Playwright, all green |
 
 > **Current state, stated plainly:** v0.7.0 (`contract_id 479`) is registered and
 > is the version the host now runs for this tail. Its two new enclave-only
@@ -124,7 +124,7 @@ script_name      z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
 current_version  0.6.0
 ```
 
-📷 **Screenshot 07 — `07-tests.png`** — 27/27 offline tests pass.
+📷 **Screenshot 07 — `07-tests.png`** — 33/33 offline tests pass.
 
 ---
 
@@ -320,9 +320,9 @@ overall ceiling).
 Numbering continues from the eight I filed during the ADK bounty in June. Those
 eight have full write-ups with repro scripts in
 [`submission/TRACK_B_BUG_REPORTS.md`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/TRACK_B_BUG_REPORTS.md);
-the nine new ones are written up in full below.
+the ten new ones are written up in full below.
 
-### New in this submission (9)
+### New in this submission (10)
 
 **#9 — `t3n token balance` and `t3n token usage` are broken (CLI 4.30.0).**
 Every call fails; the params appear to be sealed while the server expects a
@@ -441,6 +441,28 @@ ledger — and the CLI's `token usage` is broken (bug #9). So the two documented
 ways to audit spend both yield nothing, and a developer who runs out has no path
 to understanding why. **Impact: medium**, but it compounds #16: the failure is
 unexplained *and* uninspectable.
+
+**#18 — The published SDK is obfuscated, so any error is undebuggable.**
+`@terminal3/t3n-sdk` ships minified with mangled identifiers and runtime-built
+strings (`_0x3456(0x277)`), and it throws `Error` objects whose stack points into
+that bundle. An uncaught rejection therefore prints **~1 MB of obfuscated source**
+to the terminal instead of a message. Reproduce by calling any control function
+with a wrong argument and not catching it.
+
+The practical effect: you cannot read a stack trace, cannot set a useful
+breakpoint, and cannot tell an SDK bug from your own mistake. I had to write a
+wrapper in two separate places just to see what went wrong:
+
+```js
+catch (e) { console.error(String(e?.message ?? e).replace(/\s+/g, " ").slice(0, 500)); }
+```
+
+Every diagnosis in this report — bugs #9 through #13 — required that wrapper
+first. Shipping a source map, or simply not mangling a library whose whole
+audience is developers integrating against it, would remove a real barrier to
+adoption. **Impact: medium**, but it multiplies the cost of every other bug.
+(Another participant independently reported the same obfuscation problem on the
+bounty listing while I was writing this up.)
 
 ### Filed in June, re-verified for this submission
 
