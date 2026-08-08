@@ -66,4 +66,18 @@ interface contracts {
     /// Input  (JSON): { url, method?("GET"|"POST"...), body? }
     /// Output (JSON): { ok, code?, body_len?, error? }
     dispatch-action: func(req: generic-input) -> result<list<u8>, string>;
+
+    /// ATOMIC decide-and-act. The one entry point that cannot be bypassed:
+    /// it reads the tenant-provisioned mandate from KV (the caller CANNOT
+    /// supply one), evaluates the action, and performs the outbound HTTP call
+    /// only when the decision is `approved` — all inside a single enclave
+    /// invocation. `evaluate` + `dispatch-action` remain separate for dry-runs
+    /// and diagnostics, but a rejected action can never reach the network here.
+    ///
+    /// Input  (JSON): { action:{kind,asset,amount_cents,counterparty?},
+    ///                  url, method?, body? }
+    /// Output (JSON): { decision, reasons[], dispatched: bool,
+    ///                  mandate_source:"kv", evaluated_at_secs, tenant_did,
+    ///                  response?: { ok, code, body_len } | { ok:false, error } }
+    execute-action: func(req: generic-input) -> result<list<u8>, string>;
 }

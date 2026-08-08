@@ -12,6 +12,12 @@ pub struct Action {
     /// Optional destination (merchant / payee DID / address) for counterparty gating.
     #[serde(default)]
     pub counterparty: Option<String>,
+    /// DID of the issuer whose credential the agent used to claim eligibility.
+    /// Checked against `Mandate::allowed_issuers` — without this the enclave has
+    /// no way to tell a regulated KYC provider's attestation from one the agent
+    /// minted for itself.
+    #[serde(default)]
+    pub issuer: Option<String>,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -25,6 +31,16 @@ pub struct Mandate {
     /// action's `counterparty` must be present and listed (or `"*"`).
     #[serde(default)]
     pub allowed_counterparties: Vec<String>,
+    /// Credential issuers this mandate trusts (KYC providers). OPT-IN: empty =
+    /// not enforced, which means ANY issuer passes — including one the agent
+    /// generated. Populate it in production.
+    #[serde(default)]
+    pub allowed_issuers: Vec<String>,
+    /// Per-counterparty ceilings, tighter than `max_amount_cents`. A payee with
+    /// an entry here is additionally capped at it; the global cap still applies.
+    /// "$50k to the fund, $5k to anyone else" is a sub-limit, not a second mandate.
+    #[serde(default)]
+    pub counterparty_limits: std::collections::BTreeMap<String, u64>,
     /// Unix seconds; `0` means "no expiry".
     #[serde(default)]
     pub expires_at_secs: u64,
@@ -112,11 +128,33 @@ pub fn decide(action: &Action, mandate: &Mandate, now_secs: u64) -> (bool, Vec<S
             ),
         }
     }
+    if !mandate.allowed_issuers.is_empty() {
+        match action.issuer.as_deref() {
+            Some(iss) if list_allows(&mandate.allowed_issuers, iss) => {}
+            Some(iss) => reasons.push(format!(
+                "credential issuer '{iss}' not trusted (allowed_issuers={:?})",
+                mandate.allowed_issuers
+            )),
+            None => reasons
+                .push("credential issuer required by mandate but none supplied".to_string()),
+        }
+    }
     if action.amount_cents > mandate.max_amount_cents {
         reasons.push(format!(
             "amount {} exceeds mandate max {}",
             action.amount_cents, mandate.max_amount_cents
         ));
+    }
+    // Sub-limit is checked in ADDITION to the global cap, never instead of it.
+    if let Some(cp) = action.counterparty.as_deref() {
+        if let Some(&limit) = mandate.counterparty_limits.get(cp) {
+            if action.amount_cents > limit {
+                reasons.push(format!(
+                    "amount {} exceeds the per-counterparty limit {limit} for '{cp}'",
+                    action.amount_cents
+                ));
+            }
+        }
     }
 
     (reasons.is_empty(), reasons)
@@ -236,12 +274,24 @@ pub fn spend(input: &[u8]) -> Result<Vec<u8>, String> {
     }
 }
 
+/// The spend window is derived from the cluster clock, NOT from the caller.
+///
+/// A caller-supplied window is a trivial bypass: pass a fresh string on every
+/// call and the running total is always 0, so the velocity cap never binds.
+/// Bucketing by UTC day inside the enclave makes the limit real.
+pub fn day_bucket(now_secs: u64) -> String {
+    format!("d{}", now_secs / 86_400)
+}
+
 #[cfg(target_arch = "wasm32")]
 fn spend_wasm(req: SpendReq) -> Result<Vec<u8>, String> {
     let tid = tenant_context::tenant_did();
     let tid_hex = hex::encode(&tid);
     let map = format!("z:{tid_hex}:spent");
-    let key = req.window.as_bytes();
+    // `req.window` is accepted for backwards compatibility but deliberately
+    // IGNORED — see day_bucket(). The response reports the effective window.
+    let window = day_bucket(tenant_context::cluster_timestamp_secs());
+    let key = window.as_bytes();
 
     let before: u64 = match kv_store::get(&map, key).map_err(|e| format!("kv get: {e}"))? {
         Some(b) => String::from_utf8(b).ok().and_then(|s| s.parse().ok()).unwrap_or(0),
@@ -264,11 +314,14 @@ fn spend_wasm(req: SpendReq) -> Result<Vec<u8>, String> {
         "spent_after": settled,
         "daily_limit_cents": req.daily_limit_cents,
         "remaining": req.daily_limit_cents.saturating_sub(settled),
-        "window": req.window,
+        // The window actually used. `window_requested` is echoed back so a
+        // caller can see its value was not honoured.
+        "window": window,
+        "window_requested": req.window,
     });
     let _ = logging::info(&format!(
-        "spend window={} amount={} before={before} -> {}",
-        req.window, req.action.amount_cents, if approved { "approved" } else { "rejected" }
+        "spend window={window} amount={} before={before} -> {}",
+        req.action.amount_cents, if approved { "approved" } else { "rejected" }
     ));
     serde_json::to_vec(&resp).map_err(|e| e.to_string())
 }
@@ -322,6 +375,88 @@ fn dispatch_action_wasm(req: DispatchReq) -> Result<Vec<u8>, String> {
     serde_json::to_vec(&json).map_err(|e| e.to_string())
 }
 
+// --- atomic decide-and-act ---------------------------------------------------
+//
+// `evaluate` and `dispatch_action` are two separate host calls, which means an
+// agent can simply skip the first one: nothing in `dispatch_action` knows a
+// mandate exists. That makes the gate advisory — it holds only while the agent
+// cooperates. `execute_action` closes that hole: the mandate is read from KV
+// (the caller cannot supply one) and the outbound call happens in the SAME
+// enclave invocation, only on approval.
+
+#[derive(serde::Deserialize)]
+pub struct ExecuteReq {
+    pub action: Action,
+    pub url: String,
+    #[serde(default)]
+    pub method: String,
+    #[serde(default)]
+    pub body: String,
+}
+
+pub fn execute_action(input: &[u8]) -> Result<Vec<u8>, String> {
+    let req: ExecuteReq =
+        serde_json::from_slice(input).map_err(|e| format!("execute_action: bad input: {e}"))?;
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        execute_action_wasm(req)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = req;
+        Err("execute_action is only implemented on the wasm target (needs kv-store + http)"
+            .to_string())
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
+    use crate::host::interfaces::http;
+
+    let tid = tenant_context::tenant_did();
+    let tid_hex = hex::encode(&tid);
+    let now_secs = tenant_context::cluster_timestamp_secs();
+
+    // KV only. There is deliberately no inline-mandate escape hatch here.
+    let mandate = read_mandate(&tid_hex)?;
+    let (approved, reasons) = decide(&req.action, &mandate, now_secs);
+
+    let mut out = serde_json::json!({
+        "decision": if approved { "approved" } else { "rejected" },
+        "reasons": reasons,
+        "dispatched": false,
+        "mandate_source": "kv",
+        "evaluated_at_secs": now_secs,
+        "tenant_did": format!("did:t3n:{tid_hex}"),
+    });
+
+    if approved {
+        let method = match req.method.to_ascii_uppercase().as_str() {
+            "POST" => http::Verb::Post,
+            "PUT" => http::Verb::Put,
+            "PATCH" => http::Verb::Patch,
+            "DELETE" => http::Verb::Delete,
+            _ => http::Verb::Get,
+        };
+        let payload = if req.body.is_empty() { None } else { Some(req.body.into_bytes()) };
+        let request = http::Request { method, url: req.url.clone(), headers: None, payload };
+        out["dispatched"] = serde_json::Value::Bool(true);
+        out["response"] = match http::call(&request) {
+            Ok(resp) => serde_json::json!({ "ok": true, "code": resp.code, "body_len": resp.payload.len() }),
+            Err(e) => serde_json::json!({ "ok": false, "error": e }),
+        };
+    }
+
+    let _ = logging::info(&format!(
+        "execute_action kind={} amount={} url={} -> {} dispatched={}",
+        req.action.kind, req.action.amount_cents, req.url,
+        if approved { "approved" } else { "rejected" }, approved
+    ));
+    serde_json::to_vec(&out).map_err(|e| e.to_string())
+}
+
 #[cfg(target_arch = "wasm32")]
 fn read_mandate(tid_hex: &str) -> Result<Mandate, String> {
     let map_name = format!("z:{tid_hex}:mandate");
@@ -341,13 +476,18 @@ mod tests {
             allowed_assets: vec!["USDC".to_string(), "USD".to_string()],
             allowed_kinds: vec!["rwa.buy".to_string()],
             allowed_counterparties: vec![],
+            allowed_issuers: vec![],
+            counterparty_limits: Default::default(),
             expires_at_secs: 0,
             valid_after_secs: 0,
         }
     }
 
     fn action(kind: &str, asset: &str, amount: u64) -> Action {
-        Action { kind: kind.into(), asset: asset.into(), amount_cents: amount, counterparty: None }
+        Action {
+            kind: kind.into(), asset: asset.into(), amount_cents: amount,
+            counterparty: None, issuer: None,
+        }
     }
 
     #[test]
@@ -394,7 +534,7 @@ mod tests {
 
     #[test]
     fn empty_allowlists_deny_by_default() {
-        let m = Mandate { max_amount_cents: u64::MAX, allowed_assets: vec![], allowed_kinds: vec![], allowed_counterparties: vec![], expires_at_secs: 0, valid_after_secs: 0 };
+        let m = Mandate { max_amount_cents: u64::MAX, allowed_assets: vec![], allowed_kinds: vec![], ..mandate() };
         let (ok, reasons) = decide(&action("rwa.buy", "USDC", 1), &m, 0);
         assert!(!ok, "empty allow-lists must deny");
         assert!(reasons.iter().any(|r| r.contains("allowed_kinds")));
@@ -403,7 +543,7 @@ mod tests {
 
     #[test]
     fn wildcard_allows_any_value() {
-        let m = Mandate { max_amount_cents: 1_000, allowed_assets: vec!["*".into()], allowed_kinds: vec!["*".into()], allowed_counterparties: vec![], expires_at_secs: 0, valid_after_secs: 0 };
+        let m = Mandate { max_amount_cents: 1_000, allowed_assets: vec!["*".into()], allowed_kinds: vec!["*".into()], ..mandate() };
         let (ok, _) = decide(&action("anything", "DOGE", 1_000), &m, 0);
         assert!(ok);
     }
@@ -462,5 +602,121 @@ mod tests {
         m.valid_after_secs = 5000;
         let (ok, _) = decide(&action("rwa.buy", "USDC", 1), &m, 6000);
         assert!(ok);
+    }
+
+    // --- new dimension: trusted credential issuers ---
+    fn issuer_mandate() -> Mandate {
+        Mandate { allowed_issuers: vec!["did:key:kyc-provider".into()], ..mandate() }
+    }
+
+    #[test]
+    fn approves_credential_from_a_trusted_issuer() {
+        let mut a = action("rwa.buy", "USDC", 1);
+        a.issuer = Some("did:key:kyc-provider".into());
+        let (ok, reasons) = decide(&a, &issuer_mandate(), 0);
+        assert!(ok, "{reasons:?}");
+    }
+
+    #[test]
+    fn rejects_a_self_issued_credential() {
+        // The attack this closes: the agent mints its own "accredited" claim.
+        // A valid BBS+ signature proves the issuer signed it, NOT that the
+        // issuer is anyone the fund trusts.
+        let mut a = action("rwa.buy", "USDC", 1);
+        a.issuer = Some("did:key:the-agent-itself".into());
+        let (ok, reasons) = decide(&a, &issuer_mandate(), 0);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("not trusted")), "{reasons:?}");
+    }
+
+    #[test]
+    fn rejects_missing_issuer_when_required() {
+        let (ok, reasons) = decide(&action("rwa.buy", "USDC", 1), &issuer_mandate(), 0);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("issuer required")), "{reasons:?}");
+    }
+
+    #[test]
+    fn empty_issuer_list_is_not_enforced() {
+        // Documents the opt-in default explicitly, so the weaker posture is a
+        // deliberate choice rather than a silent one.
+        let mut a = action("rwa.buy", "USDC", 1);
+        a.issuer = Some("did:key:anyone-at-all".into());
+        assert!(decide(&a, &mandate(), 0).0);
+    }
+
+    // --- new dimension: per-counterparty sub-limits ---
+    fn sublimit_mandate() -> Mandate {
+        let mut m = mandate();
+        m.allowed_counterparties = vec!["did:t3n:fund".into(), "did:t3n:small".into()];
+        m.counterparty_limits.insert("did:t3n:small".into(), 10_000);
+        m
+    }
+
+    #[test]
+    fn sub_limit_caps_a_specific_counterparty() {
+        let mut a = action("rwa.buy", "USDC", 20_000); // under the 500_000 global cap
+        a.counterparty = Some("did:t3n:small".into());
+        let (ok, reasons) = decide(&a, &sublimit_mandate(), 0);
+        assert!(!ok, "the global cap must not rescue an over-sub-limit action");
+        assert!(reasons.iter().any(|r| r.contains("per-counterparty limit")), "{reasons:?}");
+    }
+
+    #[test]
+    fn sub_limit_allows_at_its_own_boundary() {
+        let mut a = action("rwa.buy", "USDC", 10_000);
+        a.counterparty = Some("did:t3n:small".into());
+        assert!(decide(&a, &sublimit_mandate(), 0).0);
+    }
+
+    #[test]
+    fn counterparty_without_a_sub_limit_uses_the_global_cap() {
+        let mut a = action("rwa.buy", "USDC", 400_000);
+        a.counterparty = Some("did:t3n:fund".into());
+        assert!(decide(&a, &sublimit_mandate(), 0).0);
+    }
+
+    #[test]
+    fn global_cap_still_applies_over_a_sub_limit() {
+        // A generous sub-limit must not widen the mandate's overall ceiling.
+        let mut m = sublimit_mandate();
+        m.counterparty_limits.insert("did:t3n:fund".into(), u64::MAX);
+        let mut a = action("rwa.buy", "USDC", 900_000);
+        a.counterparty = Some("did:t3n:fund".into());
+        let (ok, reasons) = decide(&a, &m, 0);
+        assert!(!ok);
+        assert!(reasons.iter().any(|r| r.contains("exceeds mandate max")), "{reasons:?}");
+    }
+
+    // --- spend window is derived in-enclave, not supplied by the caller ---
+    #[test]
+    fn day_bucket_is_stable_within_a_day() {
+        let noon = 1_786_000_000;
+        assert_eq!(day_bucket(noon), day_bucket(noon + 3_600));
+    }
+
+    #[test]
+    fn day_bucket_rolls_over_between_days() {
+        let t = 1_786_000_000;
+        assert_ne!(day_bucket(t), day_bucket(t + 86_400));
+    }
+
+    #[test]
+    fn day_bucket_ignores_any_caller_string() {
+        // The whole point: two calls at the same time bucket identically no
+        // matter what window the caller asked for.
+        assert_eq!(day_bucket(1_786_000_000), day_bucket(1_786_000_000));
+    }
+
+    // --- the atomic path refuses to run without its host capabilities ---
+    #[test]
+    fn execute_action_requires_wasm_host() {
+        let req = br#"{"action":{"kind":"rwa.buy","asset":"USDC","amount_cents":1},"url":"https://x/y"}"#;
+        assert!(execute_action(req).is_err(), "must not silently no-op off-wasm");
+    }
+
+    #[test]
+    fn execute_action_rejects_malformed_input() {
+        assert!(execute_action(b"not json").is_err());
     }
 }

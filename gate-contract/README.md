@@ -39,17 +39,22 @@ need a native host linker the MSVC target lacks):
 ```powershell
 rustup toolchain install stable-x86_64-pc-windows-gnu
 rustup target add wasm32-wasip2 --toolchain stable-x86_64-pc-windows-gnu
-cargo +stable-x86_64-pc-windows-gnu build --target wasm32-wasip2 --release
+cargo +stable-x86_64-pc-windows-gnu build --lib --target wasm32-wasip2 --release
 ```
 
 On Linux/macOS the plain target works:
 
 ```bash
 rustup target add wasm32-wasip2
-cargo build --target wasm32-wasip2 --release
+cargo build --lib --target wasm32-wasip2 --release
 ```
 
 Output: `target/wasm32-wasip2/release/gate_contract.wasm`.
+
+> `--lib` matters: the crate also ships a `gate_cli` binary (the host build of the
+> same decision logic, used by `qa-console/`). Its wasm-only code paths reference
+> host bindings that only exist in the library, so building *all* targets for
+> wasm fails. Cargo cannot target-gate a binary, so scope the wasm build to the lib.
 
 Run the host unit tests (pure `decide()` logic):
 

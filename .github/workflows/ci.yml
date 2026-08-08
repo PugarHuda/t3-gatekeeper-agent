@@ -19,7 +19,7 @@ jobs:
         run: cargo test --target x86_64-unknown-linux-gnu
       - name: Build wasm component
         working-directory: gate-contract
-        run: cargo build --release --target wasm32-wasip2
+        run: cargo build --lib --release --target wasm32-wasip2
       - name: Check artifact
         run: test -f gate-contract/target/wasm32-wasip2/release/gate_contract.wasm
 
