@@ -54,6 +54,8 @@ flowchart TD
 | Path | What |
 | --- | --- |
 | `agent/` | The agent runtime (identity + VC gate + contract invoke + audit). `npm run demo`. |
+| `qa-console/` | Browser console + Playwright E2E over the contract's **real** Rust decision logic — happy path, wrong paths, API abuse. Runs offline, spends no credits. |
+| `site/` | The published evidence page ([gatekeeper-evidence.vercel.app](https://gatekeeper-evidence.vercel.app)). |
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
 | `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
 | `submission/` | Demo script, BUIDL description, [Track B bug reports](submission/TRACK_B_BUG_REPORTS.md) (8 onboarding/SDK/doc issues found while building), [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing + TDX quote layout), [verification log](submission/VERIFICATION.md), and an [adoption roadmap](submission/ADOPTIONS.md) (A2A / ERC-8004 / Web Bot Auth — cheap/high/out-of-box). |
@@ -78,6 +80,17 @@ Every layer was run against the live testnet, not mocked:
   once the running total would exceed the cap — **enforced across invocations in
   hardware** (`t3-qa/velocity-test.mjs`: 3 spends, the 3rd correctly rejected).
 
+## The enclave is the enforcement point (v0.7.0)
+
+`evaluate` and `dispatch_action` are two host calls, so an agent could simply
+skip the first — the mandate held only while the agent cooperated. And `evaluate`
+accepted an **inline** mandate, so the agent supplied the limits it was judged
+against. **`execute_action` closes both holes**: it reads the mandate from the
+enclave's KV store (no inline escape hatch), decides, and performs the outbound
+call in the *same* invocation — so a rejected action cannot reach the network.
+The velocity window is likewise derived from the cluster clock, not from the
+caller, who could otherwise reset the running total by renaming the window.
+
 ## Advanced SDK adoptions (shipped)
 
 Beyond the core gate, the agent layer ships two ecosystem integrations the ADK
@@ -101,9 +114,12 @@ These are covered by offline tests (`npm test` — 27 tests total).
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the
 request but also executes it **from inside the enclave** via the contract's
 `dispatch_action` (host `http` interface) — the path where `http-with-placeholders`
-injects credentials so the agent never holds them. Verified live: the TEE really
-performs the call and returns a typed `egress_denied` until the destination is on
-the host's per-contract `authorised_hosts` allowlist (a Terminal 3-side config).
+injects credentials so the agent never holds them. **Verified live end-to-end: the
+enclave performs the outbound POST and returns HTTP 200.** Egress is authorised by
+the *caller*, not the contract: `npm run grant:egress` writes an `agent-auth` grant
+(contract + functions + `allowedHosts`) via `tee:user/contracts::agent-auth-update`.
+Without it the contract still runs and `http.call` returns a typed
+`host/http.egress_denied` — deny-by-default, per destination host.
 An ERC-8004 on-chain identity is also one funded transaction away
 (`npm run register:erc8004`, real EIP-8004 ABI). See
 [submission/ADOPTIONS.md](submission/ADOPTIONS.md).
@@ -112,15 +128,20 @@ An ERC-8004 on-chain identity is also one funded transaction away
 
 ```bash
 # 1. build the TEE contract  (Windows: see gate-contract/README.md for the gnu toolchain note)
-cd gate-contract && cargo build --target wasm32-wasip2 --release && cd ..
+cd gate-contract && cargo build --lib --target wasm32-wasip2 --release && cd ..
 
 # 2. run the agent
 cd agent
 cp .env.example .env        # paste T3N_API_KEY + DID from the token-claim page
 npm install
 npm run setup               # register the contract to your tenant
-npm run demo                # identity -> VC gate -> TEE mandate -> audit
+npm run grant:egress        # authorise the enclave to reach ACTION_ENDPOINT's host
+npm run demo                # identity -> VC gate -> TEE mandate -> audit -> in-TEE dispatch
 ```
+
+`ACTION_ENDPOINT` defaults to the illustrative `https://broker.example/v1/orders`.
+Point it at an endpoint you control (`ACTION_ENDPOINT=https://…`) and re-run
+`grant:egress` to see step [5] actually leave the enclave.
 
 ## Security note
 

@@ -1,0 +1,11 @@
+environment: "testnet"
+derived eth address: 0x548a66377d7f34902ce08e5b060b8d6d1a24fe14
+loading WASM component...
+WASM loaded ✅
+handshake...
+handshake ✅
+authenticate...
+authenticate ✅ {"value":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f"}
+getUsage ✅: {"balance":{"available":746005238,"reserved":0,"last_settled_seq_no":0,"version":182,"credit_exhausted":false,"storage_deposit":0},"entries":[]}
+
+RESULT: live testnet auth WORKS ✅

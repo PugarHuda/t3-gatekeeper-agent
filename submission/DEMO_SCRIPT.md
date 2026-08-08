@@ -79,7 +79,7 @@ npm run demo
 | `[2] VC GATE … verify=true … eligible=true` | "A trusted issuer signed a BBS+ credential proving *accredited investor*. No net worth, no name, no date of birth — and we verify it cryptographically." |
 | `[2b] REVOCATION skipped …` | "Before acting, it checks an on-chain revocation registry — a kill-switch even if the proof still verifies." |
 | `[3] MANDATE  buy $1,000 …  APPROVED` | "Now the TEE contract judges the action. A thousand-dollar RWA buy — approved." |
-| `[5] DISPATCH … signed (web-bot-auth, body digest)` + `in-TEE call -> egress gated` | "On approval it signs the request with Web Bot Auth — body and all — *and* executes it from inside the enclave. The call really left the TEE; the host just hasn't allowlisted this merchant yet." |
+| `[5] DISPATCH … signed (web-bot-auth, body digest)` + `in-TEE call -> executed in TEE (HTTP 200)` | "On approval it signs the request with Web Bot Auth — body and all — *and* executes it from inside the enclave. That HTTP 200 came back to the TEE: the action really left the hardware, and only to the host the user's agent-auth grant allows." |
 | `[3] MANDATE  buy $9,000 …  REJECTED  reasons=["amount … exceeds … max …"]` | "Nine thousand — rejected, over the cap." |
 | `[3] MANDATE  swap into DOGE …  REJECTED` | "A DOGE swap — rejected: wrong asset and wrong action kind." |
 | `[3] MANDATE  pay APPROVED counterparty …  APPROVED` | "Paying an approved counterparty — allowed." |

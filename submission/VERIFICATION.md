@@ -18,7 +18,16 @@ runs the offline subset on every push.
 | Counterparty allow-list | (same) | approved payee→approved, unknown payee→rejected |
 | Valid-after window | (same) | future-dated mandate → rejected ("not active until …") |
 | Revocation pre-gate | (same) | `[2b]` checked before acting; skipped (fail-open) until a registry is configured |
-| Signed + in-TEE dispatch | (same) | `[5]` approved request signed (web-bot-auth) **and** executed via host `http` from inside the TEE (typed `egress_denied` until host-allowlisted) |
+| Signed + in-TEE dispatch | (same) | `[5]` approved request signed (web-bot-auth) **and** executed via host `http` from inside the TEE — **HTTP 200** after `npm run grant:egress`; typed `egress_denied` without the grant |
+| Egress grant | `cd agent && npm run grant:egress` | `agent-auth-update` accepted (`tx_hash`), enclave may then reach the granted host only |
+| Mandate rules, offline | `cd qa-console && node --test e2e.test.mjs` | 10 Playwright tests over the contract's real Rust `decide()` — happy path, 5 wrong paths, 4 abuse cases |
+| Evidence site | `cd qa-console && node --test site.test.mjs` | 5 tests incl. every screenshot renders (naturalWidth ≠ 0) |
+
+> **v0.7.0 status (7 Aug 2026).** `execute_action` (KV-held mandate + atomic
+> decide-and-dispatch) and the clock-derived spend window are covered by Rust
+> tests and registered live as `contract_id 479`, but are **not yet verified by a
+> live invoke** — registering v0.7.0 exhausted the account (bug #16) before the
+> mandate could be seeded. Everything above the line was verified live on v0.6.0.
 | Deny-by-default (security) | `node t3-qa/gate-deploy-invoke.mjs` | empty mandate → **rejected** inside the enclave |
 | Stateful velocity limit | `cd agent && npm run demo:velocity` | 3 spends, 3rd rejected; running total held in the TEE across calls |
 | A2A capability exchange | `cd agent && npm run demo:a2a` | prove one capability, hide the manifest; mismatch refused |

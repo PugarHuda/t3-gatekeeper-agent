@@ -1,0 +1,4 @@
+agent_uri          https://raw.githubusercontent.com/PugarHuda/t3-gatekeeper-agent/master/agent/agent-card.json
+registered_at      1786116745
+updated_at         1786116745
+owner_eth_address  84,138,102,55,125,127,52,144,44,224,142,91,6,11,141,109,26,36,254,20

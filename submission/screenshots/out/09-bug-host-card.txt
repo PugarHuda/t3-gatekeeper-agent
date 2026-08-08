@@ -1,0 +1,1 @@
+error: RPC Error: NotScopeWriter: signing user is not a writer for this scope [3fed6063-6241-4f32-a135-037b71b8c8f4]

@@ -56,7 +56,11 @@ Full write-ups in [`TRACK_B_BUG_REPORTS.md`](TRACK_B_BUG_REPORTS.md). Titles rea
 ---
 
 ## Optional — email to devrel@terminal3.io
-Two host-side changes would unlock the last roadmap items (everything else is shipped and live):
+
+> **Update 2026-08-07 — ask #1 is solved.** Outbound egress is authorised by the
+> *caller*, not the contract: `tee:user/contracts::agent-auth-update` with
+> `agents[].scripts[].allowedHosts`. Shipped as `npm run grant:egress`; the
+> enclave now completes the outbound POST (HTTP 200). Only ask #2 remains.
 
 ```
 Subject: Gatekeeper Agent (bounty) — two host-side asks to unlock on-chain + in-TEE action

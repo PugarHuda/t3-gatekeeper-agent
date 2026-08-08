@@ -58,8 +58,11 @@ The agent layer also implements two standards the ADK targets:
 - **In-TEE action dispatch.** An approved action is executed from *inside the
   enclave* via the contract's `dispatch_action` (host `http` interface) — the path
   where `http-with-placeholders` injects credentials so the agent never holds
-  them. Verified live: the TEE performs the call and returns a typed
-  `egress_denied` until the merchant host is on the per-contract allowlist.
+  them. **Verified live end-to-end: the enclave performs the outbound POST and
+  returns HTTP 200.** Egress is authorised by the *caller*, not the contract —
+  `npm run grant:egress` writes the `agent-auth` grant (contract + functions +
+  `allowedHosts`) via `tee:user/contracts::agent-auth-update`; without it the
+  call returns a typed `host/http.egress_denied`. Deny-by-default, per host.
 - **ERC-8004 on-chain identity.** `npm run register:erc8004` mints the agent as an
   ERC-721 Trustless Agent via the real EIP-8004 `register(agentURI)` ABI (refuses
   to run without a funded wallet — no fake mint).

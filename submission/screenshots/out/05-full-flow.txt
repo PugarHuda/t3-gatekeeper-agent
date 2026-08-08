@@ -1,0 +1,41 @@
+
+> t3-gatekeeper-agent@0.1.0 demo
+> node src/agent.mjs
+
+[1] IDENTITY   did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f
+[2] VC GATE    issuer=did:key:zUC7E3Pwh6F6a4a4…  verify=true  predicate=true  -> eligible=true
+[2b] REVOCATION skipped  (revocation registry not configured (set REVOCATION_REGISTRY_ADDRESS + REVOCATION_RPC_URL))
+
+[3] MANDATE    buy $1,000 of USDC RWA
+               TEE decision = APPROVED
+[4] AUDIT      {"ts":1786116953,"agentDid":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","issuerDid":"did:key:zUC7E3Pwh6F6a4a4XP4VkKQGHeNbyqYwQLN5tFqNZAhUV5BasWGn1vodxyG1H1yEYxzTrRWd66iU3rpzbb46DDLYGN1a9ReYpibKXtVM253uBJ5itK3tSTFLrE9zu8wAErKJL3w","eligibility":"bbs+ verified","action":{"kind":"rwa.buy","asset":"USDC","amount_cents":100000},"decision":"approved","reasons":[]}
+[5] DISPATCH   POST https://postman-echo.com/post  signed (web-bot-auth, body digest)  destination-verifiable=true
+               in-TEE call -> executed in TEE (HTTP 200)
+
+[3] MANDATE    buy $9,000 of USDC RWA (over mandate)
+               TEE decision = REJECTED  reasons=["amount 900000 exceeds mandate max 500000"]
+[4] AUDIT      {"ts":1786116954,"agentDid":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","issuerDid":"did:key:zUC7E3Pwh6F6a4a4XP4VkKQGHeNbyqYwQLN5tFqNZAhUV5BasWGn1vodxyG1H1yEYxzTrRWd66iU3rpzbb46DDLYGN1a9ReYpibKXtVM253uBJ5itK3tSTFLrE9zu8wAErKJL3w","eligibility":"bbs+ verified","action":{"kind":"rwa.buy","asset":"USDC","amount_cents":900000},"decision":"rejected","reasons":["amount 900000 exceeds mandate max 500000"]}
+[5] DISPATCH   skipped — action not approved, nothing sent
+
+[3] MANDATE    swap into DOGE (asset + kind not allowed)
+               TEE decision = REJECTED  reasons=["action kind 'swap' not permitted (allowed_kinds=[\"rwa.buy\"])","asset 'DOGE' not permitted (allowed_assets=[\"USDC\", \"USD\"])"]
+[4] AUDIT      {"ts":1786116954,"agentDid":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","issuerDid":"did:key:zUC7E3Pwh6F6a4a4XP4VkKQGHeNbyqYwQLN5tFqNZAhUV5BasWGn1vodxyG1H1yEYxzTrRWd66iU3rpzbb46DDLYGN1a9ReYpibKXtVM253uBJ5itK3tSTFLrE9zu8wAErKJL3w","eligibility":"bbs+ verified","action":{"kind":"swap","asset":"DOGE","amount_cents":100},"decision":"rejected","reasons":["action kind 'swap' not permitted (allowed_kinds=[\"rwa.buy\"])","asset 'DOGE' not permitted (allowed_assets=[\"USDC\", \"USD\"])"]}
+[5] DISPATCH   skipped — action not approved, nothing sent
+
+[3] MANDATE    pay APPROVED counterparty (acme-treasury)
+               TEE decision = APPROVED
+[4] AUDIT      {"ts":1786116954,"agentDid":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","issuerDid":"did:key:zUC7E3Pwh6F6a4a4XP4VkKQGHeNbyqYwQLN5tFqNZAhUV5BasWGn1vodxyG1H1yEYxzTrRWd66iU3rpzbb46DDLYGN1a9ReYpibKXtVM253uBJ5itK3tSTFLrE9zu8wAErKJL3w","eligibility":"bbs+ verified","action":{"kind":"rwa.buy","asset":"USDC","amount_cents":100000,"counterparty":"did:t3n:acme-treasury"},"decision":"approved","reasons":[]}
+[5] DISPATCH   POST https://postman-echo.com/post  signed (web-bot-auth, body digest)  destination-verifiable=true
+               in-TEE call -> executed in TEE (HTTP 200)
+
+[3] MANDATE    pay UNKNOWN counterparty
+               TEE decision = REJECTED  reasons=["counterparty 'did:t3n:unknown-payee' not permitted (allowed_counterparties=[\"did:t3n:acme-treasury\"])"]
+[4] AUDIT      {"ts":1786116954,"agentDid":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","issuerDid":"did:key:zUC7E3Pwh6F6a4a4XP4VkKQGHeNbyqYwQLN5tFqNZAhUV5BasWGn1vodxyG1H1yEYxzTrRWd66iU3rpzbb46DDLYGN1a9ReYpibKXtVM253uBJ5itK3tSTFLrE9zu8wAErKJL3w","eligibility":"bbs+ verified","action":{"kind":"rwa.buy","asset":"USDC","amount_cents":100000,"counterparty":"did:t3n:unknown-payee"},"decision":"rejected","reasons":["counterparty 'did:t3n:unknown-payee' not permitted (allowed_counterparties=[\"did:t3n:acme-treasury\"])"]}
+[5] DISPATCH   skipped — action not approved, nothing sent
+
+[3] MANDATE    future-dated mandate (not yet active)
+               TEE decision = REJECTED  reasons=["mandate not active until 4102444800 (now 1786116954)"]
+[4] AUDIT      {"ts":1786116954,"agentDid":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","issuerDid":"did:key:zUC7E3Pwh6F6a4a4XP4VkKQGHeNbyqYwQLN5tFqNZAhUV5BasWGn1vodxyG1H1yEYxzTrRWd66iU3rpzbb46DDLYGN1a9ReYpibKXtVM253uBJ5itK3tSTFLrE9zu8wAErKJL3w","eligibility":"bbs+ verified","action":{"kind":"rwa.buy","asset":"USDC","amount_cents":100000},"decision":"rejected","reasons":["mandate not active until 4102444800 (now 1786116954)"]}
+[5] DISPATCH   skipped — action not approved, nothing sent
+
+✅ Gatekeeper Agent: identity + BBS+ VC gate + hardware mandate + audit — complete.
