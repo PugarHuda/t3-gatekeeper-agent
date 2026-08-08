@@ -8,7 +8,7 @@
 | Agent DID | `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f` |
 | Public repo | https://github.com/PugarHuda/t3-gatekeeper-agent |
 | Evidence site | https://gatekeeper-evidence.vercel.app |
-| Demo video | https://youtu.be/gVY3y4j6XT4 |
+| Demo video | https://youtu.be/gVY3y4j6XT4 — **recorded 19 Jun on v0.6.0, now out of date** (see note below) |
 | Network | T3N **testnet** (`https://cn-api.sg.testnet.t3n.terminal3.io`) |
 | Verified on | 7–8 August 2026 |
 
@@ -31,9 +31,16 @@ mandate.
 | Complete **Walkthrough** (write/build/register/invoke/test contract) | ✅ | §3 · screenshots 03, 05 |
 | Agent Auth + register an Agent ID | ✅ | §4 · screenshots 02, 04 |
 | Screenshot completion | ✅ | §7 — 13 screenshots, all from real command output |
-| Highlight bugs | ✅ | §6 — **18 issues**, each with repro steps and request IDs |
+| Highlight bugs | ✅ | §6 — **19 issues**, each with repro steps and request IDs |
 | **Bonus:** go beyond the first contract, provide a use case | ✅ | §5 |
 | **Bonus:** QA — happy path & wrong paths under Playwright | ✅ | §5.1 — 82 automated tests |
+
+> **About the video.** It was recorded on 19 June against v0.6.0 and shows the
+> in-TEE dispatch being **refused** (`egress_denied`) — that was true then. Egress
+> was solved on 7 August, so the current behaviour is the `HTTP 200` in screenshot
+> 05, not what the video shows. It also names an older `contract_id`. I am linking
+> it because the identity → VC gate → mandate → audit chain it walks through is
+> still accurate, but the screenshots in this document supersede it.
 
 All 13 screenshots were produced by
 [`submission/screenshots/capture.mjs`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/screenshots/capture.mjs),
@@ -320,9 +327,9 @@ overall ceiling).
 Numbering continues from the eight I filed during the ADK bounty in June. Those
 eight have full write-ups with repro scripts in
 [`submission/TRACK_B_BUG_REPORTS.md`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/TRACK_B_BUG_REPORTS.md);
-the ten new ones are written up in full below.
+the eleven new ones are written up in full below.
 
-### New in this submission (10)
+### New in this submission (11)
 
 **#9 — `t3n token balance` and `t3n token usage` are broken (CLI 4.30.0).**
 Every call fails; the params appear to be sealed while the server expects a
@@ -463,6 +470,37 @@ audience is developers integrating against it, would remove a real barrier to
 adoption. **Impact: medium**, but it multiplies the cost of every other bug.
 (Another participant independently reported the same obfuscation problem on the
 bounty listing while I was writing this up.)
+
+**#19 — `redactSecrets` silently fails to redact `privateKey`, `mnemonic` and
+`seed` (security).** The SDK exports `redactSecrets(value)` — *"redact secrets
+from values before logging"*. It matches key names against a fixed list by exact
+lowercased name, so anything not literally on that list passes through **in the
+clear**, with no warning. Half the obvious spellings are missed:
+
+| redacted | **leaked** |
+| --- | --- |
+| `apiKey`, `api_key`, `T3N_API_KEY`, `password`, `secret`, `token`, `auth`, `authorization`, `private_key`, `PRIVATE_KEY`, `priv_key` | **`privateKey`**, **`mnemonic`**, **`seed`**, **`seedPhrase`**, `secretKey`, `accessToken`, `signingKey`, `sessionKey`, `privkey`, `passwd`, `credential`, `cookie` |
+
+The inconsistency is the dangerous part: `private_key` and `PRIVATE_KEY` *are*
+redacted but **`privateKey` — the ordinary camelCase spelling in JavaScript — is
+not**. A developer who checks the helper using env-var-style names concludes it
+works, then logs a request object whose field is `privateKey` and writes the key
+to their logs. `mnemonic` / `seed` / `seedPhrase` are wallet recovery phrases and
+are not covered at all.
+
+```js
+sdk.redactSecrets({ private_key: "x" })  // { private_key: '***REDACTED***' }
+sdk.redactSecrets({ privateKey:  "x" })  // { privateKey: 'x' }        <-- leaked
+sdk.redactSecrets({ mnemonic:    "x" })  // { mnemonic: 'x' }          <-- leaked
+```
+
+Repro: [`t3-qa/sdk-probe.mjs`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/t3-qa/sdk-probe.mjs)
+(offline, no credits — prints the full redacted/leaked matrix).
+Suggested fix: normalise the key (strip `_`/`-`, lowercase) before matching, and
+match on *substring* for `key`/`secret`/`token`/`seed`/`mnemonic` so unknown
+spellings fail **closed**. A redaction helper should over-redact, never
+under-redact. **Impact: high** — it is a security utility that fails open, and
+the failure is invisible until the secret is already in a log.
 
 ### Filed in June, re-verified for this submission
 
