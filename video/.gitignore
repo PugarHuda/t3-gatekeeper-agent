@@ -1,0 +1,5 @@
+node_modules/
+# Renders are large and reproducible: `npm run tts && npm run render`.
+# The published copy lives in ../site/ (and is deployed from there).
+out/
+.remotion/

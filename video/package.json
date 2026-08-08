@@ -1,0 +1,22 @@
+{
+  "name": "gatekeeper-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Remotion demo video for the Gatekeeper Agent — programmatic scenes, neural TTS narration, burned-in captions.",
+  "scripts": {
+    "tts": "node scripts/tts.mjs",
+    "studio": "remotion studio src/index.jsx",
+    "render": "remotion render src/index.jsx Demo out/gatekeeper-demo.mp4 --concurrency=3",
+    "srt": "node scripts/srt.mjs",
+    "still": "remotion still src/index.jsx Demo out/frame.png"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.507",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.507"
+  },
+  "devDependencies": {
+    "msedge-tts": "^2.0.7"
+  }
+}

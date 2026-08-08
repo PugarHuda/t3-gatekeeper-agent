@@ -64,6 +64,23 @@ describe("evidence site", () => {
     const res = await page.request.get(`${SITE}/definitely-not-a-page`);
     assert.notEqual(res.status(), 200);
   });
+
+  test("the demo video is embedded and served seekably", async () => {
+    assert.equal(await page.locator("video source[type='video/mp4']").count(), 1);
+    // Range support is what lets a viewer scrub instead of waiting for the whole
+    // file; a 200 here means the CDN is streaming it whole.
+    const res = await page.request.get(`${SITE}/gatekeeper-demo.mp4`, {
+      headers: { Range: "bytes=0-1023" },
+    });
+    assert.equal(res.status(), 206, "video is not served with range support");
+    assert.match(res.headers()["content-type"], /video\/mp4/);
+  });
+
+  test("the subtitle file is published", async () => {
+    const res = await page.request.get(`${SITE}/gatekeeper-demo.srt`);
+    assert.equal(res.status(), 200);
+    assert.match(await res.text(), /^1\r?\n00:00:00,000 --> /);
+  });
 });
 
 describe("web bot auth key directory (live)", () => {

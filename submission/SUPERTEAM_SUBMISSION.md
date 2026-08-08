@@ -8,7 +8,7 @@
 | Agent DID | `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f` |
 | Public repo | https://github.com/PugarHuda/t3-gatekeeper-agent |
 | Evidence site | https://gatekeeper-evidence.vercel.app |
-| Demo video | https://youtu.be/gVY3y4j6XT4 — **recorded 19 Jun on v0.6.0, now out of date** (see note below) |
+| Demo video | https://gatekeeper-evidence.vercel.app (2m32s, embedded at the top) |
 | Network | T3N **testnet** (`https://cn-api.sg.testnet.t3n.terminal3.io`) |
 | Verified on | 7–8 August 2026 |
 
@@ -35,12 +35,18 @@ mandate.
 | **Bonus:** go beyond the first contract, provide a use case | ✅ | §5 |
 | **Bonus:** QA — happy path & wrong paths under Playwright | ✅ | §5.1 — 82 automated tests |
 
-> **About the video.** It was recorded on 19 June against v0.6.0 and shows the
-> in-TEE dispatch being **refused** (`egress_denied`) — that was true then. Egress
-> was solved on 7 August, so the current behaviour is the `HTTP 200` in screenshot
-> 05, not what the video shows. It also names an older `contract_id`. I am linking
-> it because the identity → VC gate → mandate → audit chain it walks through is
-> still accurate, but the screenshots in this document supersede it.
+> **About the video.** The demo is rendered programmatically with
+> [Remotion](https://remotion.dev) — the scenes are React, the narration is a
+> neural voice, and captions are burned in. Every scene's length is *derived from
+> its measured audio*, so picture and narration cannot drift apart. Source in
+> [`video/`](https://github.com/PugarHuda/t3-gatekeeper-agent/tree/master/video);
+> `npm run tts && npm run render` reproduces it.
+>
+> This replaces an earlier recording (19 Jun, v0.6.0) that had gone stale — it
+> showed the in-TEE dispatch being **refused**, which was true then but not after
+> egress was solved on 7 August. That is exactly the failure mode a hand-edited
+> video has and a generated one does not: when the script is the source of truth,
+> correcting a claim is a re-render, not a re-shoot.
 
 All 13 screenshots were produced by
 [`submission/screenshots/capture.mjs`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/screenshots/capture.mjs),

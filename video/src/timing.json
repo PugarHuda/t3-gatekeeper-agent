@@ -1,0 +1,277 @@
+{
+  "fps": 30,
+  "voice": "en-US-AndrewMultilingualNeural",
+  "scenes": [
+    {
+      "id": "hook",
+      "audio": "audio/hook.mp3",
+      "seconds": 12.96,
+      "durationInFrames": 389,
+      "captions": [
+        {
+          "text": "A private credit fund can only sell to accredited investors.",
+          "from": 0,
+          "durationInFrames": 130
+        },
+        {
+          "text": "So today, every buyer uploads a passport, bank statements, and a net worth letter.",
+          "from": 130,
+          "durationInFrames": 177
+        },
+        {
+          "text": "And the fund stores all of it.",
+          "from": 307,
+          "durationInFrames": 65
+        }
+      ]
+    },
+    {
+      "id": "problem",
+      "audio": "audio/problem.mp3",
+      "seconds": 12.65,
+      "durationInFrames": 380,
+      "captions": [
+        {
+          "text": "That is a compliance cost on the way in, and a breach liability forever after.",
+          "from": 0,
+          "durationInFrames": 166
+        },
+        {
+          "text": "They become custodians of a data set they never wanted,",
+          "from": 166,
+          "durationInFrames": 117
+        },
+        {
+          "text": "just to answer one yes or no question.",
+          "from": 282,
+          "durationInFrames": 81
+        }
+      ]
+    },
+    {
+      "id": "agent",
+      "audio": "audio/agent.mp3",
+      "seconds": 15.620000000000001,
+      "durationInFrames": 469,
+      "captions": [
+        {
+          "text": "Now the investor delegates buying to an AI agent, and two things break at once.",
+          "from": 0,
+          "durationInFrames": 153
+        },
+        {
+          "text": "The agent needs their account credentials.",
+          "from": 153,
+          "durationInFrames": 81
+        },
+        {
+          "text": "And the limits live in the agent's own prompt —",
+          "from": 234,
+          "durationInFrames": 91
+        },
+        {
+          "text": "which is exactly the thing that cannot be trusted to enforce them.",
+          "from": 325,
+          "durationInFrames": 128
+        }
+      ]
+    },
+    {
+      "id": "solution",
+      "audio": "audio/solution.mp3",
+      "seconds": 17.93,
+      "durationInFrames": 538,
+      "captions": [
+        {
+          "text": "Gatekeeper answers both.",
+          "from": 0,
+          "durationInFrames": 54
+        },
+        {
+          "text": "The fund learns exactly one fact — this buyer is accredited —",
+          "from": 54,
+          "durationInFrames": 137
+        },
+        {
+          "text": "proven by a zero knowledge proof, never the net worth behind it.",
+          "from": 190,
+          "durationInFrames": 143
+        },
+        {
+          "text": "And the mandate lives inside the enclave, so the agent cannot widen its own ceiling.",
+          "from": 333,
+          "durationInFrames": 188
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "audio": "audio/run.mp3",
+      "seconds": 16.650000000000002,
+      "durationInFrames": 500,
+      "captions": [
+        {
+          "text": "Here is a real run against the live network.",
+          "from": 0,
+          "durationInFrames": 104
+        },
+        {
+          "text": "The credential verifies.",
+          "from": 104,
+          "durationInFrames": 57
+        },
+        {
+          "text": "A $1,000 purchase is inside the mandate,",
+          "from": 160,
+          "durationInFrames": 94
+        },
+        {
+          "text": "so the enclave approves it and makes the outbound call itself.",
+          "from": 254,
+          "durationInFrames": 146
+        },
+        {
+          "text": "HTTP 200, from inside the hardware.",
+          "from": 401,
+          "durationInFrames": 82
+        }
+      ]
+    },
+    {
+      "id": "reject",
+      "audio": "audio/reject.mp3",
+      "seconds": 13.770000000000001,
+      "durationInFrames": 414,
+      "captions": [
+        {
+          "text": "Nine thousand dollars is over the cap.",
+          "from": 0,
+          "durationInFrames": 77
+        },
+        {
+          "text": "Same entry point, same code path —",
+          "from": 77,
+          "durationInFrames": 69
+        },
+        {
+          "text": "but the decision and the network call are the same enclave invocation,",
+          "from": 146,
+          "durationInFrames": 142
+        },
+        {
+          "text": "so a rejected action never reaches the network at all.",
+          "from": 287,
+          "durationInFrames": 109
+        }
+      ]
+    },
+    {
+      "id": "audit",
+      "audio": "audio/audit.mp3",
+      "seconds": 20.060000000000002,
+      "durationInFrames": 602,
+      "captions": [
+        {
+          "text": "Then I audited my own contract, and found three ways the gate could be bypassed.",
+          "from": 0,
+          "durationInFrames": 168
+        },
+        {
+          "text": "It accepted a mandate supplied by the caller.",
+          "from": 168,
+          "durationInFrames": 95
+        },
+        {
+          "text": "Decide and dispatch were separate calls, so the agent could skip the first.",
+          "from": 263,
+          "durationInFrames": 158
+        },
+        {
+          "text": "And the velocity window was caller supplied, so renaming it reset the counter.",
+          "from": 421,
+          "durationInFrames": 164
+        }
+      ]
+    },
+    {
+      "id": "issuer",
+      "audio": "audio/issuer.mp3",
+      "seconds": 19.89,
+      "durationInFrames": 597,
+      "captions": [
+        {
+          "text": "And a fourth.",
+          "from": 0,
+          "durationInFrames": 28
+        },
+        {
+          "text": "The gate trusted any credential issuer.",
+          "from": 28,
+          "durationInFrames": 85
+        },
+        {
+          "text": "A signature proves the issuer signed the claim.",
+          "from": 113,
+          "durationInFrames": 102
+        },
+        {
+          "text": "It says nothing about whether that issuer is anyone the fund trusts —",
+          "from": 215,
+          "durationInFrames": 150
+        },
+        {
+          "text": "and the agent generates its own issuer key.",
+          "from": 365,
+          "durationInFrames": 93
+        },
+        {
+          "text": "So it could mint its own accredited investor credential.",
+          "from": 459,
+          "durationInFrames": 122
+        }
+      ]
+    },
+    {
+      "id": "numbers",
+      "audio": "audio/numbers.mp3",
+      "seconds": 14.540000000000001,
+      "durationInFrames": 437,
+      "captions": [
+        {
+          "text": "82 automated tests, mostly wrong paths.",
+          "from": 0,
+          "durationInFrames": 98
+        },
+        {
+          "text": "A gate that only proves it says yes is worthless.",
+          "from": 98,
+          "durationInFrames": 123
+        },
+        {
+          "text": "19 bugs and documentation gaps reported, with repro steps.",
+          "from": 221,
+          "durationInFrames": 146
+        },
+        {
+          "text": "Everything is public.",
+          "from": 367,
+          "durationInFrames": 53
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "audio": "audio/outro.mp3",
+      "seconds": 7.68,
+      "durationInFrames": 231,
+      "captions": [
+        {
+          "text": "Code, screenshots, and every command run for real are at gatekeeper-evidence.vercel.app",
+          "from": 0,
+          "durationInFrames": 214
+        }
+      ]
+    }
+  ],
+  "totalFrames": 4557
+}
