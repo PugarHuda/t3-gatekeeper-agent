@@ -4,16 +4,33 @@
 
 **▶ [Demo video (4 min)](https://youtu.be/gVY3y4j6XT4)** — identity → BBS+ VC gate → revocation → hardware mandate → audit → signed in-TEE dispatch, plus true selective disclosure and a stateful velocity limit.
 
-> A delegated agent that executes **permissioned financial actions on behalf of a
-> user without holding their credentials or sensitive data**. Eligibility is
-> proven by a **BBS+ verifiable credential**; the spending bound is enforced by a
-> **TEE contract in hardware**; every action is **audited**.
+## The problem, concretely
 
-This submission deliberately exercises **the full breadth** of the Terminal 3 SDK
-in one coherent flow — identity, verifiable credentials, revocation, a
-hardware-enforced TEE contract, audit, and a signed + in-TEE-executed dispatch —
-not just authentication — to maximise the *"how well integrated is the SDK in its
-entirety"* criterion.
+**Meridian Private Credit Fund** sells a $250k-minimum note. Securities law lets
+it sell only to *accredited* investors — so today every buyer uploads a passport,
+bank statements and a net-worth attestation, and Meridian stores all of it. That
+is a compliance cost on the way in and a breach liability forever after: they
+become custodians of a data set they never wanted, purely to answer one yes/no
+question.
+
+Now the investor delegates buying to an AI agent, and two things break at once.
+The agent needs the investor's account credentials, so a prompt injection spends
+real money. And the limits — $5,000 a trade, USDC only, this fund only — live in
+the agent's own prompt or code, which is exactly the thing that cannot be trusted
+to enforce them.
+
+**Gatekeeper answers both.** Meridian learns exactly one fact — *this buyer is
+accredited* — proven by a BBS+ zero-knowledge proof, never the net worth behind
+it. The mandate lives in the enclave's key-value store, so the agent cannot widen
+its own ceiling: the decision and the outbound order are the **same enclave
+call**, and a rejected action never reaches the network.
+
+**Who it is for:** tokenised RWA and private-credit distribution platforms, and
+the treasury or wealth agents that transact with them.
+
+The general principle: an agent should *prove* it is allowed to act without ever
+holding the data that proves it, and its limits should be enforced by hardware,
+not by its own code.
 
 ```mermaid
 flowchart TD

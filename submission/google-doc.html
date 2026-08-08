@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Gatekeeper Agent — Terminal 3 ADK submission</title>
+<style>
+  body { max-width: 820px; margin: 40px auto; padding: 0 24px;
+         font: 11pt/1.55 Arial, Helvetica, sans-serif; color: #111; background: #fff; }
+  h1 { font-size: 21pt; margin: 0 0 4px; }
+  h2 { font-size: 15pt; margin: 30px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  h3 { font-size: 12.5pt; margin: 20px 0 6px; }
+  p, li { font-size: 11pt; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #bbb; padding: 6px 9px; text-align: left; font-size: 10pt; vertical-align: top; }
+  th { background: #f1f3f5; }
+  pre { background: #f6f8fa; border: 1px solid #ddd; padding: 10px 12px; overflow-x: auto;
+        font: 9.5pt/1.45 Consolas, "Courier New", monospace; white-space: pre-wrap; word-break: break-word; }
+  code { background: #f0f2f4; padding: 1px 4px; font: 10pt Consolas, "Courier New", monospace; }
+  blockquote { margin: 12px 0; padding: 8px 14px; border-left: 3px solid #bbb; background: #fafafa; }
+  img { max-width: 100%; border: 1px solid #ccc; margin: 6px 0; }
+  .cap { font-size: 10pt; color: #444; margin: 16px 0 4px; }
+  hr { border: 0; border-top: 1px solid #ddd; margin: 26px 0; }
+  a { color: #1155cc; }
+  .howto { background: #fff8e1; border: 1px solid #ffd54f; padding: 12px 16px; margin-bottom: 28px;
+           font-size: 10pt; }
+</style></head><body>
+<div class="howto"><b>How to submit this:</b> select all (Ctrl/Cmd+A), copy, paste into a blank
+Google Doc — the screenshots come across with the text. Then Share →
+“Anyone with the link” → Viewer, and submit that link.
+<i>Delete this box before sharing.</i></div>
+<h1>Terminal 3 ADK — Agent ID, test credits &amp; first Rust contract</h1>
+<p><strong>Superteam Earn bounty submission — "Create Agent ID, claim free tokens, &amp; deploy first RUST contract on the network" (LOL ventures)</strong></p>
+<table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td>Author</td><td>Pugar Huda</td></tr><tr><td>Agent DID</td><td><code>did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f</code></td></tr><tr><td>Public repo</td><td>https://github.com/PugarHuda/t3-gatekeeper-agent</td></tr><tr><td>Evidence site</td><td>https://gatekeeper-evidence.vercel.app</td></tr><tr><td>Demo video</td><td>https://youtu.be/gVY3y4j6XT4</td></tr><tr><td>Network</td><td>T3N <strong>testnet</strong> (<code>https://cn-api.sg.testnet.t3n.terminal3.io</code>)</td></tr><tr><td>Verified on</td><td>7–8 August 2026</td></tr></tbody></table>
+<hr>
+<h2>0. Summary</h2>
+<p>Every required step is complete, and then some. I claimed an Agent ID and test credits, finished the Quickstart, walked the full contract lifecycle (write → build → register → invoke → test) with a <strong>Rust → WASM contract that is live on the network right now</strong>, registered the Agent ID on-network, and went well past "first contract" into a working use case: an agent that can only act after a verifiable-credential eligibility check and a hardware-enforced spending mandate.</p>
+<table><thead><tr><th>Bounty requirement</th><th>Status</th><th>Evidence</th></tr></thead><tbody><tr><td>Sign up via SSO, get ID + API key</td><td>✅</td><td>§1</td></tr><tr><td>Complete <strong>Quickstart</strong></td><td>✅</td><td>§2 · screenshot 01</td></tr><tr><td>Complete <strong>Walkthrough</strong> (write/build/register/invoke/test contract)</td><td>✅</td><td>§3 · screenshots 03, 05</td></tr><tr><td>Agent Auth + register an Agent ID</td><td>✅</td><td>§4 · screenshots 02, 04</td></tr><tr><td>Screenshot completion</td><td>✅</td><td>§7 — 13 screenshots, all from real command output</td></tr><tr><td>Highlight bugs</td><td>✅</td><td>§6 — <strong>17 issues</strong>, each with repro steps and request IDs</td></tr><tr><td><strong>Bonus:</strong> go beyond the first contract, provide a use case</td><td>✅</td><td>§5</td></tr><tr><td><strong>Bonus:</strong> QA — happy path &amp; wrong paths under Playwright</td><td>✅</td><td>§5.1 — 82 automated tests</td></tr></tbody></table>
+<p>All 13 screenshots were produced by <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/screenshots/capture.mjs"><code>submission/screenshots/capture.mjs</code></a>, which <strong>executes each command for real</strong> and renders its actual stdout/stderr — including the failures. Nothing is hand-typed transcript; the raw <code>.txt</code> capture sits next to every <code>.png</code>.</p>
+<hr>
+<h2>1. Agent ID and test credits</h2>
+<p>Signed up through the ADK community link, which issued the API key and DID on the success page (shown once). The DID is stable across re-claims — I re-claimed on 7 Aug 2026 and got the <strong>same DID</strong> back with a <strong>different</strong> API key, and each key derives its own Ethereum address while authenticating to that same DID.</p>
+<ul><li>DID: <code>did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f</code></li><li>Derived address for the current key: <code>0x548a66377d7f34902ce08e5b060b8d6d1a24fe14</code></li><li>Credits on the current key: <code>1,487,000,000</code> available</li></ul>
+<blockquote>⚠️ Note for the sponsor: a re-claim for the same Google account returns the same DID and does <strong>not</strong> top the balance up. Also, the units changed — in June this field read <code>20000</code>, it now reads <code>1487000000</code> for the same kind of account.</blockquote>
+<hr>
+<h2>2. Quickstart — one authenticated call</h2>
+<p><code>setEnvironment</code> → <code>loadWasmComponent</code> → <code>T3nClient</code> → <code>handshake()</code> → <code>authenticate()</code> → <code>getUsage()</code>, run live against testnet.</p>
+<p class="cap"><strong>Screenshot 01 — <code>01-quickstart-auth.png</code></strong></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/01-quickstart-auth.png" alt="01-quickstart-auth.png"></p>
+<pre>environment: "testnet"
+derived eth address: 0x548a66377d7f34902ce08e5b060b8d6d1a24fe14
+loading WASM component...
+WASM loaded ✅
+handshake ✅
+authenticate ✅ {"value":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f"}
+getUsage ✅: {"balance":{"available":1487000000,...}}
+
+RESULT: live testnet auth WORKS ✅</pre>
+<p>Source: <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/t3-qa/auth-test.mjs"><code>t3-qa/auth-test.mjs</code></a>. Two issues found here — see bugs <strong>#14</strong> (<code>setEnvironment("sandbox")</code> from the docs throws) and <strong>#2</strong> (<code>getNodeUrl</code>).</p>
+<hr>
+<h2>3. Walkthrough — the Rust TEE contract</h2>
+<p>I wrote a real mandate-enforcement contract rather than a hello-world: <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/tree/master/gate-contract"><code>gate-contract/</code></a>, Rust → <code>wasm32-wasip2</code> component, ~187 KB.</p>
+<p><strong>What it enforces inside the enclave</strong> — amount cap, allowed assets, allowed action kinds, a counterparty allow-list, a valid-after window, expiry, and a <em>stateful</em> cumulative velocity limit held in the contract's own KV map (so the agent cannot reset its own counter between calls). Deny-by-default throughout: an empty mandate rejects.</p>
+<table><thead><tr><th>Step</th><th>Result</th></tr></thead><tbody><tr><td>Write</td><td><code>gate-contract/src/gate.rs</code>, 20 Rust unit tests</td></tr><tr><td>Build</td><td><code>cargo build --lib --target wasm32-wasip2 --release</code> → 213 KB wasm <strong>component</strong> (<code>0d 00 01 00</code> magic) — see bug <strong>#5</strong> for the Windows blocker + the fix that worked</td></tr><tr><td>Register</td><td><code>TenantClient.contracts.register({tail,version,wasm})</code> → <strong>v0.6.0 = <code>contract_id 175</code></strong>, <strong>v0.7.0 = <code>contract_id 479</code></strong></td></tr><tr><td>Invoke</td><td><code>contracts.execute("gate","evaluate")</code> → approved/rejected <strong>inside the TEE</strong></td></tr><tr><td>Test</td><td>20 Rust host tests + 27 offline Node tests + 10 Playwright, all green</td></tr></tbody></table>
+<blockquote><strong>Current state, stated plainly:</strong> v0.7.0 (<code>contract_id 479</code>) is registered and is the version the host now runs for this tail. Its two new enclave-only properties — the KV-held mandate and atomic decide-and-dispatch — are covered by Rust tests but have <strong>not yet been exercised live</strong>, because registering v0.7.0 exhausted the account's credits (bug #16) before the mandate could be seeded. The v0.6.0 evidence below (including the <code>HTTP 200</code> from inside the enclave) was captured live earlier the same day. I would rather say this than imply a live run I did not do.</blockquote>
+<p><strong>It is live on the network right now</strong> — anyone can confirm without my key:</p>
+<p class="cap"><strong>Screenshot 03 — <code>03-contract-deployed.png</code></strong></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/03-contract-deployed.png" alt="03-contract-deployed.png"></p>
+<pre>$ t3n contract get z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate --env testnet
+script_name      z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
+current_version  0.6.0</pre>
+<p class="cap"><strong>Screenshot 07 — <code>07-tests.png</code></strong> — 27/27 offline tests pass.</p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/07-tests.png" alt="07-tests.png"></p>
+<hr>
+<h2>4. Agent Auth + Agent ID registration</h2>
+<p><strong>Agent Auth.</strong> The most useful thing I learned in the docs: a contract's outbound HTTP is authorised by the <strong>caller</strong>, not by the contract. The grant is triple-scoped — contract, functions, and destination hosts:</p>
+<pre>await client.execute({
+  script_name: "tee:user/contracts",
+  script_version: await getScriptVersion(BASE_URL, "tee:user/contracts"),
+  function_name: "agent-auth-update",
+  input: { agents: [{ agentDid, scripts: [{
+    scriptName: "z:&lt;tid&gt;:gate", versionReq: "0.6.0",
+    functions: ["evaluate", "spend", "dispatch_action"],
+    allowedHosts: ["postman-echo.com"],
+  }] }] },
+});</pre>
+<p class="cap"><strong>Screenshot 06 — <code>06-egress-grant.png</code></strong> → <code>agent-auth-update ✅ {"tx_hash":"tx:107:97354"}</code></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/06-egress-grant.png" alt="06-egress-grant.png"></p>
+<p>This turned my last blocked feature into a working one. With the grant, the contract's outbound POST <strong>completes from inside the enclave (HTTP 200)</strong>; without it, the same call returns a typed <code>host/http.egress_denied</code>, and a host that isn't on the grant is refused by name. Deny-by-default, per destination. (Two gotchas the docs don't state: <code>script_version</code> is <strong>required</strong> on this call, and a literal <code>"latest"</code> is rejected — resolve it with <code>getScriptVersion</code>.)</p>
+<p><strong>Agent ID registration.</strong> Registered on-network with the <code>t3n</code> CLI:</p>
+<p class="cap"><strong>Screenshot 02 — <code>02-cli-whoami.png</code></strong> · 📷 <strong>Screenshot 04 — <code>04-agent-registered.png</code></strong></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/02-cli-whoami.png" alt="02-cli-whoami.png"></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/04-agent-registered.png" alt="04-agent-registered.png"></p>
+<pre>$ t3n whoami --env testnet
+did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f
+
+$ t3n agent registry did:t3n:3d7dd668… --full --env testnet
+agent_uri          https://raw.githubusercontent.com/PugarHuda/t3-gatekeeper-agent/master/agent/agent-card.json
+registered_at      1786116745
+updated_at         1786116745
+owner_eth_address  84,138,102,55,125,127,52,144,44,224,142,91,6,11,141,109,26,36,254,20</pre>
+<p>The agent card is an ERC-8004 / A2A-shaped document listing four skills. Getting here surfaced four issues — bugs <strong>#10, #11, #12, #13</strong>. In particular the documented public-agent step (<code>agent host-card</code>) <strong>does not work</strong>; <code>agent set-card --uri</code> is the path that does.</p>
+<hr>
+<h2>5. Beyond the first contract — the use case</h2>
+<p><strong>Who, exactly: tokenised private-credit distribution.</strong></p>
+<p>Take <strong>Meridian Private Credit Fund</strong>, selling a $250k-minimum note to individuals. Securities law lets them sell only to <em>accredited</em> investors, so today every buyer uploads a passport, bank statements and a net-worth attestation, and Meridian stores all of it. That is a compliance cost on the way in and a breach liability forever after — they are now custodians of a data set they never wanted, purely to answer one yes/no question.</p>
+<p>Now the investor delegates buying to an AI agent. Two things break at once. The agent needs the investor's account credentials, so a prompt injection or a bad model day spends real money. And the "limits" — $5,000 a trade, USDC only, this fund only — live in the agent's own prompt or code, which is exactly the thing that cannot be trusted to enforce them.</p>
+<p><strong>Gatekeeper answers both.</strong> Meridian learns exactly one fact — <em>this buyer is accredited</em> — proven by a BBS+ zero-knowledge proof, never the net worth behind it. And the mandate lives in the enclave's key-value store, so the agent cannot widen its own ceiling: the decision and the outbound order are the <strong>same enclave call</strong>, and a rejected action never reaches the network.</p>
+<p><strong>Target users:</strong> tokenised RWA / private-credit distribution platforms, and the treasury or wealth agents transacting with them. <strong>Where it fits T3:</strong> the "Permissioned DeFi / RWA" solution area — accredited-investor proof as an authorization gate rather than a form-filling exercise.</p>
+<p>The general principle: an agent should <em>prove</em> it is allowed to act without ever holding the data that proves it, and its limits should be enforced by hardware, not by its own code.</p>
+<p>The chain, all running on the ADK:</p>
+<pre>[1] IDENTITY   handshake + authenticate                → did:t3n
+[2] VC GATE    BBS+ credential verify                  → eligible, no PII revealed
+[2b] REVOCATION on-chain kill-switch (revoke_vc)       → blocks a revoked holder
+[3] MANDATE    contracts.execute("gate","evaluate")    → TEE decision + reasons
+[4] AUDIT      structured row per action               → approved AND rejected
+[5] DISPATCH   Web Bot Auth signature + in-TEE POST    → HTTP 200 from the enclave</pre>
+<p class="cap"><strong>Screenshot 05 — <code>05-full-flow.png</code></strong> — six scenarios in one run: an approved</p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/05-full-flow.png" alt="05-full-flow.png"></p>
+<p>buy that dispatches for real, an over-mandate buy rejected, a disallowed asset+kind rejected, an approved counterparty, an unknown counterparty rejected, and a future-dated mandate rejected — each with the enclave's own reason strings.</p>
+<p>Things worth a look beyond the core gate:</p>
+<ul><li><strong>True zero-knowledge selective disclosure.</strong> The issuer signs a full KYC record; the holder derives a proof revealing <em>only</em> <code>accreditedInvestor</code>, and the agent verifies it without ever seeing name, DOB, or net worth. The SDK ships issue + verify but not the holder-side derive — see bug <strong>#3</strong> — so I bridged T3 BLS keys into <code>@mattrglobal/bbs-signatures</code>' <code>createProof</code>.</li><li><strong>Hardware velocity limit.</strong> Cumulative per-window spend held in the TEE across invocations; the third spend in a window is rejected by the enclave.</li><li><strong>A2A capability exchange.</strong> One agent proves a single capability to a peer and hides the rest of its manifest.</li><li><strong>Web Bot Auth (RFC 9421).</strong> Outbound requests signed with Ed25519 including a RFC 9530 <code>Content-Digest</code> over the body, so a destination can verify the caller.</li><li><strong>ERC-8004.</strong> A ready-to-run mint script using the real <code>register(agentURI)</code> ABI; it refuses to run unconfigured, so there is no fake on-chain claim.</li></ul>
+<p><strong>Where this goes:</strong> permissioned DeFi / RWA distribution, where "is this buyer accredited?" and "is this trade inside their mandate?" must both be answered before the order leaves — and answered in a way a regulator can audit without the platform ever holding the investor's personal data.</p>
+<h3>5.1 QA — the wrong paths matter more than the happy one</h3>
+<p>A gate that only proves it says <em>yes</em> is worthless. <code>qa-console/</code> is a browser console driven by Playwright, running the contract's <strong>real</strong> Rust <code>decide()</code> via a host build — the rules are never reimplemented in JavaScript, because a JS copy would drift from the contract and prove nothing.</p>
+<p class="cap"><code>11-qa-console-approved.png</code> — happy path: an in-mandate purchase approved.</p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/11-qa-console-approved.png" alt="11-qa-console-approved.png"></p>
+<p class="cap"><code>12-qa-console-rejected.png</code> — wrong path: an unlisted payee refused by name.</p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/12-qa-console-rejected.png" alt="12-qa-console-rejected.png"></p>
+<p class="cap"><code>13-qa-console-self-issued.png</code> — the attack that matters: an agent's</p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/13-qa-console-self-issued.png" alt="13-qa-console-self-issued.png"></p>
+<p>self-issued "accredited investor" credential refused as untrusted.</p>
+<table><thead><tr><th>Path</th><th>Case</th><th>Asserted</th></tr></thead><tbody><tr><td>Happy</td><td>in-mandate purchase</td><td>approved <strong>with no reasons attached</strong></td></tr><tr><td>Happy</td><td>credential from a trusted issuer</td><td>approved</td></tr><tr><td>Wrong</td><td><strong>self-issued credential</strong></td><td>rejected — <code>not trusted</code></td></tr><tr><td>Wrong</td><td>payee sub-limit under the global cap</td><td>rejected — <code>per-counterparty limit</code></td></tr><tr><td>Wrong</td><td>over the cap</td><td>rejected, <code>exceeds mandate max</code></td></tr><tr><td>Wrong</td><td>disallowed asset + kind</td><td><strong>both</strong> failures reported, not just the first</td></tr><tr><td>Wrong</td><td>unlisted counterparty</td><td>rejected, names the payee</td></tr><tr><td>Wrong</td><td>expired mandate</td><td>rejected</td></tr><tr><td>Wrong</td><td>unconfigured mandate</td><td>denies by default — the fail-closed guarantee</td></tr><tr><td>Abuse</td><td>malformed JSON / missing action / unknown route</td><td>400 / 400 / 404, no crash</td></tr><tr><td>Abuse</td><td>negative amount</td><td>must not approve — no unsigned wrap-around past the cap</td></tr></tbody></table>
+<p><strong>82 automated tests total:</strong> 28 Rust, 33 Node, 13 Playwright E2E, and 8 against the live deployed site — including that every screenshot actually renders (an evidence page of broken images is a real defect) and a <strong>Web Bot Auth key round trip over the public internet</strong>: sign locally, fetch the public key from <code>/.well-known/http-message-signatures-directory</code>, verify. Nothing shared in advance, which is the entire point of a key directory and exactly what an ephemeral per-run key could never demonstrate.</p>
+<h3>5.2 Three security holes I found in my own contract, and fixed</h3>
+<p>Auditing my own work for this submission turned up three genuine weaknesses. All three are fixed in <strong>v0.7.0</strong>:</p>
+<ol><li><strong>The mandate was forgeable.</strong> <code>evaluate</code> accepted an inline mandate from the caller, and the demo passed one — so the agent was being judged against limits it supplied itself. The KV path existed but was never exercised. <code>execute_action</code> now reads the mandate from KV with <strong>no inline escape hatch</strong>.</li><li><strong>The gate was skippable.</strong> <code>evaluate</code> and <code>dispatch_action</code> were separate host calls, and nothing in <code>dispatch_action</code> knew a mandate existed — an agent could simply not call <code>evaluate</code>. The gate was advisory. <code>execute_action</code> makes the decision and the outbound call one invocation.</li><li><strong>The velocity limit could be reset.</strong> The spend window was a caller-supplied string, so passing a fresh one each call kept the running total at zero. The window is now derived from the cluster clock inside the enclave.</li></ol>
+<p>The first two mean the pre-0.7.0 mandate held only while the agent cooperated — which is precisely the assumption this project exists to remove.</p>
+<p><strong>A fourth, found after that (fixed in 0.8.0): the gate trusted any issuer.</strong> A BBS+ signature proves the issuer signed the claim — it says nothing about whether that issuer is anyone the fund trusts. The agent generates its own issuer key in the demo, so it could mint its own "accredited investor" credential and pass. The mandate now carries <code>allowed_issuers</code>, and the enclave checks the credential's issuer against it. Same release adds <strong>per-counterparty sub-limits</strong> — "$50k to Meridian, $5k to anyone else" — applied <em>in addition</em> to the global cap, never instead of it (there is a test asserting a generous sub-limit cannot widen the overall ceiling).</p>
+<hr>
+<h2>6. Bugs, doc gaps, and onboarding friction (15)</h2>
+<p>Numbering continues from the eight I filed during the ADK bounty in June. Those eight have full write-ups with repro scripts in <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/TRACK_B_BUG_REPORTS.md"><code>submission/TRACK_B_BUG_REPORTS.md</code></a>; the nine new ones are written up in full below.</p>
+<h3>New in this submission (9)</h3>
+<p><strong>#9 — <code>t3n token balance</code> and <code>t3n token usage</code> are broken (CLI 4.30.0).</strong> Every call fails; the params appear to be sealed while the server expects a plaintext struct. The SDK's own <code>getUsage()</code> works fine against the same node with the same key, so this is CLI-side.</p>
+<p class="cap"><code>08-bug-token-balance.png</code></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/08-bug-token-balance.png" alt="08-bug-token-balance.png"></p>
+<pre>$ t3n token balance --env testnet
+error: RPC Error: invalid token.get-usage params: invalid type: string
+"rGiZ+IfQrOnpJL0xuLSMAQXwJr4cEtwBYChLxVBBJqlJMnNdDeto", expected struct GetUsageParams
+[f4dab8a1-b2d9-46e1-9552-99a3e2e54ae7]</pre>
+<p>Request IDs: <code>cc515bd4-78b2-4fb6-8a56-2bea6c8ed81d</code>, <code>95bcdac8-a2ec-48e0-b999-e5c02a3f98fa</code> (<code>--json</code>), <code>6be214d1-e6f7-4ba8-9f55-8b5b6c0e6425</code> (<code>token usage</code>). <strong>Impact:</strong> high — checking your credit balance is the first thing a new developer does, and the CLI path for it does not work at all.</p>
+<p><strong>#10 — <code>agent registry --full</code> prints <code>owner_eth_address</code> as a decimal byte array.</strong> 📷 04. It renders as <code>84,138,102,55,…</code> instead of <code>0x548a66377d7f34902ce08e5b060b8d6d1a24fe14</code> (same bytes). Cosmetic but confusing — it does not look like an address, so you cannot eyeball whether the right key owns the agent. <strong>Impact:</strong> low.</p>
+<p><strong>#11 — The documented "Register a Public Agent" step fails; the docs omit a prerequisite.</strong> Step 5 of the guide is <code>t3n agent host-card --file agent-card.json --env testnet</code>. For a self-owned (public) agent this returns:</p>
+<pre>error: RPC Error: NotScopeWriter: signing user is not a writer for this scope
+[3fed6063-6241-4f32-a135-037b71b8c8f4]</pre>
+<p>The CLI's own <code>--help</code> mentions that writing a card needs write access to an org's <code>agent-cards</code> scope, but the public-agent page never says so, and there is no org in the public-agent flow at all. Attempting the self-grant first fails differently: <code>OrgPolicyNotInitialised</code> (<code>c58bb202-d711-49f0-a501-8f7b16bb4473</code>). <strong>The path that does work is <code>t3n agent set-card --uri &lt;url&gt;</code></strong>, which the guide does not mention. <strong>Impact:</strong> high — this is the bounty's headline task, and the documented command for it does not succeed.</p>
+<p class="cap"><code>09-bug-host-card.png</code></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/09-bug-host-card.png" alt="09-bug-host-card.png"></p>
+<p><strong>#12 — Org-owned agents cannot be created on testnet: the CLI is ahead of the node.</strong> CLI 4.30.0 requires <code>tee:organisation/contracts &gt;= 0.6.0</code>/<code>0.7.0</code>; testnet runs <strong>0.4.1</strong> (confirmed via <code>t3n contract get tee:organisation/contracts</code>). All three variants fail:</p>
+<pre>$ t3n agent create --org &lt;org&gt; --name X --uri &lt;url&gt;
+error: createAgent: hosting a card needs tee:organisation/contracts &gt;= 0.7.0, but the node runs 0.4.1
+
+$ t3n agent create --org &lt;org&gt; --name X --uri &lt;url&gt; --no-card
+error: createAgent: passing agentUri needs tee:organisation/contracts &gt;= 0.6.0, but the node runs 0.4.1
+
+$ t3n agent create --org &lt;org&gt; --name X --no-card
+error: RPC Error: Internal error [7cc2e1d0-fa1b-4e49-8114-b8a01dad00a0]</pre>
+<p>Two sub-issues: the whole "Register an Organization-owned Agent" page is unusable on testnet, and the third variant degrades to a bare <code>Internal error</code> with no detail instead of the clear version message the other two give. (<code>t3n org create</code> itself works fine — I created <code>did:t3n:93d8852130b8fe8e15c156ab8f445af975593db9</code>.) <strong>Impact:</strong> high.</p>
+<p class="cap"><code>10-bug-node-version.png</code></p>
+<p><img src="https://gatekeeper-evidence.vercel.app/shots/10-bug-node-version.png" alt="10-bug-node-version.png"></p>
+<p><strong>#13 — The documented verification step returns 404 after a successful registration.</strong> The guide ends with <code>curl https://&lt;node&gt;/api/agent-card/$AGENT_DID</code>. After registering successfully (<code>agent registry</code> resolves my DID to its URI), that endpoint returns <strong>404</strong>. Downstream of #12 — no card can be hosted — but it means the documented happy path cannot be completed end-to-end on testnet as written. <strong>Impact:</strong> medium.</p>
+<p><strong>#14 — The Quickstart's <code>setEnvironment("sandbox")</code> throws, with no minimum version stated.</strong> The claim page and Quickstart both show <code>setEnvironment("sandbox")</code>. On <code>@terminal3/t3n-sdk@3.5.2</code>:</p>
+<pre>Invalid environment: sandbox. Must be one of: testnet, production</pre>
+<p><code>sandbox</code> only exists in the 4.x line. The docs give no minimum SDK version, so anyone on an older pin hits this on their very first copy-paste. Related: the claim page issues testnet credentials while the sample code says <code>sandbox</code>. <strong>Impact:</strong> medium — first line of the first example.</p>
+<p><strong>#15 — <code>npx @terminal3/t3n-sdk</code> silently resolves an older local install.</strong> The CLI guide says to run <code>npx @terminal3/t3n-sdk …</code>. Run from a project that already has an older SDK in <code>node_modules</code>, npx picks the <em>local</em> copy, which has no <code>bin</code>, and you get:</p>
+<pre>npm error could not determine executable to run</pre>
+<p>No hint that a stale local version shadowed the intended one. A version note or <code>npx @terminal3/t3n-sdk@latest</code> in the docs would fix it. <strong>Impact:</strong> low.</p>
+<p><strong>#16 — One contract registration exhausts an entire sandbox grant, and the storage deposit is larger than any grant.</strong> Registering a single 204 KB contract took the account from <code>1,487,000,000</code> available to <strong><code>0</code></strong> (<code>credit_exhausted: true</code>). Every operation afterwards — execute, map create, map update, control call — fails with:</p>
+<pre>HTTP 403 Forbidden {"code":"forbidden","detail":"InsufficientCredit
+(account=3d7dd668…, required=10000000000, available=0)"}</pre>
+<p>The required figure, <strong>10,000,000,000</strong>, is about <strong>6.7× the entire initial grant</strong> of 1.487e9. So a developer who follows the walkthrough — register a contract, then create the KV maps it reads — cannot finish on one sandbox key, and the landing page's "25 agents and ~5,000 protected actions" does not match what one grant actually buys. Request IDs: <code>cc72c029-5f44-430e-8d0d-af4b85536313</code> (map update), <code>245961d1-222e-46bd-af77-1c2e6825ad78</code> (<code>map-entry-set</code>), <code>95c78c00-35b5-43e0-be77-6925f38eca83</code>. <strong>Impact: high</strong> — it is a hard stop mid-walkthrough, and there is no warning beforehand that a deploy may consume everything. A pre-flight cost estimate, or simply publishing the price of a registration per KB, would prevent it.</p>
+<p><strong>#17 — There is no way to see where your credits went.</strong> After #16 I tried to find what consumed the grant. <code>getUsage()</code> returns <code>entries: []</code> — an empty ledger — and the CLI's <code>token usage</code> is broken (bug #9). So the two documented ways to audit spend both yield nothing, and a developer who runs out has no path to understanding why. <strong>Impact: medium</strong>, but it compounds #16: the failure is unexplained <em>and</em> uninspectable.</p>
+<h3>Filed in June, re-verified for this submission</h3>
+<table><thead><tr><th>#</th><th>Issue</th><th>Status today</th></tr></thead><tbody><tr><td>1</td><td><code>verifyBbsVc</code> reports the failure reason as literal <code>undefined</code> — <code>"BBS+ signature verification failed: undefined"</code> on a tampered credential</td><td>✅ still reproduces (7 Aug)</td></tr><tr><td>2</td><td><code>getNodeUrl("testnet")</code> returns the string <code>"testnet"</code>; argless <code>getNodeUrl()</code> returns the <strong>production</strong> URL</td><td>✅ still reproduces (7 Aug) — easy to point a testnet build at prod</td></tr><tr><td>3</td><td>"Smart VCs" docs promise ZK selective-disclosure VPs, but the SDK ships no holder-side derive function</td><td>✅ still open (worked around via <code>@mattrglobal/bbs-signatures</code>)</td></tr><tr><td>4</td><td>Referenced onboarding repo <code>Terminal-3/adk-getting-start</code> is <strong>empty</strong></td><td>✅ still empty (size 0, last push 2026-06-06)</td></tr><tr><td>5</td><td>Building a TEE contract on Windows fails with no native linker, undocumented</td><td>✅ open — fix that worked: <code>rustup toolchain install stable-x86_64-pc-windows-gnu</code> + build with <code>cargo +stable-x86_64-pc-windows-gnu</code></td></tr><tr><td>6</td><td><code>tenant.claim()</code> returns HTTP 500 for an already-provisioned tenant instead of a clean "already claimed"</td><td>filed June</td></tr><tr><td>7</td><td>Importing <code>host:interfaces/vp</code> or <code>agent-registry</code> registers fine but then <strong>500s on every execute</strong>; no register-time validation (<code>http</code> works — evidence table in the write-up)</td><td>✅ re-verified 19 Jun, repro contracts 164 / 170 / 174</td></tr><tr><td>8</td><td>Registering a new version under a tail makes the host run the <strong>latest</strong> version for every execute, so a broken deploy bricks pinned older ones; no get-contract-id API; private-map ACL re-register footgun</td><td>filed June</td></tr></tbody></table>
+<hr>
+<h2>7. Screenshot index</h2>
+<p>All in <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/tree/master/submission/screenshots"><code>submission/screenshots/out/</code></a>, each with the raw <code>.txt</code> it was rendered from.</p>
+<table><thead><tr><th>#</th><th>File</th><th>Shows</th></tr></thead><tbody><tr><td>01</td><td><code>01-quickstart-auth.png</code></td><td>Quickstart complete — handshake → authenticate → getUsage, live</td></tr><tr><td>02</td><td><code>02-cli-whoami.png</code></td><td>The network returning our Agent DID</td></tr><tr><td>03</td><td><code>03-contract-deployed.png</code></td><td>Our Rust TEE contract live on the network at v0.6.0</td></tr><tr><td>04</td><td><code>04-agent-registered.png</code></td><td>Agent ID registered — URI, timestamps, owner (and bug #10)</td></tr><tr><td>05</td><td><code>05-full-flow.png</code></td><td>The whole agent: VC gate → TEE mandate → audit → in-TEE dispatch (HTTP 200)</td></tr><tr><td>06</td><td><code>06-egress-grant.png</code></td><td><code>agent-auth-update</code> accepted — the caller authorising enclave egress</td></tr><tr><td>07</td><td><code>07-tests.png</code></td><td>27/27 offline tests</td></tr><tr><td>08</td><td><code>08-bug-token-balance.png</code></td><td>Bug #9 — <code>token balance</code> fails</td></tr><tr><td>09</td><td><code>09-bug-host-card.png</code></td><td>Bug #11 — documented <code>host-card</code> step fails</td></tr><tr><td>10</td><td><code>10-bug-node-version.png</code></td><td>Bug #12 — node runs <code>tee:organisation/contracts</code> 0.4.1</td></tr><tr><td>11</td><td><code>11-qa-console-approved.png</code></td><td>QA happy path — in-mandate purchase approved</td></tr><tr><td>12</td><td><code>12-qa-console-rejected.png</code></td><td>QA wrong path — unlisted payee refused by name</td></tr><tr><td>13</td><td><code>13-qa-console-self-issued.png</code></td><td>QA wrong path — a self-issued credential refused as untrusted</td></tr></tbody></table>
+<p>All thirteen are also published, with captions, at <strong>https://gatekeeper-evidence.vercel.app</strong>, which additionally serves the agent's Web Bot Auth key directory at <a href="https://gatekeeper-evidence.vercel.app/.well-known/http-message-signatures-directory"><code>/.well-known/http-message-signatures-directory</code></a>.</p>
+<hr>
+<h2>8. Reproduce it yourself</h2>
+<p>No key needed for the first two:</p>
+<pre>npx @terminal3/t3n-sdk contract get z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate --env testnet
+npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre>
+<p>With your own key:</p>
+<pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent &amp;&amp; cd t3-gatekeeper-agent/agent
+cp .env.example .env      # your T3N_API_KEY + DID
+npm install &amp;&amp; npm test   # 27 offline tests, no credits spent
+npm run setup             # register the Rust contract + seed the mandate
+npm run grant:egress      # authorise the enclave's outbound host
+npm run demo              # the full chain</pre>
+<p>No key at all — the QA suite runs entirely offline:</p>
+<pre>cd gate-contract &amp;&amp; cargo build --bin gate_cli --release &amp;&amp; cargo test
+cd ../qa-console &amp;&amp; node --test e2e.test.mjs    # 10 Playwright tests</pre>
+<p>A full inventory of what is shipped, what is deliberately shallow, and what is worth building next is in <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/STATUS_AND_ROADMAP.md"><code>submission/STATUS_AND_ROADMAP.md</code></a>.</p>
+<p>Repo: https://github.com/PugarHuda/t3-gatekeeper-agent · Video: https://youtu.be/gVY3y4j6XT4</p>
+</body></html>

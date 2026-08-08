@@ -2,19 +2,31 @@
 
 **Title:** Gatekeeper Agent — VC-gated permissioned actions with a hardware mandate
 
-**Tagline:** A delegated AI agent that executes permissioned financial actions on
-behalf of a user without ever holding their credentials or sensitive data —
-eligibility proven by a BBS+ verifiable credential, the spending bound enforced by
-a Terminal 3 TEE contract, every action audited.
+**Tagline:** Lets a tokenised private-credit fund sell to an investor's AI agent
+without either side over-sharing: the fund learns only *"this buyer is
+accredited"*, and the investor's spending mandate is enforced in TEE hardware the
+agent cannot talk its way past.
 
 ---
 
 ## The Problem
-AI agents that transact on your behalf normally need your credentials and your
-personal data in memory. That's an exploitable attack surface, a prompt-injection
-leak waiting to happen, and a non-starter for banks and institutions. And
-"eligibility" (accredited investor, licensed, KYC'd) is usually proven by handing
-over the raw documents — exposing far more than the one fact that matters.
+**Meridian Private Credit Fund** sells a $250k-minimum note, and securities law
+lets it sell only to *accredited* investors. So today every buyer uploads a
+passport, bank statements and a net-worth attestation, and Meridian stores all of
+it — a compliance cost on the way in, and a breach liability forever after. They
+become custodians of a data set they never wanted, purely to answer one yes/no
+question.
+
+Now the investor delegates buying to an AI agent, and two things break at once.
+The agent needs the investor's account credentials, so a prompt injection or a bad
+model day spends real money. And the limits — $5,000 a trade, USDC only, this fund
+only — live in the agent's own prompt or code, which is exactly the thing that
+cannot be trusted to enforce them.
+
+**Who this is for:** tokenised RWA and private-credit distribution platforms, and
+the treasury or wealth agents that transact with them. It maps to Terminal 3's
+"Permissioned DeFi / RWA" area — accredited-investor proof used as an
+*authorization gate*, not a form-filling exercise.
 
 ## The Solution
 The Gatekeeper Agent puts **two independent gates** in front of every outbound

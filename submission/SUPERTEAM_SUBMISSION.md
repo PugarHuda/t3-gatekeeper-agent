@@ -10,7 +10,7 @@
 | Evidence site | https://gatekeeper-evidence.vercel.app |
 | Demo video | https://youtu.be/gVY3y4j6XT4 |
 | Network | T3N **testnet** (`https://cn-api.sg.testnet.t3n.terminal3.io`) |
-| Verified on | 7 August 2026 |
+| Verified on | 7–8 August 2026 |
 
 ---
 
@@ -35,7 +35,7 @@ mandate.
 | **Bonus:** go beyond the first contract, provide a use case | ✅ | §5 |
 | **Bonus:** QA — happy path & wrong paths under Playwright | ✅ | §5.1 — 82 automated tests |
 
-All 10 screenshots were produced by
+All 13 screenshots were produced by
 [`submission/screenshots/capture.mjs`](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/screenshots/capture.mjs),
 which **executes each command for real** and renders its actual stdout/stderr —
 including the failures. Nothing is hand-typed transcript; the raw `.txt` capture
@@ -254,7 +254,12 @@ console driven by Playwright, running the contract's **real** Rust `decide()` vi
 a host build — the rules are never reimplemented in JavaScript, because a JS copy
 would drift from the contract and prove nothing.
 
-📷 **Screenshots 11 & 12** — an approval, and an unlisted payee refused by name.
+📷 `11-qa-console-approved.png` — happy path: an in-mandate purchase approved.
+
+📷 `12-qa-console-rejected.png` — wrong path: an unlisted payee refused by name.
+
+📷 `13-qa-console-self-issued.png` — the attack that matters: an agent's
+self-issued "accredited investor" credential refused as untrusted.
 
 | Path | Case | Asserted |
 | --- | --- | --- |
@@ -319,10 +324,12 @@ the nine new ones are written up in full below.
 
 ### New in this submission (9)
 
-**#9 — `t3n token balance` and `t3n token usage` are broken (CLI 4.30.0).** 📷 08
+**#9 — `t3n token balance` and `t3n token usage` are broken (CLI 4.30.0).**
 Every call fails; the params appear to be sealed while the server expects a
 plaintext struct. The SDK's own `getUsage()` works fine against the same node
 with the same key, so this is CLI-side.
+
+📷 `08-bug-token-balance.png`
 ```
 $ t3n token balance --env testnet
 error: RPC Error: invalid token.get-usage params: invalid type: string
@@ -341,7 +348,7 @@ array.** 📷 04. It renders as `84,138,102,55,…` instead of
 owns the agent. **Impact:** low.
 
 **#11 — The documented "Register a Public Agent" step fails; the docs omit a
-prerequisite.** 📷 09. Step 5 of the guide is
+prerequisite.** Step 5 of the guide is
 `t3n agent host-card --file agent-card.json --env testnet`. For a self-owned
 (public) agent this returns:
 ```
@@ -356,8 +363,10 @@ differently: `OrgPolicyNotInitialised` (`c58bb202-d711-49f0-a501-8f7b16bb4473`).
 does not mention. **Impact:** high — this is the bounty's headline task, and the
 documented command for it does not succeed.
 
+📷 `09-bug-host-card.png`
+
 **#12 — Org-owned agents cannot be created on testnet: the CLI is ahead of the
-node.** 📷 10. CLI 4.30.0 requires `tee:organisation/contracts >= 0.6.0`/`0.7.0`;
+node.** CLI 4.30.0 requires `tee:organisation/contracts >= 0.6.0`/`0.7.0`;
 testnet runs **0.4.1** (confirmed via `t3n contract get tee:organisation/contracts`).
 All three variants fail:
 ```
@@ -375,6 +384,8 @@ unusable on testnet, and the third variant degrades to a bare `Internal error`
 with no detail instead of the clear version message the other two give.
 (`t3n org create` itself works fine — I created
 `did:t3n:93d8852130b8fe8e15c156ab8f445af975593db9`.) **Impact:** high.
+
+📷 `10-bug-node-version.png`
 
 **#13 — The documented verification step returns 404 after a successful
 registration.** The guide ends with
