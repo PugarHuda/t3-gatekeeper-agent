@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gatekeeper Agent — Terminal 3 ADK evidence</title>
+<meta name="description" content="Screenshot evidence: Agent ID, test credits, and a Rust TEE contract live on the Terminal 3 network.">
+<style>
+  :root {
+    --bg:#0a0e13; --panel:#0e141b; --line:#1e2b3a; --ink:#c8d6e5; --dim:#7c8fa4;
+    --ok:#5ddba4; --bad:#ff7b72; --accent:#79c0ff; --head:#e8f0f8;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.65 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:0 22px; }
+  header { border-bottom:1px solid var(--line); padding:54px 0 40px; }
+  h1 { margin:0 0 12px; font-size:clamp(26px,4.4vw,40px); line-height:1.15; color:var(--head); letter-spacing:-.5px; }
+  .tag { display:inline-block; font-size:12px; letter-spacing:1.1px; text-transform:uppercase;
+         color:var(--accent); border:1px solid var(--line); border-radius:99px; padding:4px 12px; margin-bottom:18px; }
+  .lede { font-size:18px; color:var(--dim); max-width:62ch; margin:0 0 22px; }
+  .links a { display:inline-block; margin:0 14px 8px 0; color:var(--accent); text-decoration:none;
+             border-bottom:1px solid transparent; }
+  .links a:hover { border-bottom-color:var(--accent); }
+  .meta { margin-top:20px; font-size:13px; color:var(--dim); font-family:ui-monospace,Consolas,monospace;
+          word-break:break-all; }
+  section { padding:44px 0; border-bottom:1px solid var(--line); }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim);
+       margin:0 0 20px; font-weight:600; }
+  h3 { color:var(--head); font-size:19px; margin:0 0 8px; }
+  p { max-width:66ch; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:8px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  .card b { display:block; color:var(--head); font-size:22px; margin-bottom:2px; }
+  .card span { color:var(--dim); font-size:13px; }
+  figure { margin:0 0 34px; }
+  figure img { width:100%; display:block; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+  figcaption { margin-top:10px; color:var(--dim); font-size:14px; }
+  figcaption b { color:var(--head); font-weight:600; }
+  .pill { font-size:11px; letter-spacing:.6px; text-transform:uppercase; padding:2px 8px;
+          border-radius:99px; margin-right:8px; border:1px solid var(--line); }
+  .pill.ok { color:var(--ok); } .pill.bug { color:var(--bad); }
+  ol { max-width:66ch; padding-left:20px; } li { margin-bottom:9px; }
+  code, pre { font-family:ui-monospace,Consolas,monospace; }
+  code { color:var(--accent); font-size:.92em; }
+  pre { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+        padding:15px 17px; overflow-x:auto; font-size:13.5px; color:var(--ink); }
+  footer { padding:34px 0 60px; color:var(--dim); font-size:14px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:18px 0 6px; font-size:13.5px; }
+  .step { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  .arrow { color:var(--dim); }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <div class="tag">Terminal 3 Agent Developer Kit</div>
+  <h1>An agent that can spend your money — without being trusted with it.</h1>
+  <p class="lede">
+    Gatekeeper proves an investor is eligible without seeing their identity, then
+    enforces their spending mandate inside a TEE. The agent never holds the
+    credentials, and it cannot widen its own limits.
+  </p>
+  <div class="links">
+    <a href="https://github.com/PugarHuda/t3-gatekeeper-agent">GitHub repo →</a>
+    <a href="https://youtu.be/gVY3y4j6XT4">Demo video →</a>
+  </div>
+  <div class="meta">
+    Agent DID · did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f<br>
+    Contract · z:3d7dd668…:gate — live on T3N testnet
+  </div>
+</div></header>
+
+<section><div class="wrap">
+  <h2>The problem</h2>
+  <h3>Private-credit funds can only sell to accredited investors — and proving it costs everyone.</h3>
+  <p>
+    A fund like <b>Meridian Private Credit</b> is legally barred from selling to
+    a non-accredited buyer. Today that means collecting passports, bank
+    statements and net-worth attestations from every investor, then storing them:
+    a compliance cost for the fund and a breach liability that grows with every
+    new client. And when an investor delegates buying to an AI agent, the agent
+    is handed the account credentials and trusted to stay within its limits.
+  </p>
+  <p>
+    <b>Who this is for:</b> tokenised RWA and private-credit distribution
+    platforms, and the treasury or wealth agents that transact with them.
+  </p>
+  <div class="flow">
+    <span class="step">Investor delegates a mandate</span><span class="arrow">→</span>
+    <span class="step">Agent proves eligibility (BBS+)</span><span class="arrow">→</span>
+    <span class="step">Enclave enforces the mandate</span><span class="arrow">→</span>
+    <span class="step">Order leaves the TEE, signed</span>
+  </div>
+  <p style="margin-top:18px">
+    The fund learns exactly one fact — <i>this buyer is accredited</i> — and never
+    the net worth behind it. The mandate lives in the enclave's key-value store,
+    so the agent cannot raise its own ceiling: the decision and the outbound
+    order are the same enclave call, and a rejected action never reaches the network.
+  </p>
+</div></section>
+
+<section><div class="wrap">
+  <h2>What shipped</h2>
+  <div class="cards">
+    <div class="card"><b>0.7.0</b><span>Rust → WASM contract, live on testnet</span></div>
+    <div class="card"><b>82</b><span>automated tests — 28 Rust, 33 Node, 21 Playwright</span></div>
+    <div class="card"><b>17</b><span>bugs &amp; doc gaps reported with repro steps</span></div>
+    <div class="card"><b>8</b><span>mandate dimensions enforced in hardware</span></div>
+  </div>
+  <p style="margin-top:20px">
+    The agent signs every outbound order with Web Bot Auth (RFC 9421), and its
+    public key is published here —
+    <a href="/.well-known/http-message-signatures-directory" style="color:var(--accent)">
+    <code>/.well-known/http-message-signatures-directory</code></a> — so any
+    destination can verify a request came from this agent with nothing shared in
+    advance. That round trip is itself a test in the suite.
+  </p>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Evidence</h2>
+
+  <figure>
+    <img src="shots/01-quickstart-auth.png" alt="Quickstart authentication output">
+    <figcaption><span class="pill ok">Quickstart</span><b>One authenticated call.</b>
+      handshake → authenticate → getUsage against live testnet.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/03-contract-deployed.png" alt="Contract get showing gate 0.6.0 live">
+    <figcaption><span class="pill ok">Walkthrough</span><b>The Rust contract is live on the network.</b>
+      Anyone can verify it without a key — command at the bottom of this page.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/05-full-flow.png" alt="Full agent run">
+    <figcaption><span class="pill ok">Use case</span><b>The whole chain, one run.</b>
+      Identity → BBS+ credential gate → revocation check → TEE mandate → audit row →
+      signed dispatch. Six scenarios: one approved and dispatched for real
+      (<code>HTTP 200</code> from inside the enclave), five rejected, each with the
+      enclave's own reason.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/06-egress-grant.png" alt="agent-auth-update grant accepted">
+    <figcaption><span class="pill ok">Agent Auth</span><b>The caller authorises what the enclave may reach.</b>
+      An <code>agent-auth</code> grant scoped to contract, functions and destination
+      hosts. Without it the same call returns <code>egress_denied</code>.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/04-agent-registered.png" alt="Agent registry record">
+    <figcaption><span class="pill ok">Agent ID</span><b>Registered on-network.</b>
+      The DID resolves to an ERC-8004 / A2A agent card.
+      (The <code>owner_eth_address</code> rendering here is bug #10.)</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/11-qa-console-approved.png" alt="QA console approving an in-mandate action">
+    <figcaption><span class="pill ok">QA</span><b>Happy path.</b>
+      An in-mandate purchase approved. Every verdict comes from the contract's real
+      Rust <code>decide()</code> — the rules are never reimplemented in JavaScript.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/12-qa-console-rejected.png" alt="QA console rejecting an unknown counterparty">
+    <figcaption><span class="pill ok">QA</span><b>Wrong path.</b>
+      An unlisted payee refused by name. Playwright drives six scenarios plus four
+      API-abuse cases, including a negative amount that must not wrap past the cap.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/13-qa-console-self-issued.png" alt="QA console rejecting a self-issued credential">
+    <figcaption><span class="pill ok">QA</span><b>The attack that matters.</b>
+      A BBS+ signature proves the <i>issuer</i> signed the claim — never that the
+      issuer is anyone the fund trusts. An agent that mints its own
+      "accredited investor" credential is refused against the mandate's issuer
+      trust list.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/07-tests.png" alt="Node test suite output">
+    <figcaption><span class="pill ok">Tests</span><b>33 offline tests</b>, no credits spent.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/08-bug-token-balance.png" alt="token balance RPC error">
+    <figcaption><span class="pill bug">Bug #9</span><b><code>token balance</code> and <code>token usage</code> always fail.</b>
+      The CLI seals params the server expects as a plain struct. The SDK's own
+      <code>getUsage()</code> works against the same node — so checking your balance,
+      the first thing a new developer does, is broken on the CLI path.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/09-bug-host-card.png" alt="host-card NotScopeWriter error">
+    <figcaption><span class="pill bug">Bug #11</span><b>The documented agent-registration step fails.</b>
+      <code>agent host-card</code> returns <code>NotScopeWriter</code> for a self-owned
+      agent, and the guide never mentions the scope prerequisite.
+      <code>agent set-card --uri</code> is the path that actually works.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/10-bug-node-version.png" alt="tee:organisation/contracts version 0.4.1">
+    <figcaption><span class="pill bug">Bug #12</span><b>The CLI is ahead of the node.</b>
+      Org-owned agents need <code>tee:organisation/contracts</code> ≥ 0.6.0; testnet
+      runs 0.4.1, so that entire walkthrough page is unusable.</figcaption>
+  </figure>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Verify it yourself</h2>
+  <p>No API key needed — the contract and the agent ID are public:</p>
+<pre>npx @terminal3/t3n-sdk contract get z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate --env testnet
+npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre>
+  <p>Or run the whole suite offline, no credits:</p>
+<pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
+cd t3-gatekeeper-agent/agent && npm install && npm test   # 27 tests
+cd ../qa-console && node --test e2e.test.mjs              # 10 Playwright tests</pre>
+</div></section>
+
+<footer><div class="wrap">
+  Built on the Terminal 3 Agent Developer Kit ·
+  <a href="https://github.com/PugarHuda/t3-gatekeeper-agent" style="color:var(--accent);text-decoration:none">source</a>
+</div></footer>
+
+</body>
+</html>

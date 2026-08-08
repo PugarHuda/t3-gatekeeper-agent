@@ -1,0 +1,13 @@
+{
+  "name": "gatekeeper-qa-console",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Browser console + Playwright E2E over the gate contract's real Rust decision logic (happy path, wrong paths, API abuse) — runs offline, spends no testnet credits.",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test e2e.test.mjs",
+    "test:site": "node --test site.test.mjs",
+    "shots": "node shots.mjs"
+  }
+}
