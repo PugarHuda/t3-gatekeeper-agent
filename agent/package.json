@@ -13,8 +13,9 @@
     "demo:velocity": "node src/velocity-demo.mjs",
     "register:erc8004": "node src/erc8004-register.mjs",
     "auth": "node src/auth-check.mjs",
-    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs",
-    "erc8004": "node src/erc8004-status.mjs"
+    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs test/audit.test.mjs",
+    "erc8004": "node src/erc8004-status.mjs",
+    "audit": "node src/audit.mjs"
   },
   "dependencies": {
     "@terminal3/bbs_vc": "^0.2.36",

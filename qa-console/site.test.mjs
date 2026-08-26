@@ -121,3 +121,22 @@ describe("web bot auth key directory (live)", () => {
     assert.equal(verifyRequest(req, headers, keyFromDirectory(directory, keyid)), false);
   });
 });
+
+describe("A2A discovery (live)", () => {
+  test("the agent card is published at the well-known path", async () => {
+    // A peer that knows only the domain must be able to find this agent. Same
+    // property as the Web Bot Auth key directory: nothing shared in advance.
+    const { discoverPeer, skillIds } = await import("../agent/src/a2a.mjs");
+    const d = await discoverPeer(SITE);
+    assert.equal(d.valid, true, JSON.stringify(d.problems));
+    assert.ok(skillIds(d.card).includes("evaluate-gated-action"), skillIds(d.card).join(","));
+  });
+
+  test("it is served as JSON and cross-origin readable", async () => {
+    const res = await fetch(SITE + "/.well-known/agent-card.json");
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /application\/json/);
+    // A2A discovery is cross-origin by nature.
+    assert.equal(res.headers.get("access-control-allow-origin"), "*");
+  });
+});
