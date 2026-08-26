@@ -97,6 +97,35 @@ describe("wrong paths", () => {
   });
 });
 
+describe("credential binding — the eligibility check cannot be detached", () => {
+  test("a credential bound to this exact action is approved", async () => {
+    const { verdict, reasons } = await runScenario("s-bind-ok");
+    assert.equal(verdict, "APPROVED", reasons.join(" | "));
+  });
+
+  test("a credential verified for a smaller amount cannot pay a bigger one", async () => {
+    // The whole point: the agent really did verify a credential, just not for
+    // this action. The enclave recomputes the commitment over the action it is
+    // about to perform, so the substitution shows up as a mismatch.
+    const { verdict, reasons } = await runScenario("s-bind-moved");
+    assert.equal(verdict, "REJECTED");
+    assert.ok(
+      reasons.some((r) => /does not match this action/.test(r)),
+      reasons.join(" | "),
+    );
+  });
+
+  test("a mandate that requires a binding refuses when none is supplied", async () => {
+    // Otherwise omitting the field is the way around the check.
+    const { verdict, reasons } = await runScenario("s-bind-missing");
+    assert.equal(verdict, "REJECTED");
+    assert.ok(
+      reasons.some((r) => /requires a credential binding/.test(r)),
+      reasons.join(" | "),
+    );
+  });
+});
+
 describe("api abuse", () => {
   const post = (body) => page.evaluate(async (b) => {
     const r = await fetch("/api/decide", {

@@ -10,6 +10,7 @@ import * as bbs from "@terminal3/bbs_vc";
 import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, actionEndpoint } from "./lib.mjs";
 import { loadAgentKey, signRequest, verifyRequest } from "./web-bot-auth.mjs";
 import { buildOptionsFromEnv, checkRevocation } from "./revocation.mjs";
+import { bindCredential } from "./credential-binding.mjs";
 
 // A trusted KYC issuer attests ONLY the predicate the action needs — never the
 // underlying net worth, name, or DOB. (Predicate-credential model: see README.)
@@ -91,11 +92,21 @@ async function act(label, action, mandate = MANDATE) {
 
 // The LIVE path. Everything above is a what-if: the agent supplied the mandate
 // it was judged against, so the gate only holds while the agent cooperates.
+// Bind the credential this run actually verified to the action being requested.
+// `verified: true` is the BBS+ verdict from step [2] — not an assumption; if
+// that check had failed the run would not have reached here.
+const binding = (action) => bindCredential({
+  issuer: issuerDid,
+  subject: subject.did,
+  claims: vc.credentialSubject,
+  verified: verdict.isValid,
+}, action);
+
 // `execute_action` is the real one — the enclave reads the mandate from KV
 // (the agent CANNOT supply one) and performs the outbound call itself, in the
 // same invocation, only on approval. A rejected action never reaches the network
 // because the network call and the decision are the same host call.
-async function executeForReal(label, action) {
+async function executeForReal(label, action, credential = binding(action)) {
   await pace();
   const body = JSON.stringify(action);
   const req = { method: "POST", url: ACTION_ENDPOINT, body };
@@ -106,7 +117,7 @@ async function executeForReal(label, action) {
   try {
     const r = await tenant.contracts.execute(CONTRACT_TAIL, {
       version: CONTRACT_VERSION, functionName: "execute_action",
-      input: { action, url: ACTION_ENDPOINT, method: "POST", body },
+      input: { action, url: ACTION_ENDPOINT, method: "POST", body, credential },
     });
     const src = `mandate_source=${r.mandate_source}`;
     if (r.decision !== "approved") {

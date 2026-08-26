@@ -149,7 +149,7 @@ if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 **One command runs everything that does not cost a credit:**
 
 ```bash
-node verify.mjs        # 85 checks: Rust, wasm build, Node, Playwright. No key needed.
+node verify.mjs        # 108 checks: Rust, wasm build, Node, Playwright. No key needed.
 ```
 
 CI runs the same script, so the two cannot drift apart.

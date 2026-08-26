@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Gatekeeper Agent — a delegated agent that executes permissioned actions only after a BBS+ verifiable-credential eligibility gate and a hardware-enforced TEE mandate, on the Terminal 3 Agent Dev Kit.",
+  "description": "Gatekeeper Agent \u2014 a delegated agent that executes permissioned actions only after a BBS+ verifiable-credential eligibility gate and a hardware-enforced TEE mandate, on the Terminal 3 Agent Dev Kit.",
   "scripts": {
     "setup": "node src/setup.mjs",
     "grant:egress": "node src/grant-egress.mjs",
@@ -13,11 +13,13 @@
     "demo:velocity": "node src/velocity-demo.mjs",
     "register:erc8004": "node src/erc8004-register.mjs",
     "auth": "node src/auth-check.mjs",
-    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs"
+    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs",
+    "erc8004": "node src/erc8004-status.mjs"
   },
   "dependencies": {
     "@terminal3/bbs_vc": "^0.2.36",
     "@terminal3/t3n-sdk": "^5.1.0",
-    "@terminal3/vc_core": "^0.0.37"
+    "@terminal3/vc_core": "^0.0.37",
+    "ethers": "^6.16.0"
   }
 }

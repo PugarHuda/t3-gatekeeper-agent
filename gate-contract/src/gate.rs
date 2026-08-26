@@ -4,7 +4,7 @@
 //! adds the three host calls: tenant DID + cluster timestamp (tenant-context),
 //! the provisioned mandate (kv-store), and an audit line (logging).
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct Action {
     pub kind: String,
     pub asset: String,
@@ -18,6 +18,116 @@ pub struct Action {
     /// minted for itself.
     #[serde(default)]
     pub issuer: Option<String>,
+}
+
+// ── credential binding ──────────────────────────────────────────────────────
+//
+// The eligibility proof is verified in the agent, because the enclave has no
+// way to verify a BBS+ proof (that needs host `vp.verify`, which this node does
+// not serve — bug #7). What the enclave CAN do is refuse to take the agent's
+// word twice.
+//
+// The agent hands over a commitment over the credential it verified AND the
+// action it verified it for. The enclave recomputes that commitment from the
+// action *it* is deciding on. If the agent verified a credential for a $500
+// purchase and then submits a $500,000 one, the digests differ and the action
+// is rejected — the verification cannot be detached from what it authorised.
+//
+// Stated plainly, because the distinction matters: this does not prove the BBS+
+// proof was valid. It proves the agent committed to a specific credential for
+// this specific action before the enclave decided, and that the issuer named in
+// the mandate check is the one inside that commitment. Closing the remaining
+// gap needs in-contract proof verification.
+#[derive(serde::Deserialize, Clone)]
+pub struct CredentialBinding {
+    /// DID of the credential's issuer.
+    pub issuer: String,
+    /// DID of the subject the credential was issued to.
+    pub subject: String,
+    /// Agent-side digest over the disclosed claims (hex).
+    pub claims_digest: String,
+    /// Single-use value, so one binding cannot be replayed for a later action.
+    pub nonce: String,
+    /// Hex SHA-256 the enclave recomputes and compares.
+    pub commitment: String,
+}
+
+/// Domain separator — a commitment from this scheme can never be mistaken for
+/// a hash computed for some other purpose over the same fields.
+pub const BINDING_DOMAIN: &str = "t3-gatekeeper/cred-binding/v1";
+
+fn sha256_hex(parts: &[&str]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    // Length-prefix every field. Without it, ("ab","c") and ("a","bc") hash the
+    // same, and an attacker picks the split.
+    for p in parts {
+        h.update((p.len() as u64).to_be_bytes());
+        h.update(p.as_bytes());
+    }
+    hex::encode(h.finalize())
+}
+
+/// Digest of the action the credential was presented for.
+pub fn action_digest(action: &Action) -> String {
+    sha256_hex(&[
+        &action.kind,
+        &action.asset,
+        &action.amount_cents.to_string(),
+        action.counterparty.as_deref().unwrap_or(""),
+    ])
+}
+
+/// The commitment both sides compute. The agent computes it over the action it
+/// is about to request; the enclave over the action it is about to perform.
+pub fn expected_commitment(binding: &CredentialBinding, action: &Action) -> String {
+    sha256_hex(&[
+        BINDING_DOMAIN,
+        &binding.issuer,
+        &binding.subject,
+        &binding.claims_digest,
+        &action_digest(action),
+        &binding.nonce,
+    ])
+}
+
+/// Check a binding against the action being decided.
+///
+/// `require` comes from the mandate: when a mandate demands a credential, a
+/// missing binding is a rejection rather than a skipped check — otherwise
+/// omitting the field would be the way around it.
+pub fn check_binding(
+    binding: Option<&CredentialBinding>,
+    action: &Action,
+    require: bool,
+) -> Result<(), String> {
+    let Some(b) = binding else {
+        return if require {
+            Err("mandate requires a credential binding, none supplied".to_string())
+        } else {
+            Ok(())
+        };
+    };
+    if b.nonce.is_empty() {
+        return Err("credential binding has an empty nonce".to_string());
+    }
+    let expected = expected_commitment(b, action);
+    if expected != b.commitment {
+        return Err(format!(
+            "credential binding does not match this action (expected {}, got {})",
+            &expected[..16.min(expected.len())],
+            &b.commitment[..16.min(b.commitment.len())],
+        ));
+    }
+    // The issuer the mandate is checked against must come from inside the
+    // commitment, not from a field the caller can set independently.
+    match action.issuer.as_deref() {
+        Some(i) if i != b.issuer => Err(format!(
+            "action issuer {i} is not the issuer in the credential binding ({})",
+            b.issuer
+        )),
+        _ => Ok(()),
+    }
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -60,6 +170,12 @@ pub struct Mandate {
     /// without touching Rust.
     #[serde(default)]
     pub credential_key: String,
+    /// When true, `execute_action` refuses any action without a credential
+    /// binding that matches it. Off by default so an existing mandate keeps
+    /// working; a mandate that names `allowed_issuers` should set it, or the
+    /// issuer check is only as good as the caller's honesty.
+    #[serde(default)]
+    pub require_credential: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -404,6 +520,10 @@ pub struct ExecuteReq {
     pub method: String,
     #[serde(default)]
     pub body: String,
+    /// What the agent verified, and what it verified it for. Checked against
+    /// the action below — see `check_binding`.
+    #[serde(default)]
+    pub credential: Option<CredentialBinding>,
 }
 
 pub fn execute_action(input: &[u8]) -> Result<Vec<u8>, String> {
@@ -433,7 +553,18 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
 
     // KV only. There is deliberately no inline-mandate escape hatch here.
     let mandate = read_mandate(&tid_hex)?;
-    let (approved, reasons) = decide(&req.action, &mandate, now_secs);
+
+    // The binding is checked BEFORE the mandate decision, and a failure is a
+    // rejection rather than an error, so it lands in the audit row with every
+    // other reason instead of disappearing into a 500.
+    let binding_err =
+        check_binding(req.credential.as_ref(), &req.action, mandate.require_credential).err();
+
+    let (mut approved, mut reasons) = decide(&req.action, &mandate, now_secs);
+    if let Some(e) = binding_err {
+        approved = false;
+        reasons.push(e);
+    }
 
     let mut out = serde_json::json!({
         "decision": if approved { "approved" } else { "rejected" },
@@ -441,6 +572,11 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
         "dispatched": false,
         "mandate_source": "kv",
         "evaluated_at_secs": now_secs,
+        // Recorded so the audit row says which credential authorised the spend,
+        // and a destination can be shown the same commitment later.
+        "credential_commitment": req.credential.as_ref().map(|c| c.commitment.clone()),
+        "action_digest": action_digest(&req.action),
+        "evaluated_at_secs_source": "cluster",
         "tenant_did": format!("did:t3n:{tid_hex}"),
     });
 
@@ -542,7 +678,20 @@ mod tests {
             expires_at_secs: 0,
             valid_after_secs: 0,
             credential_key: String::new(),
+            require_credential: false,
         }
+    }
+
+    fn binding_for(action: &Action) -> CredentialBinding {
+        let mut b = CredentialBinding {
+            issuer: "did:key:kyc-provider".to_string(),
+            subject: "did:t3n:investor".to_string(),
+            claims_digest: "aa".repeat(32),
+            nonce: "nonce-1".to_string(),
+            commitment: String::new(),
+        };
+        b.commitment = expected_commitment(&b, action);
+        b
     }
 
     fn action(kind: &str, asset: &str, amount: u64) -> Action {
@@ -771,6 +920,93 @@ mod tests {
     }
 
     // --- the atomic path refuses to run without its host capabilities ---
+    // --- credential binding ---
+
+    #[test]
+    fn a_binding_computed_for_this_action_is_accepted() {
+        let a = action("rwa.buy", "USDC", 100_000);
+        assert!(check_binding(Some(&binding_for(&a)), &a, true).is_ok());
+    }
+
+    #[test]
+    fn a_binding_from_a_different_amount_is_rejected() {
+        // The attack: verify a credential for a small purchase, then reuse that
+        // verification to authorise a large one.
+        let small = action("rwa.buy", "USDC", 50_000);
+        let large = action("rwa.buy", "USDC", 50_000_000);
+        let err = check_binding(Some(&binding_for(&small)), &large, true).unwrap_err();
+        assert!(err.contains("does not match this action"), "{err}");
+    }
+
+    #[test]
+    fn a_binding_from_a_different_payee_is_rejected() {
+        let mut to_fund = action("rwa.buy", "USDC", 100_000);
+        to_fund.counterparty = Some("did:t3n:meridian".to_string());
+        let mut to_attacker = to_fund.clone();
+        to_attacker.counterparty = Some("did:t3n:attacker".to_string());
+        assert!(check_binding(Some(&binding_for(&to_fund)), &to_attacker, true).is_err());
+    }
+
+    #[test]
+    fn a_missing_binding_is_rejected_only_when_the_mandate_requires_one() {
+        let a = action("rwa.buy", "USDC", 100_000);
+        assert!(check_binding(None, &a, false).is_ok(), "opt-in: off by default");
+        let err = check_binding(None, &a, true).unwrap_err();
+        assert!(err.contains("requires a credential binding"), "{err}");
+    }
+
+    #[test]
+    fn the_action_issuer_cannot_disagree_with_the_bound_issuer() {
+        // Otherwise the agent binds a credential from an issuer it really has,
+        // and separately claims a trusted issuer in the field the mandate checks.
+        let a0 = action("rwa.buy", "USDC", 100_000);
+        let b = binding_for(&a0);
+        let mut a = a0.clone();
+        a.issuer = Some("did:key:some-other-issuer".to_string());
+        let err = check_binding(Some(&b), &a, true).unwrap_err();
+        assert!(err.contains("not the issuer in the credential binding"), "{err}");
+
+        let mut honest = a0.clone();
+        honest.issuer = Some(b.issuer.clone());
+        assert!(check_binding(Some(&b), &honest, true).is_ok());
+    }
+
+    #[test]
+    fn an_empty_nonce_is_rejected() {
+        let a = action("rwa.buy", "USDC", 100_000);
+        let mut b = binding_for(&a);
+        b.nonce = String::new();
+        b.commitment = expected_commitment(&b, &a); // even if internally consistent
+        assert!(check_binding(Some(&b), &a, true).is_err());
+    }
+
+    #[test]
+    fn the_commitment_is_domain_separated_and_length_prefixed() {
+        // Length prefixing: two different field splits must not collide.
+        let a = action("rwa.buy", "USDC", 100_000);
+        let mut x = binding_for(&a);
+        x.issuer = "ab".to_string();
+        x.subject = "c".to_string();
+        let mut y = x.clone();
+        y.issuer = "a".to_string();
+        y.subject = "bc".to_string();
+        assert_ne!(expected_commitment(&x, &a), expected_commitment(&y, &a));
+        assert!(BINDING_DOMAIN.contains("cred-binding"));
+    }
+
+    #[test]
+    fn the_action_digest_changes_with_every_field_that_matters() {
+        let base = action("rwa.buy", "USDC", 100_000);
+        let d = action_digest(&base);
+        assert_ne!(d, action_digest(&action("rwa.sell", "USDC", 100_000)));
+        assert_ne!(d, action_digest(&action("rwa.buy", "USD", 100_000)));
+        assert_ne!(d, action_digest(&action("rwa.buy", "USDC", 100_001)));
+        let mut with_payee = base.clone();
+        with_payee.counterparty = Some("did:t3n:meridian".to_string());
+        assert_ne!(d, action_digest(&with_payee));
+        assert_eq!(d, action_digest(&base), "same action, same digest");
+    }
+
     // --- outbound credential (secrets map) ---
 
     #[test]

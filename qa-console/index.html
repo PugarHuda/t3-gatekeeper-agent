@@ -80,6 +80,18 @@
       <b>❌ $1,000 to a payee capped at $100</b>
       <span>under the global cap, over the per-payee sub-limit</span>
     </button>
+    <button data-testid="s-bind-ok" data-scenario="bindOk">
+      <b>✅ Credential bound to this exact action</b>
+      <span>commitment recomputed in the enclave and matched</span>
+    </button>
+    <button data-testid="s-bind-moved" data-scenario="bindMoved">
+      <b>❌ Credential verified for $500, spent on $4,000</b>
+      <span>the eligibility check cannot be detached from what it authorised</span>
+    </button>
+    <button data-testid="s-bind-missing" data-scenario="bindMissing">
+      <b>❌ No credential binding at all</b>
+      <span>a mandate that requires one refuses rather than skipping the check</span>
+    </button>
   </div>
 
   <div class="panel">
@@ -116,18 +128,41 @@
                  mandate: { ...BASE, allowed_issuers: [KYC] } },
     sublimit:  { action: { kind:"rwa.buy", asset:"USDC", amount_cents:100000, counterparty:PAYEE },
                  mandate: { ...BASE, counterparty_limits: { [PAYEE]: 10000 } } },
+
+    // The binding scenarios. `bindFor` names the action the credential was
+    // verified against — when that differs from `action`, the enclave should
+    // notice. The commitment itself is built server-side by the agent's own
+    // module, so this page never reimplements the crypto.
+    bindOk:      { action: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE, issuer:KYC },
+                   mandate: { ...BASE, allowed_issuers: [KYC], require_credential: true },
+                   bindFor: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE } },
+    bindMoved:   { action: { kind:"rwa.buy", asset:"USDC", amount_cents:400000, counterparty:PAYEE, issuer:KYC },
+                   mandate: { ...BASE, allowed_issuers: [KYC], require_credential: true },
+                   bindFor: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE } },
+    bindMissing: { action: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE, issuer:KYC },
+                   mandate: { ...BASE, allowed_issuers: [KYC], require_credential: true } },
   };
 
   const $ = (id) => document.getElementById(id);
 
   async function run(name) {
-    const { action, mandate = BASE } = SCENARIOS[name];
+    const { action, mandate = BASE, bindFor } = SCENARIOS[name];
     $("verdict").textContent = "…"; $("verdict").className = "verdict idle";
     $("reasons").innerHTML = ""; $("raw").textContent = "";
 
+    // Ask the agent-side module for a binding over `bindFor` — which is the
+    // requested action in the honest case and a different one in the attack.
+    let credential = null;
+    if (bindFor) {
+      credential = await (await fetch("/api/bind", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: bindFor, issuer: KYC }),
+      })).json();
+    }
+
     const res = await fetch("/api/decide", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action, mandate, now_secs: NOW }),
+      body: JSON.stringify({ action, mandate, now_secs: NOW, credential }),
     });
     const out = await res.json();
 
@@ -135,7 +170,12 @@
     $("verdict").textContent = approved ? "APPROVED" : "REJECTED";
     $("verdict").className = `verdict ${approved ? "approved" : "rejected"}`;
     $("reasons").innerHTML = (out.reasons ?? []).map((r) => `<li>${r}</li>`).join("");
-    $("raw").textContent = JSON.stringify({ action, decision: out.decision, reasons: out.reasons }, null, 2);
+    $("raw").textContent = JSON.stringify({
+      action,
+      credential_bound_to: bindFor ?? null,
+      commitment: credential?.commitment ?? null,
+      decision: out.decision, reasons: out.reasons,
+    }, null, 2);
     document.body.dataset.decision = out.decision ?? "error";
   }
 

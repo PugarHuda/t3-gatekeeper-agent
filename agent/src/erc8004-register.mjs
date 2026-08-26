@@ -14,6 +14,7 @@
 //   ERC8004_PRIVATE_KEY=0x...      a GAS-FUNDED key that will own the agent NFT
 //   AGENT_URI=https://...          (optional) defaults to the hosted agent-card.json
 import { readFileSync } from "node:fs";
+import { preflight, registryFor, DEFAULT_NETWORK } from "./erc8004.mjs";
 
 // Minimal human-readable ABI (ERC-8004 IdentityRegistry, per EIP-8004).
 const ABI = [
@@ -34,19 +35,36 @@ try {
   }
 } catch { /* .env optional */ }
 
-const rpc = process.env.ERC8004_RPC_URL;
-const registry = process.env.ERC8004_REGISTRY_ADDRESS;
+// The chain and registry now have real defaults (the reference deployment), so
+// the only thing that genuinely cannot be defaulted is the funded key.
+const net = process.env.ERC8004_NETWORK || DEFAULT_NETWORK;
+const known = registryFor(net);
+const rpc = process.env.ERC8004_RPC_URL || known.rpc;
+const registry = process.env.ERC8004_REGISTRY_ADDRESS || known.identity;
 const pk = process.env.ERC8004_PRIVATE_KEY;
 const agentUri = process.env.AGENT_URI || DEFAULT_AGENT_URI;
 
-if (!rpc || !registry || !pk) {
+if (!pk) {
   console.log("ERC-8004 registration is not configured — nothing sent (no fake mint).");
-  console.log("Set these in agent/.env (or the environment) to register on-chain:");
-  console.log("  ERC8004_RPC_URL=<EVM RPC URL>");
-  console.log("  ERC8004_REGISTRY_ADDRESS=<IdentityRegistry address>");
+  console.log(`Registry is known for ${net}: ${registry}`);
+  console.log("The one thing that cannot be defaulted is the wallet. Set:");
   console.log("  ERC8004_PRIVATE_KEY=<gas-funded owner key>");
+  console.log("Optional overrides:");
+  console.log("  ERC8004_NETWORK=<known network>   ERC8004_RPC_URL=<url>   ERC8004_REGISTRY_ADDRESS=<0x…>");
   console.log(`  AGENT_URI=<registration file URI>   (default: ${DEFAULT_AGENT_URI})`);
+  console.log("\nRun `npm run erc8004` to inspect the live registry without a wallet.");
   process.exit(2);
+}
+
+// Preflight before spending gas. register() against the wrong address either
+// reverts (wasted fee) or succeeds against some unrelated ERC-721, which is
+// worse: you get a token that is not an agent identity and no error to notice.
+console.log(`Preflighting ${registry} on ${net}…`);
+const report = await preflight({ rpc, address: registry });
+for (const c of report.checks) console.log(`  ${c.pass ? "✅" : "❌"} ${c.name}${c.detail ? ` — ${c.detail}` : ""}`);
+if (!report.ok) {
+  console.error("\nRefusing to send: that address does not look like an ERC-8004 IdentityRegistry.");
+  process.exit(1);
 }
 
 const { ethers } = await import("ethers");

@@ -12,6 +12,9 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+// The agent's own binding implementation — not a copy. If this drifts, the
+// cross-language conformance test in agent/test catches it.
+import { bindCredential } from "../agent/src/credential-binding.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const EXE = path.resolve(
@@ -30,7 +33,7 @@ export const MANDATE = {
   valid_after_secs: 0,
 };
 
-function decide({ action, mandate = MANDATE, now_secs = 1_786_000_000 }) {
+function decide({ action, mandate = MANDATE, now_secs = 1_786_000_000, credential = null }) {
   return new Promise((resolve, reject) => {
     const child = execFile(EXE, { timeout: 10_000 }, (err, stdout) => {
       // gate_cli exits non-zero on bad input but still prints JSON — prefer it.
@@ -38,7 +41,7 @@ function decide({ action, mandate = MANDATE, now_secs = 1_786_000_000 }) {
       if (text) { try { return resolve(JSON.parse(text)); } catch { /* fall through */ } }
       reject(err ?? new Error("gate_cli produced no output"));
     });
-    child.stdin.end(JSON.stringify({ action, mandate, now_secs }));
+    child.stdin.end(JSON.stringify({ action, mandate, now_secs, credential }));
   });
 }
 
@@ -48,11 +51,11 @@ const server = createServer(async (req, res) => {
     res.end(typeof body === "string" ? body : JSON.stringify(body));
   };
 
+  const body = async (r) => { let raw = ""; for await (const c of r) raw += c; return raw; };
+
   if (req.method === "POST" && req.url === "/api/decide") {
-    let raw = "";
-    for await (const chunk of req) raw += chunk;
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(await body(req));
       if (!parsed?.action?.kind) return send(400, { error: "action.kind is required" });
       return send(200, await decide(parsed));
     } catch (e) {
@@ -63,6 +66,27 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
     return send(200, await readFile(path.join(HERE, "index.html"), "utf8"), "text/html");
   }
+  // The console plays the agent's part here: it binds a credential to an action
+  // using the agent's OWN module, so the page never reimplements the commitment.
+  // That is the same rule as the decision logic — one implementation, exercised,
+  // not a copy that agrees with itself.
+  if (req.method === "POST" && req.url === "/api/bind") {
+    try {
+      const parsed = JSON.parse(await body(req));
+      return send(200, bindCredential(
+        {
+          issuer: parsed.issuer ?? "did:key:kyc-provider",
+          subject: parsed.subject ?? "did:t3n:investor",
+          claims: parsed.claims ?? { accreditedInvestor: true },
+          verified: true,
+        },
+        parsed.action,
+      ));
+    } catch (e) {
+      return send(400, { error: String(e.message ?? e) });
+    }
+  }
+
   if (req.method === "GET" && req.url === "/api/mandate") return send(200, MANDATE);
 
   send(404, { error: "not found" });

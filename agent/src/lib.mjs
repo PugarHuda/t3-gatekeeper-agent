@@ -47,6 +47,10 @@ export const MANDATE = {
   // spends. Empty unless a key was actually sealed in, because the contract
   // fails closed on a mandate that names a credential the map does not hold.
   credential_key: process.env.BROKER_API_KEY ? CREDENTIAL_KEY : "",
+  // Demand that every action carry a credential binding matching it. Without
+  // this, `allowed_issuers` is only as good as the caller's honesty: the agent
+  // could name a trusted issuer it never actually verified against.
+  require_credential: true,
 };
 
 export function loadEnv(url) {
