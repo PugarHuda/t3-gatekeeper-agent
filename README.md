@@ -222,7 +222,14 @@ the enclave fetches it after approving an action, to build the outbound
 `Authorization` header. A compromised agent can propose a bad order — it cannot
 walk off with the key that pays for it.
 
-## Bugs & doc gaps found while building (Track B)
+## Bugs & doc gaps found while building
+
+[**submission/BUGS.md**](submission/BUGS.md) is the live ledger — 21 reports with
+each one's status as of 2026-08-26, re-verified against SDK 5.1.0 and the
+refreshed docs. Four have since been fixed, one is partly adopted into the docs,
+and three are new this round.
+
+### Track B (the original eight)
 
 Building this end-to-end surfaced **8 SDK / backend / onboarding / documentation
 issues**, written up with repro steps in
