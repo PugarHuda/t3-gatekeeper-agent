@@ -20,7 +20,9 @@
 
 extern crate alloc;
 
-pub const CONTRACT_VERSION: &str = "0.9.0";
+/// Single source of truth is Cargo.toml — the version the contract reports and
+/// the version it is registered under cannot drift apart if neither is retyped.
+pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 wit_bindgen::generate!({
     world: "gate-contract",

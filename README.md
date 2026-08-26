@@ -144,18 +144,28 @@ Plus a **credential-revocation pre-gate** (`agent/src/revocation.mjs`,
 if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 `REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are set.
 
-## Tests — 107, all offline except where noted
+## Tests — 111, all offline except where noted
+
+**One command runs everything that does not cost a credit:**
+
+```bash
+node verify.mjs        # 85 checks: Rust, wasm build, Node, Playwright. No key needed.
+```
+
+CI runs the same script, so the two cannot drift apart.
 
 | Suite | Count | What it covers |
 | --- | --- | --- |
-| Rust (`gate-contract`) | 28 | the mandate rules, every dimension, deny-by-default |
+| Rust (`gate-contract`) | 32 | the mandate rules, every dimension, deny-by-default, the enclave-held credential |
 | Node (`agent`) | 40 | BBS+, selective disclosure, A2A, revocation, Web Bot Auth + key directory + replay window |
 | QA console (`qa-console`) | 13 | Playwright over the **real** Rust `decide()` — happy path, 6 wrong paths, 4 API-abuse cases |
 | Live site | 10 | the deployed page, incl. a Web Bot Auth key round trip over the public internet |
 | Doc / docx / video | 16 | the submission artifacts actually render, and the video decodes with audio |
 
+Individually, if you want just one:
+
 ```bash
-cd gate-contract && cargo test                    # 28
+cd gate-contract && cargo test                    # 32
 cd agent        && npm test                       # 40
 cd qa-console   && node --test e2e.test.mjs       # 13
 ```
@@ -183,7 +193,8 @@ cd gate-contract && cargo build --lib --target wasm32-wasip2 --release && cd ..
 cd agent
 cp .env.example .env        # paste T3N_API_KEY + DID from the token-claim page
 npm install
-npm run setup               # register the contract to your tenant
+npm run setup               # register the contract, create + seed its 3 KV maps
+                            # ^ the ONLY expensive command — see MAINTENANCE.md §4
 npm run grant:egress        # authorise the enclave to reach ACTION_ENDPOINT's host
 npm run demo                # identity -> VC gate -> TEE mandate -> audit -> in-TEE dispatch
 ```
@@ -192,10 +203,24 @@ npm run demo                # identity -> VC gate -> TEE mandate -> audit -> in-
 Point it at an endpoint you control (`ACTION_ENDPOINT=https://…`) and re-run
 `grant:egress` to see step [5] actually leave the enclave.
 
+## Running it yourself, or taking it over
+
+[**MAINTENANCE.md**](MAINTENANCE.md) is the operator's document: every
+configuration knob, the five things that actually go wrong and what to do about
+each, and a step-by-step handover for a different operator. Nothing personal is
+in the running path — no personal wallet, no hardcoded DID, no committed key —
+so transferring this is a matter of claiming a new tenant and re-running setup.
+
 ## Security note
 
 The T3N API key grants full sandbox access and is shown only once on the claim
 page. Keep it in `agent/.env` (gitignored); never commit or share it.
+
+The broker credential is **not** kept in the agent at all. `npm run setup` seals
+it into `z:<tid>:secrets`, a map whose ACL names the contract as its only reader;
+the enclave fetches it after approving an action, to build the outbound
+`Authorization` header. A compromised agent can propose a bad order — it cannot
+walk off with the key that pays for it.
 
 ## Bugs & doc gaps found while building (Track B)
 

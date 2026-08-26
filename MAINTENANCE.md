@@ -1,0 +1,162 @@
+# Running and maintaining the Gatekeeper Agent
+
+This is the operator's document. It assumes you did not write any of this code
+and that whoever did is not available to ask.
+
+If you only read one line: **`node verify.mjs`** proves the whole repo still
+works, offline, without an API key, and without spending a credit.
+
+---
+
+## 1. What it is, and what breaks if it stops
+
+An agent buys tokenised private-credit notes on an investor's behalf. Two
+independent gates stand between "the agent decided to buy" and "an order left
+the building":
+
+1. **Eligibility** — a BBS+ verifiable credential proves the investor is
+   accredited without revealing net worth, name, or date of birth. Verified in
+   the agent layer.
+2. **Mandate** — amount cap, allowed assets, allowed action kinds, allowed
+   payees, per-payee sub-limits, trusted credential issuers, a validity window,
+   and a cumulative velocity limit. Enforced *inside the TEE*, read from a KV
+   map the agent cannot write.
+
+Nothing about this is high-availability. It is a request/response agent: if it
+stops, no order goes out, and no order going out is the safe failure. There is
+no queue to drain, no state to reconcile, and no partial write to clean up —
+with one exception, noted in §5.
+
+## 2. The one command
+
+```bash
+node verify.mjs
+```
+
+Runs, in order: the contract's Rust unit tests on the host, a wasm component
+build, the agent's Node tests, and the Playwright end-to-end suite that drives
+the *real* Rust decision function through the QA console. 85 checks. Zero
+credits, no network, no key.
+
+It is the same set CI runs (`.github/workflows/ci.yml`). If it passes, the
+logic is intact; anything still broken is environmental, and §5 lists those.
+
+## 3. Everything that is configuration
+
+No behaviour is hardcoded to the original operator. All of it lives in
+`agent/.env` (see `agent/.env.example`) or in a KV map.
+
+| Where | Name | What it controls | Unset means |
+| --- | --- | --- | --- |
+| `.env` | `T3N_API_KEY`, `DID` | the tenant account everything runs under | nothing runs |
+| `.env` | `ACTION_ENDPOINT` | where an approved order is POSTed | an illustrative `broker.example` URL |
+| `.env` | `EGRESS_HOSTS` | hosts the enclave may reach | the `ACTION_ENDPOINT` host |
+| `.env` | `BROKER_API_KEY` | sealed into the secrets map by `npm run setup` | outbound call is unauthenticated |
+| `.env` | `TRUSTED_ISSUERS` | KYC issuers the mandate accepts | **not enforced — any issuer passes** |
+| `.env` | `WBA_PRIVATE_KEY` | Web Bot Auth signing key | an ephemeral key nobody can verify |
+| `.env` | `REVOCATION_*` | on-chain credential kill-switch | revocation check skipped (fail-open) |
+| `.env` | `ERC8004_*` | on-chain agent identity mint | the mint script refuses to run |
+| KV | `z:<tid>:mandate[default]` | **the actual limits** | the contract denies everything |
+| KV | `z:<tid>:secrets[broker_api_key]` | the broker credential | see `BROKER_API_KEY` |
+| KV | `z:<tid>:spent` | velocity counter, contract-owned | contract recreates the entry |
+
+Two of those defaults are deliberately unsafe-looking and worth saying plainly:
+an empty `TRUSTED_ISSUERS` means the gate accepts a credential the agent minted
+itself, and an unset `REVOCATION_*` means a revoked investor still passes. Both
+are opt-in because the demo has no real KYC issuer and no published revocation
+registry. **A production operator must set both.**
+
+## 4. Standing it up from nothing
+
+```bash
+git clone <repo> && cd t3-gatekeeper-agent
+node verify.mjs                       # prove it works before touching the network
+
+cp agent/.env.example agent/.env      # add T3N_API_KEY + DID
+cd gate-contract && cargo build --lib --target wasm32-wasip2 --release
+cd ../agent
+npm run setup                         # register the contract, create + seed the 3 maps
+npm run grant:egress                  # authorise the enclave's outbound host
+npm run demo                          # the full chain, end to end
+```
+
+`npm run setup` is idempotent and safe to re-run: it re-points every map's ACL
+at the newly registered contract id, which is necessary because that id changes
+on every registration.
+
+**`npm run setup` is also the only expensive command.** Registering the ~215 KB
+wasm consumed an entire test grant (1.487e9 credits → 0) in August 2026. Do not
+run it to "check something" — check with `verify.mjs` instead, and check the
+balance with `npm --prefix agent run auth` first.
+
+## 5. The five things that actually go wrong
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Every call 403s, `required=10000000000, available=0` | out of credits | request a top-up (`t.me/wardumb` for testnet grants) |
+| `CONFIG_ERROR field=trustAnchor` | SDK <5.x, or a client built without `fetchTrustedManifest()` | upgrade; see the 5.1.0 migration commit |
+| `host/http.egress_denied` | the destination host is not on the caller's agent-auth grant | `npm run grant:egress` — and note the grant lists *functions*, so a new contract function needs adding there |
+| `read denied` on the spend map | map ACL still points at a previous contract id | re-run `npm run setup` |
+| The contract registers, then 500s on **every** invoke | it imports a host interface the node does not serve (`vp`, `agent-registry`) | revert the import; only `tenant-context`, `logging`, `kv-store`, `http`, and `http-with-placeholders` are served |
+
+That last one has a nasty edge, and it is the one exception to "nothing to clean
+up" in §1: registering a broken version under a tail makes the host run **that**
+version for every call, including calls that pin an older one. A bad deploy
+therefore takes the working contract down with it. Recovery is to register a
+known-good version so that "latest" is healthy again — which costs a full
+registration, so verify on a throwaway tail first.
+
+## 6. Handing it to someone else
+
+Nothing personal is in the running path — no personal wallet, no personal
+account, no hardcoded DID, no key committed anywhere. Transfer is:
+
+1. **The tenant account.** A new operator claims their own API key and DID. The
+   DID appears in `agent/.env` and in `agent/agent-card.json`; nothing else
+   references it, because every canonical map name is derived at runtime from
+   `tenant_did()` inside the enclave.
+2. **The contract.** Re-register under the new tenant with `npm run setup`. The
+   old deployment keeps running under the old tenant and is not shared state.
+3. **The mandate.** Edit `MANDATE` in `agent/src/lib.mjs` and re-run setup, or
+   write the KV entry directly. This is the only "business config", and it is
+   JSON.
+4. **The broker credential.** Set `BROKER_API_KEY` and run setup once. The old
+   operator's key is unreadable to the new one and vice versa — the map's ACL
+   names a contract id, and that id is new.
+5. **The Web Bot Auth key.** Generate a fresh one (command is in
+   `.env.example`), publish the JWKS at
+   `<site>/.well-known/http-message-signatures-directory`, and update
+   `agent-card.json`. Until that is done, outbound signatures verify against
+   nobody.
+6. **The evidence site.** `site/` is a static directory; `npx vercel deploy
+   --prod` from inside it. It is not load-bearing — the agent does not read it —
+   except for the JWKS in step 5.
+
+There is no database, no cron, no background worker, and no secret held outside
+either the operator's own `.env` or the enclave.
+
+## 7. Where the bodies are buried
+
+- **The version is single-sourced** to `gate-contract/Cargo.toml`. Rust reads it
+  via `env!("CARGO_PKG_VERSION")`, the agent parses the same file. Bump it in
+  one place; do not reintroduce a second.
+- **Build the component with `--lib`.** The crate also has a `gate_cli` binary
+  (a host build of the same decision function, used by the QA console). Cargo
+  cannot target-gate a bin, so a bare `cargo build --target wasm32-wasip2`
+  fails. `verify.mjs` and CI already pass `--lib`.
+- **The QA console never reimplements the rules.** It shells out to `gate_cli`.
+  A JavaScript copy of the mandate logic would drift from the contract and prove
+  nothing, so if you are tempted to add one, don't.
+- **`z:<tid>:spent` needs the contract in *both* readers and writers.** `spend()`
+  read-modify-writes; a write-only ACL fails with `read denied`.
+- **On Windows**, host builds need the GNU toolchain
+  (`rustup toolchain install stable-x86_64-pc-windows-gnu`) because there is no
+  MSVC linker by default. `verify.mjs` selects it automatically.
+
+## 8. What this deliberately does not do
+
+Listed honestly in [`submission/STATUS_AND_ROADMAP.md`](submission/STATUS_AND_ROADMAP.md).
+The short version: the enclave trusts the agent's word that it verified the
+credential (closing that needs in-contract `vp.verify`, which the node does not
+serve yet), there is no idempotency key on the outbound call, and mandates have
+no lifecycle beyond a single seeded `default` entry.

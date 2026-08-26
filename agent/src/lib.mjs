@@ -7,12 +7,16 @@ import {
 
 export const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 export const CONTRACT_TAIL = "gate";
-// Source of truth for what `npm run setup` registers. 0.9.0 (trusted issuers,
-// per-counterparty sub-limits, and the enclave-held broker credential) is built
-// and unit-tested but NOT yet registered — the account ran out of credits. The
-// last version actually on the network is 0.7.0 (contract_id 479). Re-run
-// `npm run setup` once topped up.
-export const CONTRACT_VERSION = "0.9.0";
+// What `npm run setup` registers. Read from the contract's own Cargo.toml so
+// there is exactly one place to bump — a version typed in two files is a
+// version that will eventually disagree with itself, and the failure mode is a
+// contract registered under a number that isn't the code inside it.
+//
+// The last version actually ON the network is 0.7.0 (contract_id 479); 0.9.0 is
+// built and unit-tested but unregistered, because the account is out of credits.
+export const CONTRACT_VERSION = readFileSync(
+  new URL("../../gate-contract/Cargo.toml", import.meta.url), "utf8",
+).match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? "0.0.0";
 
 // Name of the entry in z:<tid>:secrets holding the broker's bearer token.
 // Only meaningful when BROKER_API_KEY is set — see setup.mjs.

@@ -5,35 +5,23 @@ on:
     branches: [master]
   pull_request:
 
+# CI runs the same script a maintainer runs locally — `node verify.mjs` — so the
+# two cannot drift into disagreeing about what "the checks" are. The Playwright
+# suite skips itself here: qa-console/node_modules is a local junction into
+# submission/demo-web and does not exist on a fresh checkout.
 jobs:
-  contract:
-    name: TEE contract (build + unit tests)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Add wasm target
-        run: rustup target add wasm32-wasip2
-      - name: Unit tests
-        working-directory: gate-contract
-        # override the wasm default target (.cargo/config.toml) so tests run on host
-        run: cargo test --target x86_64-unknown-linux-gnu
-      - name: Build wasm component
-        working-directory: gate-contract
-        run: cargo build --lib --release --target wasm32-wasip2
-      - name: Check artifact
-        run: test -f gate-contract/target/wasm32-wasip2/release/gate_contract.wasm
-
-  crypto:
-    name: VC gate crypto tests (offline)
+  verify:
+    name: verify (contract + agent, offline)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install
+      - name: Add wasm target
+        run: rustup target add wasm32-wasip2
+      - name: Install agent dependencies
         working-directory: agent
         run: npm ci
-      - name: Test (issue/verify, tamper, selective disclosure, edge cases)
-        working-directory: agent
-        run: npm test
+      - name: Verify
+        run: node verify.mjs
