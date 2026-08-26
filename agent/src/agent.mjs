@@ -9,13 +9,14 @@ import * as vcCore from "@terminal3/vc_core";
 import * as bbs from "@terminal3/bbs_vc";
 import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, actionEndpoint } from "./lib.mjs";
 import { loadAgentKey, signRequest, verifyRequest } from "./web-bot-auth.mjs";
-import { buildOptionsFromEnv, checkRevocation } from "./revocation.mjs";
+import { buildOptionsFromEnv, checkCredentialStatus } from "./revocation.mjs";
+import { statusEntry, STATUS_LIST_URL, DEMO_REVOKED_INDEX } from "./status-list.mjs";
 import { bindCredential } from "./credential-binding.mjs";
 import { randomUUID } from "node:crypto";
 
 // A trusted KYC issuer attests ONLY the predicate the action needs — never the
 // underlying net worth, name, or DOB. (Predicate-credential model: see README.)
-async function issueEligibilityCredential(subjectDid) {
+async function issueEligibilityCredential(subjectDid, statusListIndex = 0) {
   const issuer = new bbs.BbsDID(vcCore.randomKeyBls());
   const vc = await bbs.createBbsCredential(
     issuer,
@@ -24,6 +25,14 @@ async function issueEligibilityCredential(subjectDid) {
     ["VerifiableCredential", "AccreditationCredential"],
     undefined, undefined, undefined, undefined, true,
   );
+  // Where this credential's revocation state is published. The holder is one
+  // bit in a list of 131,072, so checking it tells the issuer nothing about who
+  // is transacting — see src/status-list.mjs.
+  vc.id ??= `urn:vc:eligibility:${statusListIndex}`;
+  vc.credentialStatus = statusEntry({
+    statusListCredential: STATUS_LIST_URL,
+    statusListIndex,
+  });
   return { vc, issuerDid: issuer.did };
 }
 
@@ -55,12 +64,25 @@ console.log(`[2] VC GATE    issuer=${issuerDid.slice(0, 24)}…  verify=${verdic
 if (!eligible) { console.log("ABORT: eligibility gate failed — no action attempted."); process.exit(0); }
 
 // 2b. REVOCATION pre-gate — a revoked credential is a kill-switch even if the
-// BBS+ proof still verifies. Config-gated: skipped (fail-open) when no registry
-// is set; set REVOCATION_REGISTRY_ADDRESS + REVOCATION_RPC_URL in .env to enforce.
+// BBS+ proof still verifies.
+//
+// Two mechanisms answer this. The credential names a W3C Bitstring Status List,
+// which needs only a published document, so it runs with no chain configured;
+// the on-chain registry (REVOCATION_REGISTRY_ADDRESS + REVOCATION_RPC_URL) is
+// the fallback. "Could not check" is reported as itself, never as "not revoked".
 const revOptions = await buildOptionsFromEnv();
-const rev = await checkRevocation("urn:vc:eligibility:demo", issuerDid, { options: revOptions, failClosed: false });
-console.log(`[2b] REVOCATION ${rev.checked ? (rev.revoked ? "REVOKED" : "valid (not revoked)") : "skipped"}  (${rev.reason})`);
+const rev = await checkCredentialStatus(vc, { options: revOptions, failClosed: false });
+console.log(`[2b] REVOCATION ${rev.checked ? (rev.revoked ? "REVOKED" : "valid (not revoked)") : "not checked"}  via=${rev.method}  (${rev.reason})`);
 if (rev.revoked) { console.log("ABORT: credential revoked — no action attempted."); process.exit(0); }
+
+// Show the gate doing its job: the same issuer, a credential whose index IS
+// marked revoked in the published list. If the list is reachable this is
+// REVOKED; if it is not, it reports "not checked" rather than waving it through.
+{
+  const { vc: revokedVc } = await issueEligibilityCredential(subject.did, DEMO_REVOKED_INDEX);
+  const r = await checkCredentialStatus(revokedVc, { options: revOptions, failClosed: false });
+  console.log(`[2b] CONTROL    a holder revoked at index ${DEMO_REVOKED_INDEX} -> ${r.checked ? (r.revoked ? "REVOKED ✅ blocked" : "NOT revoked ❌ unexpected") : "not checked"}  (${r.reason})`);
+}
 
 // Trim a (sometimes huge / obfuscated) SDK error down to one readable line.
 const briefErr = (e) => String(e?.message ?? e).replace(/\s+/g, " ").slice(0, 160);

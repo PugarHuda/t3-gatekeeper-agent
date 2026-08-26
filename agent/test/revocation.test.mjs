@@ -43,3 +43,86 @@ test("buildOptionsFromEnv returns null when unset", async () => {
   assert.equal(await buildOptionsFromEnv({}), null);
   assert.equal(await buildOptionsFromEnv({ REVOCATION_REGISTRY_ADDRESS: "0x1" }), null); // missing RPC
 });
+
+// ── unified status check (registry OR status list) ──────────────────────────
+import { createServer } from "node:http";
+import { checkCredentialStatus } from "../src/revocation.mjs";
+import { buildStatusList, statusEntry } from "../src/status-list.mjs";
+
+const LIST = buildStatusList({ id: "https://x.test/l", issuer: "did:key:i", revoked: [7] });
+
+async function withList(fn, { status = 200 } = {}) {
+  const srv = createServer((req, res) => {
+    res.writeHead(status, { "content-type": "application/json" });
+    res.end(JSON.stringify(LIST));
+  });
+  await new Promise((r) => srv.listen(0, r));
+  try {
+    return await fn(`http://localhost:${srv.address().port}/l`);
+  } finally {
+    srv.close();
+  }
+}
+
+const credWithStatus = (url, index) => ({
+  id: "urn:vc:1",
+  issuer: "did:key:i",
+  credentialStatus: statusEntry({ statusListCredential: url, statusListIndex: index }),
+});
+
+test("a status list revocation blocks, without any chain configured", async () => {
+  const r = await withList((url) => checkCredentialStatus(credWithStatus(url, 7)));
+  assert.equal(r.checked, true);
+  assert.equal(r.revoked, true);
+  assert.equal(r.method, "bitstring-status-list");
+});
+
+test("a clear index passes, without any chain configured", async () => {
+  const r = await withList((url) => checkCredentialStatus(credWithStatus(url, 8)));
+  assert.equal(r.checked, true);
+  assert.equal(r.revoked, false);
+});
+
+test("the status list is preferred over the registry when the credential names one", async () => {
+  // The registry would say revoked; the credential's own issuer says otherwise.
+  // The credential names where its status lives, so that is the answer.
+  const r = await withList((url) =>
+    checkCredentialStatus(credWithStatus(url, 8), {
+      options: { revocationRegistryAddress: "0x", provider: {} },
+      isRevokedFn: async () => true,
+    }));
+  assert.equal(r.method, "bitstring-status-list");
+  assert.equal(r.revoked, false);
+});
+
+test("an unreachable status list falls back to the registry rather than giving up", async () => {
+  const cred = credWithStatus("http://127.0.0.1:1/l", 7);
+  const r = await checkCredentialStatus(cred, {
+    options: { revocationRegistryAddress: "0x", provider: {} },
+    isRevokedFn: async () => true,
+  });
+  assert.equal(r.checked, true);
+  assert.equal(r.revoked, true);
+  assert.equal(r.method, "on-chain-registry");
+});
+
+test("both mechanisms unavailable is 'not checked', and failClosed decides", async () => {
+  const cred = credWithStatus("http://127.0.0.1:1/l", 7);
+  const open = await checkCredentialStatus(cred);
+  assert.equal(open.checked, false);
+  assert.equal(open.revoked, false);
+  assert.equal(open.method, "none");
+
+  const closed = await checkCredentialStatus(cred, { failClosed: true });
+  assert.equal(closed.checked, false);
+  assert.equal(closed.revoked, true, "failClosed must block when nothing could answer");
+});
+
+test("a credential with no status entry still uses the registry", async () => {
+  const r = await checkCredentialStatus(
+    { id: "urn:vc:2", issuer: "did:key:i" },
+    { options: { revocationRegistryAddress: "0x", provider: {} }, isRevokedFn: async () => false },
+  );
+  assert.equal(r.method, "on-chain-registry");
+  assert.equal(r.revoked, false);
+});

@@ -1,0 +1,17 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2"
+  ],
+  "id": "https://gatekeeper-evidence.vercel.app/status/revocation.json",
+  "type": [
+    "VerifiableCredential",
+    "BitstringStatusListCredential"
+  ],
+  "issuer": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
+  "credentialSubject": {
+    "id": "https://gatekeeper-evidence.vercel.app/status/revocation.json#list",
+    "type": "BitstringStatusList",
+    "statusPurpose": "revocation",
+    "encodedList": "uH4sIAAAAAAAACu3BIQEAAAACIP1_2hkWoAEAAAAAAAAAAAAAAAAAAADeBjn7xTYAQAAA"
+  }
+}

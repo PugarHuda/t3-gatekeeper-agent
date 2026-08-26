@@ -40,3 +40,49 @@ export async function checkRevocation(vcId, issuer, {
     return { checked: false, revoked: failClosed, reason: `revocation check failed: ${e.message}` };
   }
 }
+
+/**
+ * Revocation, preferring whichever method the credential actually carries.
+ *
+ * Two mechanisms answer the same question. The on-chain registry above is the
+ * T3-native one and needs a deployed contract; W3C Bitstring Status List needs
+ * only a published document, which is why it is the one that runs today.
+ *
+ * Order matters: a credential that names a status list is telling you where its
+ * issuer publishes revocation, so that is consulted first. The registry is the
+ * fallback for credentials that carry no status entry.
+ *
+ * `checked` is never inferred. If neither mechanism could answer, the result
+ * says so and `failClosed` decides what that means — because "we could not
+ * check" and "not revoked" are different facts, and conflating them is how a
+ * revoked investor keeps trading.
+ */
+export async function checkCredentialStatus(vc, {
+  options = null, failClosed = false, isRevokedFn = realIsRevoked, fetchImpl = fetch,
+} = {}) {
+  const { checkStatus } = await import("./status-list.mjs");
+
+  if (vc?.credentialStatus) {
+    const r = await checkStatus(vc.credentialStatus, { fetchImpl });
+    if (r.checked) {
+      return {
+        checked: true,
+        revoked: r.revoked,
+        method: "bitstring-status-list",
+        reason: r.revoked ? `revoked at list index ${r.index}` : `not revoked (index ${r.index})`,
+      };
+    }
+    // Fall through to the registry rather than failing outright: a credential
+    // may carry a status entry AND be covered by the registry, and one method
+    // being unreachable is not a reason to skip the other.
+    const viaRegistry = await checkRevocation(vc.id, vc.issuer, { options, failClosed, isRevokedFn });
+    return {
+      ...viaRegistry,
+      method: viaRegistry.checked ? "on-chain-registry" : "none",
+      reason: viaRegistry.checked ? viaRegistry.reason : `${r.reason}; ${viaRegistry.reason}`,
+    };
+  }
+
+  const viaRegistry = await checkRevocation(vc?.id, vc?.issuer, { options, failClosed, isRevokedFn });
+  return { ...viaRegistry, method: viaRegistry.checked ? "on-chain-registry" : "none" };
+}
