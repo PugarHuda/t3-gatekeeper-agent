@@ -19,6 +19,10 @@ world gate-contract {
     import host:interfaces/logging@2.1.0;
     import host:interfaces/kv-store@2.1.0;
     import host:interfaces/http@2.1.0;
+    // PII-safe outbound. A body carrying {{profile.<field>}} markers is routed
+    // here instead, so the host substitutes the calling user's data on its own
+    // stack and the plaintext never enters this component.
+    import host:interfaces/http-with-placeholders@2.1.0;
 
     export contracts;
 }

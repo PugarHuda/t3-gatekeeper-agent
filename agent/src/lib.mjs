@@ -51,6 +51,10 @@ export const MANDATE = {
   // this, `allowed_issuers` is only as good as the caller's honesty: the agent
   // could name a trusted issuer it never actually verified against.
   require_credential: true,
+  // Every action here moves money, so a retry must be safe. Without a key a
+  // timed-out dispatch is ambiguous and both choices are bad: retry risks a
+  // second order, giving up risks none.
+  require_idempotency_key: true,
 };
 
 export function loadEnv(url) {

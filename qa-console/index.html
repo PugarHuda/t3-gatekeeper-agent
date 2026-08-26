@@ -92,6 +92,14 @@
       <b>❌ No credential binding at all</b>
       <span>a mandate that requires one refuses rather than skipping the check</span>
     </button>
+    <button data-testid="s-idem-missing" data-scenario="idemMissing">
+      <b>❌ Money order with no idempotency key</b>
+      <span>a timed-out dispatch would be ambiguous, so the mandate refuses</span>
+    </button>
+    <button data-testid="s-idem-bad" data-scenario="idemBad">
+      <b>❌ Idempotency key with a path separator</b>
+      <span>the key becomes a KV key — it may not carry structure</span>
+    </button>
   </div>
 
   <div class="panel">
@@ -139,6 +147,13 @@
     bindMoved:   { action: { kind:"rwa.buy", asset:"USDC", amount_cents:400000, counterparty:PAYEE, issuer:KYC },
                    mandate: { ...BASE, allowed_issuers: [KYC], require_credential: true },
                    bindFor: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE } },
+    idemMissing: { action: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE, issuer:KYC },
+                   mandate: { ...BASE, allowed_issuers: [KYC], require_idempotency_key: true },
+                   bindFor: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE } },
+    idemBad:     { action: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE, issuer:KYC },
+                   mandate: { ...BASE, allowed_issuers: [KYC], require_idempotency_key: true },
+                   bindFor: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE },
+                   idempotencyKey: "orders/../mandate" },
     bindMissing: { action: { kind:"rwa.buy", asset:"USDC", amount_cents:50000, counterparty:PAYEE, issuer:KYC },
                    mandate: { ...BASE, allowed_issuers: [KYC], require_credential: true } },
   };
@@ -146,7 +161,7 @@
   const $ = (id) => document.getElementById(id);
 
   async function run(name) {
-    const { action, mandate = BASE, bindFor } = SCENARIOS[name];
+    const { action, mandate = BASE, bindFor, idempotencyKey = null } = SCENARIOS[name];
     $("verdict").textContent = "…"; $("verdict").className = "verdict idle";
     $("reasons").innerHTML = ""; $("raw").textContent = "";
 
@@ -162,7 +177,7 @@
 
     const res = await fetch("/api/decide", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action, mandate, now_secs: NOW, credential }),
+      body: JSON.stringify({ action, mandate, now_secs: NOW, credential, idempotency_key: idempotencyKey }),
     });
     const out = await res.json();
 

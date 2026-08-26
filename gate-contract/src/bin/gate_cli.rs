@@ -28,6 +28,8 @@ struct Req {
     now_secs: u64,
     #[serde(default)]
     credential: Option<gate::CredentialBinding>,
+    #[serde(default)]
+    idempotency_key: Option<String>,
 }
 
 fn main() {
@@ -50,8 +52,18 @@ fn main() {
     )
     .err();
 
+    let idem_err = gate::check_idempotency(
+        req.idempotency_key.as_deref(),
+        req.mandate.require_idempotency_key,
+    )
+    .err();
+
     let (mut approved, mut reasons) = gate::decide(&req.action, &req.mandate, req.now_secs);
     if let Some(e) = binding_err {
+        approved = false;
+        reasons.push(e);
+    }
+    if let Some(e) = idem_err {
         approved = false;
         reasons.push(e);
     }

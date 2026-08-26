@@ -48,8 +48,44 @@ const steps = [
   },
 ];
 
-const run = (cmd, cwd) =>
-  spawnSync(cmd[0], cmd.slice(1), { cwd, stdio: "inherit", shell: win }).status === 0;
+// Echo output live AND keep it, so the run can report its own total instead of
+// a number written into a README that nobody re-checks.
+let transcript = "";
+const run = (cmd, cwd) => {
+  const r = spawnSync(cmd[0], cmd.slice(1), { cwd, encoding: "utf8", shell: win });
+  const text = (r.stdout ?? "") + (r.stderr ?? "");
+  process.stdout.write(text);
+  transcript += text;
+  return r.status === 0;
+};
+
+/** Sum the totals each runner prints, so the count cannot drift from reality. */
+function countChecks(text) {
+  let n = 0;
+
+  // Cargo runs the test suite once per target. `gate_cli` pulls in gate.rs with
+  // #[path], so the bin target re-runs almost the same tests as the lib — adding
+  // both would inflate the number by ~40. Attribute each "test result" line to
+  // the target header above it and skip the bin.
+  //
+  //   Running unittests src/lib.rs (…)        <- counted
+  //   Running unittests src/bin/gate_cli.rs   <- same tests again, skipped
+  //   Doc-tests gate-contract                 <- counted, genuinely separate
+  // Cargo writes the headers to stderr and the results to stdout, so they cannot
+  // be paired by reading line by line — captured output has all of one stream
+  // then all of the other. Both sequences are complete and in the same order,
+  // though, so pair them by position.
+  const targets = [...text.matchAll(/^\s*(?:Running unittests|Doc-tests)\s+(.*)$/gm)].map((m) => m[1]);
+  const results = [...text.matchAll(/test result: ok\. (\d+) passed/g)].map((m) => Number(m[1]));
+  results.forEach((count, i) => {
+    if (/bin[\\/]gate_cli/.test(targets[i] ?? "")) return;
+    n += count;
+  });
+
+  // node:test prints one tally per run: "ℹ pass 52"
+  for (const m of text.matchAll(/^ℹ pass (\d+)$/gm)) n += Number(m[1]);
+  return n;
+}
 
 let failed = 0;
 for (const step of steps) {
@@ -71,7 +107,7 @@ for (const step of steps) {
 
 console.log(
   failed === 0
-    ? "\nAll checks passed. No credits spent."
-    : `\n${failed} check(s) failed.`,
+    ? `\nAll ${countChecks(transcript)} checks passed. No credits spent.`
+    : `\n${failed} step(s) failed.`,
 );
 process.exit(failed === 0 ? 0 : 1);

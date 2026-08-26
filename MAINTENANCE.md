@@ -16,7 +16,8 @@ the building":
 
 1. **Eligibility** — a BBS+ verifiable credential proves the investor is
    accredited without revealing net worth, name, or date of birth. Verified in
-   the agent layer.
+   the agent layer, then **bound to the action** by a commitment the enclave
+   recomputes, so a verification done for one action cannot authorise another.
 2. **Mandate** — amount cap, allowed assets, allowed action kinds, allowed
    payees, per-payee sub-limits, trusted credential issuers, a validity window,
    and a cumulative velocity limit. Enforced *inside the TEE*, read from a KV
@@ -35,8 +36,8 @@ node verify.mjs
 
 Runs, in order: the contract's Rust unit tests on the host, a wasm component
 build, the agent's Node tests, and the Playwright end-to-end suite that drives
-the *real* Rust decision function through the QA console. 85 checks. Zero
-credits, no network, no key.
+the *real* Rust decision function through the QA console. It prints its own total — 118 at the time of writing, and the number comes
+from the runners rather than from this sentence. Zero credits, no network, no key.
 
 It is the same set CI runs (`.github/workflows/ci.yml`). If it passes, the
 logic is intact; anything still broken is environmental, and §5 lists those.
@@ -55,10 +56,20 @@ No behaviour is hardcoded to the original operator. All of it lives in
 | `.env` | `TRUSTED_ISSUERS` | KYC issuers the mandate accepts | **not enforced — any issuer passes** |
 | `.env` | `WBA_PRIVATE_KEY` | Web Bot Auth signing key | an ephemeral key nobody can verify |
 | `.env` | `REVOCATION_*` | on-chain credential kill-switch | revocation check skipped (fail-open) |
-| `.env` | `ERC8004_*` | on-chain agent identity mint | the mint script refuses to run |
+| `.env` | `ERC8004_PRIVATE_KEY` | funds the on-chain identity mint | the mint refuses; reads still work |
+| `.env` | `ERC8004_NETWORK` / `_RPC_URL` / `_REGISTRY_ADDRESS` | which registry to use | the Sepolia reference deployment |
 | KV | `z:<tid>:mandate[default]` | **the actual limits** | the contract denies everything |
 | KV | `z:<tid>:secrets[broker_api_key]` | the broker credential | see `BROKER_API_KEY` |
 | KV | `z:<tid>:spent` | velocity counter, contract-owned | contract recreates the entry |
+| KV | `z:<tid>:dispatched` | idempotency records, contract-owned | idempotency unavailable; logged, not fatal |
+
+The mandate itself carries the rest, and two of its fields are switches an
+operator should understand rather than inherit:
+
+| Mandate field | Effect when true |
+| --- | --- |
+| `require_credential` | every action must carry a credential binding that matches it; omitting it is a rejection, not a skipped check |
+| `require_idempotency_key` | every action must carry a retry key, so a timed-out dispatch is never ambiguous |
 
 Two of those defaults are deliberately unsafe-looking and worth saying plainly:
 an empty `TRUSTED_ISSUERS` means the gate accepts a credential the agent minted
@@ -75,7 +86,7 @@ node verify.mjs                       # prove it works before touching the netwo
 cp agent/.env.example agent/.env      # add T3N_API_KEY + DID
 cd gate-contract && cargo build --lib --target wasm32-wasip2 --release
 cd ../agent
-npm run setup                         # register the contract, create + seed the 3 maps
+npm run setup                         # register the contract, create + seed the 4 maps
 npm run grant:egress                  # authorise the enclave's outbound host
 npm run demo                          # the full chain, end to end
 ```
@@ -97,6 +108,8 @@ balance with `npm --prefix agent run auth` first.
 | `CONFIG_ERROR field=trustAnchor` | SDK <5.x, or a client built without `fetchTrustedManifest()` | upgrade; see the 5.1.0 migration commit |
 | `host/http.egress_denied` | the destination host is not on the caller's agent-auth grant | `npm run grant:egress` — and note the grant lists *functions*, so a new contract function needs adding there |
 | `read denied` on the spend map | map ACL still points at a previous contract id | re-run `npm run setup` |
+| `credential binding does not match this action` | the agent verified a credential for a different action, or the two implementations drifted | run `node verify.mjs` — the conformance test compares the JS and Rust commitments |
+| `idempotency unavailable` in the contract log | the `dispatched` map is missing or its ACL is stale | re-run `npm run setup`; actions still work, retries just are not deduplicated |
 | The contract registers, then 500s on **every** invoke | it imports a host interface the node does not serve (`vp`, `agent-registry`) | revert the import; only `tenant-context`, `logging`, `kv-store`, `http`, and `http-with-placeholders` are served |
 
 That last one has a nasty edge, and it is the one exception to "nothing to clean
@@ -147,8 +160,17 @@ either the operator's own `.env` or the enclave.
 - **The QA console never reimplements the rules.** It shells out to `gate_cli`.
   A JavaScript copy of the mandate logic would drift from the contract and prove
   nothing, so if you are tempted to add one, don't.
-- **`z:<tid>:spent` needs the contract in *both* readers and writers.** `spend()`
-  read-modify-writes; a write-only ACL fails with `read denied`.
+- **`z:<tid>:spent` and `z:<tid>:dispatched` need the contract in *both* readers
+  and writers.** Both read-modify-write; a write-only ACL fails with
+  `read denied`.
+- **The credential binding exists in two languages** — `agent/src/credential-binding.mjs`
+  and `gate.rs`. They must agree byte for byte or the check verifies nothing.
+  `agent/test/credential-binding.test.mjs` runs the compiled Rust and compares,
+  so do not "fix" one side without running it.
+- **Idempotency records are written *after* the outbound call.** A crash
+  mid-flight therefore leaves no record and the retry goes out. That direction is
+  deliberate: a visible possible-duplicate beats a silent "already done" for an
+  order that never happened.
 - **On Windows**, host builds need the GNU toolchain
   (`rustup toolchain install stable-x86_64-pc-windows-gnu`) because there is no
   MSVC linker by default. `verify.mjs` selects it automatically.
@@ -156,7 +178,7 @@ either the operator's own `.env` or the enclave.
 ## 8. What this deliberately does not do
 
 Listed honestly in [`submission/STATUS_AND_ROADMAP.md`](submission/STATUS_AND_ROADMAP.md).
-The short version: the enclave trusts the agent's word that it verified the
-credential (closing that needs in-contract `vp.verify`, which the node does not
-serve yet), there is no idempotency key on the outbound call, and mandates have
+The short version: the enclave can prove a credential was committed to *this*
+action, but not that the underlying BBS+ proof was ever valid — closing that
+needs in-contract `vp.verify`, which the node does not serve. Mandates still have
 no lifecycle beyond a single seeded `default` entry.

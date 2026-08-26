@@ -11,6 +11,7 @@ import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, actionEndpoint } fro
 import { loadAgentKey, signRequest, verifyRequest } from "./web-bot-auth.mjs";
 import { buildOptionsFromEnv, checkRevocation } from "./revocation.mjs";
 import { bindCredential } from "./credential-binding.mjs";
+import { randomUUID } from "node:crypto";
 
 // A trusted KYC issuer attests ONLY the predicate the action needs — never the
 // underlying net worth, name, or DOB. (Predicate-credential model: see README.)
@@ -95,6 +96,11 @@ async function act(label, action, mandate = MANDATE) {
 // Bind the credential this run actually verified to the action being requested.
 // `verified: true` is the BBS+ verdict from step [2] — not an assumption; if
 // that check had failed the run would not have reached here.
+// One key per order attempt. A retry of the SAME order must reuse its key —
+// that is what makes the retry safe — so the key belongs to the order, not to
+// the request. Here each demo action is its own order.
+const newIdempotencyKey = () => `order-${randomUUID()}`;
+
 const binding = (action) => bindCredential({
   issuer: issuerDid,
   subject: subject.did,
@@ -106,7 +112,7 @@ const binding = (action) => bindCredential({
 // (the agent CANNOT supply one) and performs the outbound call itself, in the
 // same invocation, only on approval. A rejected action never reaches the network
 // because the network call and the decision are the same host call.
-async function executeForReal(label, action, credential = binding(action)) {
+async function executeForReal(label, action, credential = binding(action), idempotencyKey = newIdempotencyKey()) {
   await pace();
   const body = JSON.stringify(action);
   const req = { method: "POST", url: ACTION_ENDPOINT, body };
@@ -117,7 +123,7 @@ async function executeForReal(label, action, credential = binding(action)) {
   try {
     const r = await tenant.contracts.execute(CONTRACT_TAIL, {
       version: CONTRACT_VERSION, functionName: "execute_action",
-      input: { action, url: ACTION_ENDPOINT, method: "POST", body, credential },
+      input: { action, url: ACTION_ENDPOINT, method: "POST", body, credential, idempotency_key: idempotencyKey },
     });
     const src = `mandate_source=${r.mandate_source}`;
     if (r.decision !== "approved") {

@@ -126,6 +126,24 @@ describe("credential binding — the eligibility check cannot be detached", () =
   });
 });
 
+describe("idempotency — a retry must not become a second order", () => {
+  test("a mandate that requires a key refuses an action without one", async () => {
+    // Without a key, a timed-out dispatch is ambiguous: retrying risks a second
+    // order, not retrying risks none. The mandate refuses the ambiguity.
+    const { verdict, reasons } = await runScenario("s-idem-missing");
+    assert.equal(verdict, "REJECTED");
+    assert.ok(reasons.some((r) => /requires an idempotency key/.test(r)), reasons.join(" | "));
+  });
+
+  test("a key carrying path structure is refused", async () => {
+    // The key becomes part of a KV key, so it must not be able to address
+    // another map or escape its namespace.
+    const { verdict, reasons } = await runScenario("s-idem-bad");
+    assert.equal(verdict, "REJECTED");
+    assert.ok(reasons.some((r) => /idempotency key may contain only/.test(r)), reasons.join(" | "));
+  });
+});
+
 describe("api abuse", () => {
   const post = (body) => page.evaluate(async (b) => {
     const r = await fetch("/api/decide", {

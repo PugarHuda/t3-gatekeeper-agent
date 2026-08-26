@@ -20,6 +20,55 @@ pub struct Action {
     pub issuer: Option<String>,
 }
 
+// ── idempotency ─────────────────────────────────────────────────────────────
+//
+// If the enclave's outbound call times out, the order may already have executed
+// upstream. Retrying is then a coin flip between "no order" and "two orders",
+// and on a payments path the second is the expensive one. A caller-chosen key
+// makes the retry safe: the enclave records the key with the outcome, and a
+// second call carrying the same key returns the first outcome instead of
+// dialling out again.
+//
+// The key must come from the CALLER, not be derived here — a derived key would
+// change on every retry, which is exactly when it needs to stay the same.
+
+/// Longest key accepted. Long enough for a UUID or a hex digest, short enough
+/// that a caller cannot use the map as storage.
+pub const MAX_IDEMPOTENCY_KEY_LEN: usize = 128;
+
+/// Validate a supplied idempotency key.
+///
+/// Returns the key to record under, or `None` when idempotency is not in use.
+/// Restricting the charset keeps the value safe to use as a KV key and stops a
+/// caller smuggling structure (path separators, NULs) into the map namespace.
+pub fn check_idempotency(key: Option<&str>, require: bool) -> Result<Option<String>, String> {
+    match key.map(str::trim).filter(|k| !k.is_empty()) {
+        None => {
+            if require {
+                Err("mandate requires an idempotency key, none supplied".to_string())
+            } else {
+                Ok(None)
+            }
+        }
+        Some(k) if k.len() > MAX_IDEMPOTENCY_KEY_LEN => {
+            Err(format!("idempotency key longer than {MAX_IDEMPOTENCY_KEY_LEN} characters"))
+        }
+        Some(k) if !k.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == ':') => {
+            Err("idempotency key may contain only letters, digits, '-', '_' and ':'".to_string())
+        }
+        Some(k) => Ok(Some(k.to_string())),
+    }
+}
+
+/// Does this body need host-side placeholder substitution?
+///
+/// Routing on the body's content rather than a caller flag is deliberate: a body
+/// carrying `{{profile.…}}` sent through plain `http` would deliver the literal
+/// marker to the destination, which is a silent data bug rather than an error.
+pub fn needs_placeholders(body: &str) -> bool {
+    body.contains("{{profile.")
+}
+
 // ── credential binding ──────────────────────────────────────────────────────
 //
 // The eligibility proof is verified in the agent, because the enclave has no
@@ -176,6 +225,11 @@ pub struct Mandate {
     /// issuer check is only as good as the caller's honesty.
     #[serde(default)]
     pub require_credential: bool,
+    /// When true, an action without an idempotency key is refused. Worth setting
+    /// on any mandate whose actions move money: without a key a timeout is
+    /// ambiguous and the safe response (retry) is also the dangerous one.
+    #[serde(default)]
+    pub require_idempotency_key: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -342,7 +396,7 @@ pub fn evaluate(input: &[u8]) -> Result<Vec<u8>, String> {
 
 #[cfg(target_arch = "wasm32")]
 use crate::host::{
-    interfaces::{kv_store, logging},
+    interfaces::{http_with_placeholders as hwp, kv_store, logging},
     tenant::tenant_context,
 };
 
@@ -524,6 +578,10 @@ pub struct ExecuteReq {
     /// the action below — see `check_binding`.
     #[serde(default)]
     pub credential: Option<CredentialBinding>,
+    /// Caller-chosen key making a retry safe. Same key -> the recorded outcome
+    /// is returned and nothing is dispatched a second time.
+    #[serde(default)]
+    pub idempotency_key: Option<String>,
 }
 
 pub fn execute_action(input: &[u8]) -> Result<Vec<u8>, String> {
@@ -559,12 +617,24 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
     // other reason instead of disappearing into a 500.
     let binding_err =
         check_binding(req.credential.as_ref(), &req.action, mandate.require_credential).err();
+    let idem = check_idempotency(
+        req.idempotency_key.as_deref(),
+        mandate.require_idempotency_key,
+    );
 
     let (mut approved, mut reasons) = decide(&req.action, &mandate, now_secs);
     if let Some(e) = binding_err {
         approved = false;
         reasons.push(e);
     }
+    let idem_key = match idem {
+        Ok(k) => k,
+        Err(e) => {
+            approved = false;
+            reasons.push(e);
+            None
+        }
+    };
 
     let mut out = serde_json::json!({
         "decision": if approved { "approved" } else { "rejected" },
@@ -580,6 +650,23 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
         "tenant_did": format!("did:t3n:{tid_hex}"),
     });
 
+    // A key we have already dispatched under means this is a retry of a call
+    // that may well have succeeded upstream. Return what happened the first
+    // time; do not place the order again.
+    if approved {
+        if let Some(k) = idem_key.as_deref() {
+            if let Some(prev) = read_dispatch_record(&tid_hex, k)? {
+                out["dispatched"] = serde_json::Value::Bool(false);
+                out["replayed"] = serde_json::Value::Bool(true);
+                out["idempotency_key"] = serde_json::Value::String(k.to_string());
+                out["response"] =
+                    serde_json::from_str(&prev).unwrap_or(serde_json::Value::String(prev));
+                let _ = logging::info(&format!("execute_action replayed idempotency_key={k}"));
+                return serde_json::to_vec(&out).map_err(|e| e.to_string());
+            }
+        }
+    }
+
     if approved {
         let method = match req.method.to_ascii_uppercase().as_str() {
             "POST" => http::Verb::Post,
@@ -588,7 +675,6 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
             "DELETE" => http::Verb::Delete,
             _ => http::Verb::Get,
         };
-        let payload = if req.body.is_empty() { None } else { Some(req.body.into_bytes()) };
         // The credential is fetched INSIDE the enclave, after the decision. A
         // rejected action never reaches this line, so it never touches the key.
         let secret = if mandate.credential_key.is_empty() {
@@ -597,12 +683,57 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
             read_secret(&tid_hex, &mandate.credential_key)?
         };
         let headers = auth_headers(&mandate.credential_key, secret.as_deref())?;
-        let request = http::Request { method, url: req.url.clone(), headers, payload };
+
+        // A body carrying profile markers goes through the placeholder
+        // interface, where the HOST substitutes the calling user's data. Sending
+        // it through plain `http` would deliver the marker text itself — and the
+        // point of this path is that the investor's PII never enters the
+        // component at all.
+        let via_placeholders = needs_placeholders(&req.body);
+        let payload = if req.body.is_empty() { None } else { Some(req.body.clone().into_bytes()) };
         out["dispatched"] = serde_json::Value::Bool(true);
-        out["response"] = match http::call(&request) {
-            Ok(resp) => serde_json::json!({ "ok": true, "code": resp.code, "body_len": resp.payload.len() }),
-            Err(e) => serde_json::json!({ "ok": false, "error": e }),
+        out["dispatch_via"] = serde_json::Value::String(
+            if via_placeholders { "http-with-placeholders" } else { "http" }.to_string(),
+        );
+
+        let response = if via_placeholders {
+            let pm = match req.method.to_ascii_uppercase().as_str() {
+                "POST" => hwp::Verb::Post,
+                "PUT" => hwp::Verb::Put,
+                "PATCH" => hwp::Verb::Patch,
+                "DELETE" => hwp::Verb::Delete,
+                _ => hwp::Verb::Get,
+            };
+            let request = hwp::Request {
+                method: pm,
+                url: req.url.clone(),
+                headers: headers.clone(),
+                payload,
+            };
+            match hwp::call(&request) {
+                Ok(resp) => serde_json::json!({ "ok": true, "code": resp.code, "body_len": resp.payload.len() }),
+                // The typed variant is worth surfacing verbatim: "that marker is
+                // not allowed" and "your profile has no such field" are
+                // different problems with different fixes.
+                Err(e) => serde_json::json!({ "ok": false, "error": describe_hwp_error(&e) }),
+            }
+        } else {
+            let request = http::Request { method, url: req.url.clone(), headers, payload };
+            match http::call(&request) {
+                Ok(resp) => serde_json::json!({ "ok": true, "code": resp.code, "body_len": resp.payload.len() }),
+                Err(e) => serde_json::json!({ "ok": false, "error": e }),
+            }
         };
+        out["response"] = response.clone();
+
+        // Record the outcome under the key so a retry replays it. Written AFTER
+        // the call: a crash mid-flight leaves no record and the retry goes out.
+        // The safe direction is a possible duplicate the operator can see, not a
+        // silent "already done" for something that never happened.
+        if let Some(k) = idem_key.as_deref() {
+            out["idempotency_key"] = serde_json::Value::String(k.to_string());
+            let _ = write_dispatch_record(&tid_hex, k, &response.to_string());
+        }
     }
 
     let _ = logging::info(&format!(
@@ -647,6 +778,42 @@ fn read_mandate(tid_hex: &str) -> Result<Mandate, String> {
     serde_json::from_slice(&bytes).map_err(|e| format!("mandate parse: {e}"))
 }
 
+/// Render the placeholder interface's typed error as a stable string.
+#[cfg(target_arch = "wasm32")]
+fn describe_hwp_error(e: &hwp::HttpError) -> String {
+    match e {
+        hwp::HttpError::EgressDenied(h) => format!("egress_denied: {h}"),
+        hwp::HttpError::PlaceholderDenied(m) => format!("placeholder_denied: {m}"),
+        hwp::HttpError::PlaceholderUnknown(f) => format!("placeholder_unknown: {f}"),
+        hwp::HttpError::PlaceholderNoUserContext => "placeholder_no_user_context".to_string(),
+        hwp::HttpError::UpstreamError(r) => format!("upstream_error: {r}"),
+    }
+}
+
+/// Has this idempotency key already been dispatched? Returns the recorded
+/// outcome if so.
+#[cfg(target_arch = "wasm32")]
+fn read_dispatch_record(tid_hex: &str, key: &str) -> Result<Option<String>, String> {
+    let map_name = format!("z:{tid_hex}:dispatched");
+    match kv_store::get(&map_name, key.as_bytes()) {
+        Ok(Some(bytes)) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
+        Ok(None) => Ok(None),
+        // No map provisioned yet is not a reason to refuse the action; it means
+        // idempotency is unavailable, and the operator sees that in the log.
+        Err(e) => {
+            let _ = logging::info(&format!("idempotency unavailable: {e}"));
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn write_dispatch_record(tid_hex: &str, key: &str, value: &str) -> Result<(), String> {
+    let map_name = format!("z:{tid_hex}:dispatched");
+    kv_store::put(&map_name, key.as_bytes(), value.as_bytes())
+        .map_err(|e| format!("idempotency record write failed: {e}"))
+}
+
 /// Read one entry from the tenant's secrets map. Only this contract can: the
 /// map's ACL names it as the sole reader, and `map-entry-set` (the control-plane
 /// write the tenant admin uses to seed it) is the only way a value gets in.
@@ -679,6 +846,7 @@ mod tests {
             valid_after_secs: 0,
             credential_key: String::new(),
             require_credential: false,
+            require_idempotency_key: false,
         }
     }
 
@@ -920,6 +1088,65 @@ mod tests {
     }
 
     // --- the atomic path refuses to run without its host capabilities ---
+    // --- idempotency ---
+
+    #[test]
+    fn a_well_formed_key_is_accepted() {
+        assert_eq!(
+            check_idempotency(Some("order-2026-08-27:abc_123"), true).unwrap(),
+            Some("order-2026-08-27:abc_123".to_string())
+        );
+    }
+
+    #[test]
+    fn a_missing_key_is_refused_only_when_the_mandate_requires_one() {
+        assert_eq!(check_idempotency(None, false).unwrap(), None);
+        assert_eq!(check_idempotency(Some("   "), false).unwrap(), None, "blank is missing");
+        let err = check_idempotency(None, true).unwrap_err();
+        assert!(err.contains("requires an idempotency key"), "{err}");
+        assert!(check_idempotency(Some(""), true).is_err(), "empty is not a key");
+    }
+
+    #[test]
+    fn a_key_cannot_smuggle_structure_into_the_map_namespace() {
+        // These would otherwise become part of the KV key.
+        for bad in ["a/b", "a b", "a\u{0}b", "z:tid:mandate\nx", "a\"b"] {
+            assert!(check_idempotency(Some(bad), false).is_err(), "should reject {bad:?}");
+        }
+    }
+
+    #[test]
+    fn an_over_long_key_is_refused() {
+        let long = "a".repeat(MAX_IDEMPOTENCY_KEY_LEN + 1);
+        assert!(check_idempotency(Some(&long), false).is_err());
+        let ok = "a".repeat(MAX_IDEMPOTENCY_KEY_LEN);
+        assert!(check_idempotency(Some(&ok), false).is_ok(), "the boundary itself is allowed");
+    }
+
+    #[test]
+    fn a_key_is_trimmed_so_a_retry_matches_the_first_call() {
+        // A caller that pads the header must still hit the same record.
+        assert_eq!(check_idempotency(Some("  k-1  "), false).unwrap(), Some("k-1".to_string()));
+    }
+
+    // --- placeholder routing ---
+
+    #[test]
+    fn a_body_with_profile_markers_routes_through_the_placeholder_interface() {
+        assert!(needs_placeholders(r#"{"given_name":"{{profile.first_name}}"}"#));
+        assert!(needs_placeholders("{{profile.verified_contacts.email.value}}"));
+    }
+
+    #[test]
+    fn an_ordinary_body_uses_plain_http() {
+        assert!(!needs_placeholders(r#"{"amount_cents":100000}"#));
+        assert!(!needs_placeholders(""));
+        // Only the profile namespace is substituted host-side; anything else is
+        // literal text and must NOT be routed as if it were a marker.
+        assert!(!needs_placeholders("{{secrets.api_key}}"));
+        assert!(!needs_placeholders("{{ profile.first_name }}"));
+    }
+
     // --- credential binding ---
 
     #[test]

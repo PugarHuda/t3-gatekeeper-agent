@@ -144,30 +144,31 @@ Plus a **credential-revocation pre-gate** (`agent/src/revocation.mjs`,
 if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 `REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are set.
 
-## Tests — 111, all offline except where noted
+## Tests, all offline except where noted
 
 **One command runs everything that does not cost a credit:**
 
 ```bash
-node verify.mjs        # 108 checks: Rust, wasm build, Node, Playwright. No key needed.
+node verify.mjs        # Rust, wasm build, Node, Playwright. No key needed.
+                       # Prints its own total (118 at the time of writing).
 ```
 
 CI runs the same script, so the two cannot drift apart.
 
 | Suite | Count | What it covers |
 | --- | --- | --- |
-| Rust (`gate-contract`) | 32 | the mandate rules, every dimension, deny-by-default, the enclave-held credential |
-| Node (`agent`) | 40 | BBS+, selective disclosure, A2A, revocation, Web Bot Auth + key directory + replay window |
-| QA console (`qa-console`) | 13 | Playwright over the **real** Rust `decide()` — happy path, 6 wrong paths, 4 API-abuse cases |
+| Rust (`gate-contract`) | 48 | the mandate rules, every dimension, deny-by-default, the enclave-held credential |
+| Node (`agent`) | 52 | BBS+, selective disclosure, A2A, revocation, Web Bot Auth + key directory + replay window |
+| QA console (`qa-console`) | 18 | Playwright over the **real** Rust `decide()` — happy path, 6 wrong paths, 4 API-abuse cases |
 | Live site | 10 | the deployed page, incl. a Web Bot Auth key round trip over the public internet |
 | Doc / docx / video | 16 | the submission artifacts actually render, and the video decodes with audio |
 
 Individually, if you want just one:
 
 ```bash
-cd gate-contract && cargo test                    # 32
-cd agent        && npm test                       # 40
-cd qa-console   && node --test e2e.test.mjs       # 13
+cd gate-contract && cargo test                    # 48
+cd agent        && npm test                       # 52
+cd qa-console   && node --test e2e.test.mjs       # 18
 ```
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the

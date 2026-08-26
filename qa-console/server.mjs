@@ -33,7 +33,7 @@ export const MANDATE = {
   valid_after_secs: 0,
 };
 
-function decide({ action, mandate = MANDATE, now_secs = 1_786_000_000, credential = null }) {
+function decide({ action, mandate = MANDATE, now_secs = 1_786_000_000, credential = null, idempotency_key = null }) {
   return new Promise((resolve, reject) => {
     const child = execFile(EXE, { timeout: 10_000 }, (err, stdout) => {
       // gate_cli exits non-zero on bad input but still prints JSON — prefer it.
@@ -41,7 +41,7 @@ function decide({ action, mandate = MANDATE, now_secs = 1_786_000_000, credentia
       if (text) { try { return resolve(JSON.parse(text)); } catch { /* fall through */ } }
       reject(err ?? new Error("gate_cli produced no output"));
     });
-    child.stdin.end(JSON.stringify({ action, mandate, now_secs, credential }));
+    child.stdin.end(JSON.stringify({ action, mandate, now_secs, credential, idempotency_key }));
   });
 }
 

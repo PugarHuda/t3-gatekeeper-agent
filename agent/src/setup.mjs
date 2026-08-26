@@ -1,5 +1,5 @@
 // One-time setup: register the compiled gate-contract WASM to your tenant and
-// provision the three KV maps it reads. Safe to re-run — it re-points each
+// provision the four KV maps it uses. Safe to re-run — it re-points each
 // map's ACL at the newly registered contract id.
 //
 // Build the WASM first (see ../../gate-contract/README.md):
@@ -78,6 +78,12 @@ await seed("mandate", "default", JSON.stringify(MANDATE), `Mandate seeded ${JSON
 // so a write-only ACL fails with "read denied", and any wider ACL would let the
 // agent reset its own limit.
 await ensureMap("spent", contractOnly, contractOnly);
+
+// Idempotency records: which keys the enclave has already dispatched under, and
+// what happened. Contract-only for BOTH read and write — it read-modify-writes,
+// and an agent that could edit it could make a duplicate order look like a
+// replay, or a replay look new.
+await ensureMap("dispatched", contractOnly, contractOnly);
 
 // The broker credential. Nothing outside the enclave can read this map back —
 // not the agent, not this script after it writes. The contract fetches the
