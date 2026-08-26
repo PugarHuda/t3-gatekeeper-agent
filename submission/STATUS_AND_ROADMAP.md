@@ -1,6 +1,6 @@
 # Status & roadmap — what is built, what is shallow, what is worth building
 
-Honest inventory as of **7 August 2026**. The rule for this file: "shipped" means
+Honest inventory as of **27 August 2026**. The rule for this file: "shipped" means
 it runs and is covered by a test or a live run. Anything that needs infrastructure
 I do not have is listed as such, not quietly claimed.
 
@@ -24,65 +24,76 @@ I do not have is listed as such, not quietly claimed.
 | 11b | **Trusted credential issuers** — the mandate names which KYC issuers it accepts, so a self-issued credential is refused | `gate.rs` `allowed_issuers` | 4 Rust + 2 Playwright |
 | 11c | **Per-counterparty sub-limits** — a tighter ceiling per payee, applied *in addition* to the global cap | `gate.rs` `counterparty_limits` | 4 Rust + 1 Playwright |
 | 12 | **A2A capability exchange** with selective disclosure | `agent/src/a2a.mjs` | 2 Node tests |
-| 13 | **Revocation pre-gate** — `revoke_vc` kill-switch before acting | `agent/src/revocation.mjs` | 6 Node tests (injected registry) |
+| 12b | **A2A discovery** — the card is published at `/.well-known/agent-card.json`; `discoverPeer()` fetches and validates a peer's card over HTTP | `agent/src/a2a.mjs`, `site/.well-known/` | 8 Node tests over a real server |
+| 13 | **Revocation pre-gate** — `revoke_vc` kill-switch before acting | `agent/src/revocation.mjs` | 12 Node tests |
+| 13b | **W3C Bitstring Status List** — revocation published as a 131,072-entry list and checked over HTTPS, no chain required | `agent/src/status-list.mjs`, `site/status/revocation.json` | 19 Node tests |
 | 14 | **Structured audit row** per action, approved *and* rejected | `agent/src/agent.mjs` | every run |
+| 14b | **Host audit ledger** — `audit.get-mine` read back and reconciled against the agent's rows, distinguishing committed from merely claimed | `agent/src/audit.mjs` | 10 Node tests + live read |
 | 15 | **On-network Agent ID** — DID resolves to an ERC-8004 / A2A card | `agent/agent-card.json` | live, screenshot 04 |
-| 16 | **QA console + Playwright E2E** — happy path, 5 wrong paths, 4 abuse cases | `qa-console/` | 10 tests |
-| 17 | **Evidence site** | `site/` | 5 Playwright tests, deployed |
-| 18 | **Reproducible screenshots** — commands run for real, output rendered | `submission/screenshots/capture.mjs` | 12 shots |
+| 15b | **ERC-8004 live reads + mint preflight** — resolve agents and verify the registry's bytecode before spending gas | `agent/src/erc8004.mjs` | live against Sepolia, `npm run erc8004` |
+| 15c | **Credential bound to the action** — commitment recomputed inside the enclave from the action it is about to perform | `gate.rs`, `agent/src/credential-binding.mjs` | 8 Rust + 12 Node (cross-language conformance) |
+| 15d | **Idempotent dispatch** — a retry replays the recorded outcome instead of placing a second order | `gate.rs::execute_action` | 5 Rust + 2 Playwright |
+| 16 | **QA console + Playwright E2E** — happy path, wrong paths, binding and idempotency attacks, abuse cases | `qa-console/` | 18 tests |
+| 17 | **Evidence site** | `site/` | Playwright + live tests, deployed |
+| 18 | **Reproducible screenshots** — commands run for real, output rendered | `submission/screenshots/capture.mjs` | 15 shots |
 
 | 19 | **Signature freshness window** — a Web Bot Auth signature expires (default 5 min, skew-tolerant); `created` is inside the signature base so it cannot be back-dated | `agent/src/web-bot-auth.mjs` | 7 Node tests |
 
-**Test totals: 107** — 28 Rust, 40 Node, 13 QA-console E2E, 10 live-site (incl.
-the Web Bot Auth key round trip over the public internet), 16 artifact checks
-(doc export, .docx package, rendered video).
+**Test totals: run `node verify.mjs` — it prints its own total (161 offline
+checks at the time of writing), plus the live-site and artifact suites.**
+## 2. Depth, honestly
 
----
+The rule for this section: say what is real, and say what is still only a
+gesture. Five items sat here as "shallow" in August. Four of them were fixed on
+27 August rather than re-described.
 
-## 2. Built but deliberately shallow
-
-Honest about depth, so nobody is misled by a feature list.
-
-| Item | What is real | What is shallow | Cost to deepen |
-| --- | --- | --- | --- |
-| ~~Web Bot Auth~~ | **Resolved 8 Aug** — key persisted via `WBA_PRIVATE_KEY`, JWKS published, verified live against the deployed directory | — | done |
-| **Revocation** | Gate logic + tests are real | Fail-**open** when unconfigured, and no registry is published, so it is dormant in practice | Deploy a registry contract; flip `failClosed` default |
-| **A2A** | Credential exchange works | No live peer — the counterparty is in-process | Stand up a second agent |
-| **Audit trail** | Emitted per action, structured | Written to stdout, not to the T3 audit ledger via `getAuditEvents` | Wire `audit.get-mine` — small |
-| **Selective disclosure** | Cryptographically real, verified | Not wired into the *contract* decision; the enclave trusts the agent's verdict | Needs in-contract `vp.verify` — blocked (bug #7) |
-| **ERC-8004** | Correct ABI, refuses to fake a mint | Never executed — needs a funded wallet | Fund a wallet |
-
----
+| Item | State |
+| --- | --- |
+| ~~Web Bot Auth~~ | **Resolved 8 Aug.** Key persisted, JWKS published, verified live against the deployed directory. |
+| ~~Audit trail~~ | **Resolved 27 Aug.** `npm run audit` reads the host's own ledger via `audit.get-mine` and reconciles it against the agent's rows. It distinguishes committed from claimed — an event can say `outcome: success` in a batch that rolled back. |
+| ~~A2A~~ | **Resolved 27 Aug.** The agent card is published at `/.well-known/agent-card.json`, and `discoverPeer()` fetches and validates a peer card over real HTTP. A peer needs only the domain. |
+| ~~Revocation~~ | **Resolved 27 Aug.** A W3C Bitstring Status List is generated and published (131,072 entries, 556 bytes). The gate reads one bit over HTTPS with no chain involved; the on-chain registry remains the fallback. |
+| ~~ERC-8004~~ | **Read side resolved 27 Aug.** Live against the reference deployment on Sepolia: resolve agents, check ownership, and preflight the registry before spending gas. The **mint is still not done** — it needs a funded wallet, and the script refuses rather than faking it. |
+| **Selective disclosure** | Cryptographically real and verified. The enclave now checks that the credential was **bound to this action**, but still cannot verify the BBS+ proof itself — see §3.1. |
+| **Placeholder dispatch** | The contract imports `http-with-placeholders` and routes bodies carrying profile markers through it. Unit-tested and built into the component; **not yet exercised live**, because registering the new contract needs credits (§4). |
+| **Idempotency** | Implemented end to end in the enclave with a contract-owned record map. The validation rules are tested; the replay path is wasm-only and shares §4's blocker. |
 
 ## 3. Not built — ranked by value
 
 Ordered by what would most improve the product, not by ease.
 
-> ~~1. Issuer trust registry~~ and ~~3. Per-counterparty sub-limits~~ were the top
-> two here; both are **implemented and tested as of 8 Aug** (§1, rows 11b/11c).
-> They ship in contract source **0.8.0**, which is built and unit-tested but not
-> yet registered — see §4.
+> Items 1–3 of the previous list — issuer trust registry, per-counterparty
+> sub-limits, and the credential/action binding — are **implemented**. So is the
+> settlement idempotency key. What follows is what is genuinely still absent.
 
-1. **Bind the credential to the action in-enclave.** Today the VC check happens in
-   the agent and the enclave takes its word for the issuer DID. The enclave now
-   checks that DID against `allowed_issuers`, but a compromised agent could still
-   *claim* a trusted issuer it never verified. Passing the proof into
-   `execute_action` and verifying it there closes the loop. Blocked on `vp.verify`
-   (bug #7) — otherwise implementable as a hash commitment today.
-   **This is now the biggest remaining correctness gap.**
-2. **Settlement callback + idempotency key.** If the enclave's HTTP call times out,
-   the order may have executed. An idempotency key and a status re-check would make
-   retries safe. Today a timeout is ambiguous — a real risk for a payments path.
-3. **Mandate lifecycle**: issue / amend / revoke a mandate with an audit trail,
+### 3.1 The remaining correctness gap, stated precisely
+
+The enclave can now prove that the agent committed to a specific credential for
+*this specific action* before the decision was made: the commitment covers the
+issuer, subject, claims digest, action digest and a nonce, and the enclave
+recomputes it from the action it is about to perform. Moving a verification from
+a $500 purchase to a $500,000 one fails.
+
+What it still cannot do is verify that the BBS+ proof was ever valid. A
+dishonest agent can commit to a credential it never checked. Closing that needs
+in-contract proof verification — `vp.verify`, which this node does not serve
+(bug #7). Everything short of that is bookkeeping about a claim, and the code
+and docs say so rather than implying more.
+
+### 3.2 Still absent
+
+1. **Mandate lifecycle** — issue / amend / revoke a mandate with an audit trail,
    rather than a single seeded `default` key.
-4. **Multi-party approval** — actions over a threshold require a second DID to
+2. **Multi-party approval** — actions over a threshold require a second DID to
    co-sign. Natural fit for treasury use.
-5. **Human-readable mandate receipts** — a signed statement the investor can read,
-   rather than JSON.
-6. **`http-with-placeholders`** for real credential injection, so the broker API key
-   lives in the enclave secrets map and never in the agent.
-
----
+3. **Human-readable mandate receipts** — a signed statement the investor can
+   read, rather than JSON.
+4. **A live A2A counterparty** — discovery and capability exchange are both
+   real, but the peer in the demo is still this process. A second deployed agent
+   would exercise the round trip.
+5. **Signing the status list** — the published list is a credential in shape and
+   carries no proof. An issuer that needs the list itself to be verifiable can
+   sign it with the machinery already here.
 
 ## 4. Blocked, with the reason
 
@@ -92,9 +103,15 @@ Ordered by what would most improve the product, not by ease.
 | Seeding the KV mandate | Same credit exhaustion — `map-entry-set` needs the storage deposit | ✅ |
 | In-contract `vp.verify` | Host does not serve the interface; registers then 500s (bug #7) | ✅ |
 | Org-owned agent registration | Node runs `tee:organisation/contracts` 0.4.1, CLI needs ≥0.6.0 (bug #12) | ✅ |
-| ERC-8004 mint | Needs a gas-funded wallet | ✅ |
-| Public agent card hosting | `host-card` fails (bug #11) | ✅ |
+| ERC-8004 mint | Needs a gas-funded wallet. Reads and preflight work today against the live Sepolia registry | ✅ |
+| Live placeholder + idempotency paths | Both are built into the component; exercising them needs a contract registration, which needs credits | ✅ |
+| Publishing the status list and the A2A card | Written to `site/`, but Vercel's free tier refused further deployments ("more than 100 per day"); they go out on the next deploy | ✅ |
+| Public agent card hosting (T3-side) | `host-card` no longer fails on scope, only on credits (bug #11 appears fixed) | ✅ |
 
 **Unblocking step:** the bounty offers a top-up — DM `@wardumb` with the DID
-`did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`. With credits restored, §1 items
-5 and 6 get their live verification and the mandate gets seeded.
+`did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`. With credits restored, one
+`npm run setup` registers the current contract and seeds its four maps, and the
+enclave-side items above get their live run in a single pass.
+
+Everything not on this list runs today with no key, no credits and no wallet:
+`node verify.mjs`.

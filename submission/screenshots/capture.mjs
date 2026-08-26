@@ -58,6 +58,12 @@ const SHOTS = [
   // ── new this round ──────────────────────────────────────────────────────
   { name: "14-bug-trust-anchor", title: "bug #20 — the 3.x constructor form is rejected, and the error never names the fix",
     cmd: "node trust-anchor-probe.mjs", cwd: QA },
+  { name: "16-erc8004-live", title: "ERC-8004 — live reads against the reference registry on Sepolia, no wallet, no gas",
+    cmd: "npm run erc8004", cwd: AGENT },
+  { name: "17-audit-ledger", title: "audit.get-mine — the host's own record, read back and reconciled",
+    cmd: "npm run audit", cwd: AGENT },
+  { name: "18-status-list", title: "W3C Bitstring Status List — 131,072 entries published for revocation",
+    cmd: "npm run status-list", cwd: AGENT },
   { name: "15-bug-metering", title: "bug #21 — publishing a card costs 6.7x a full grant; creating the agent was free",
     cmd: t3n("agent card-publish --owner did:t3n:93d8852130b8fe8e15c156ab8f445af975593db9 --agent did:t3n:8f8849397fb511899fcf90caa4bdc75b0792d808"),
     cwd: OUT },

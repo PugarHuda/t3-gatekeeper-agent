@@ -1,39 +1,49 @@
-# Adoption roadmap — cheap / high / out-of-box
+# Ecosystem adoptions — what runs, and what does not
 
-The Terminal 3 ADK advertises one SDK across **A2A, ERC-8004, Entra Agent ID, MCP,
-and Web Bot Auth**. This catalogs concrete adoptions of those ecosystems for the
-Gatekeeper Agent, graded by effort-to-value, with what's shipped vs. roadmap.
+The Terminal 3 ADK advertises one SDK across **A2A, ERC-8004, Entra Agent ID, MCP
+and Web Bot Auth**. This is the honest catalogue of which of those the Gatekeeper
+Agent actually implements.
 
-## ✅ Cheap adopt — shipped in this repo
-| Adoption | What & why | Status |
+The rule for this file: an adoption is **shipped** only if it runs — covered by a
+test, a live call, or both. Everything else is listed under "not implemented"
+with the reason, in its own words, rather than described in a way that reads like
+a feature.
+
+Run `node verify.mjs` to exercise every shipped row that does not need a network.
+
+---
+
+## Shipped and exercised
+
+| Adoption | What it does here | Evidence |
 | --- | --- | --- |
-| **Agent Card** (`agent/agent-card.json`) | A2A `AgentCard` + ERC-8004 agent-card shape: name, skills, DID, endpoints, trust (TDX + BBS+). Resolvable by A2A clients / ERC-8004 registries. | shipped |
-| **Richer mandate dimensions** | Added **counterparty allow-list** (pay only approved payees) and a **valid-after window** (future-dated authorizations) to the TEE contract (v0.2.0). 6 live demo scenarios. | shipped |
-| **Deny-by-default + wildcard** | Least-privilege allow-lists found & fixed during QA. | shipped |
-| **CI + tests + MIT license** | `npm test` (40 offline crypto/protocol tests), 28 Rust unit tests, GitHub Actions. | shipped |
+| **A2A Agent Card** | `agent/agent-card.json` — name, skills, DID, endpoints, trust (TDX + BBS+), in A2A `AgentCard` shape. | live at `/.well-known/agent-card.json` |
+| **A2A discovery** | `discoverPeer(origin)` fetches `/.well-known/agent-card.json` over HTTP and validates it. A peer needs only the domain — nothing shared in advance. | 8 Node tests against a real server |
+| **A2A capability exchange** | Two agents establish trust by exchanging a BBS+ **capability credential** with selective disclosure: prove one capability, hide the manifest. | `npm run demo:a2a`, 2 Node tests |
+| **Web Bot Auth (RFC 9421)** | Every approved action's outbound request is signed with Ed25519, including an RFC 9530 `Content-Digest` over the body, with a freshness window so a captured signature expires. | 14 Node tests + a live round trip over the public internet |
+| **Web Bot Auth key directory** | The Ed25519 JWKS is published at `/.well-known/http-message-signatures-directory` with the RFC media type, so any destination can verify with no prior exchange. | live-site tests |
+| **W3C Bitstring Status List v1.0** | Credential revocation published as a gzipped 131,072-entry bitstring and checked over HTTPS. No chain, no gas — this is the revocation path that actually runs. | 19 Node tests; `npm run status-list` |
+| **ERC-8004 (read + preflight)** | Resolve any agent's owner and URI from the live reference registry on Sepolia, check whether an address owns one, and verify a registry's bytecode carries `register(string)` **before** a mint spends gas. | `npm run erc8004`, live |
+| **T3 host audit ledger** | `audit.get-mine` read back and reconciled against the agent's own rows, keeping *committed* separate from *claimed*. | `npm run audit`, 10 Node tests |
+| **`http-with-placeholders`** | The contract imports the PII-safe outbound interface and routes any body carrying `{{profile.*}}` markers through it, so the host substitutes the investor's data and the plaintext never enters the component. | in the compiled component; Rust tests for the routing rule |
+| **In-TEE outbound HTTP (`http`)** | The enclave performs the approved call itself, in the same invocation as the decision. | live, HTTP 200 |
+| **Egress authorisation** | `agent-auth-update` grant scoped to contract, functions and destination hosts; an ungranted host is refused by name. | live |
+| **Stateful velocity limit** | Cumulative spend held in the enclave's own KV across invocations, with the window derived from the cluster clock rather than supplied by the caller. | live 3-spend test |
+| **Idempotent dispatch** | A caller-chosen key; a retry replays the recorded outcome instead of placing a second order. | 5 Rust + 2 Playwright |
+| **Credential/action binding** | The agent commits to which credential it verified *and which action for*; the enclave recomputes that commitment from the action it is about to perform. | 8 Rust + 12 Node cross-language conformance |
+| **Deny-by-default mandates** | Amount cap, assets, kinds, counterparties, per-payee sub-limits, trusted issuers, validity window, expiry. An empty mandate approves nothing. | 47 Rust tests |
 
-## ✅ High adopt — now shipped
-| Adoption | What & why | Status |
-| --- | --- | --- |
-| **Web Bot Auth (RFC 9421)** | `agent/src/web-bot-auth.mjs`, **wired into the main runtime as step [5] DISPATCH** in `agent.mjs`: every approved action request is signed with HTTP Message Signatures (Ed25519, `tag="web-bot-auth"`) so destinations (and Cloudflare/AWS WAF/Vercel) can verify the agent cryptographically; rejected actions are never dispatched. The POST body is covered by an RFC 9530 **`Content-Digest`**, so the action payload can't be tampered in flight, and `created` is a real timestamp. The "front door" for agentic commerce — already adopted by **Visa TAP** and **Mastercard Agent Pay**. Runs in `npm run demo`; 9 tests (sign/verify, method+path+body tamper, forged-digest, wrong-key, tag profile, fresh timestamp). | **shipped + integrated** |
-| **A2A capability exchange** | `agent/src/a2a.mjs` + runnable `npm run demo:a2a` — two agents handshake by exchanging **BBS+ capability credentials** with selective disclosure (built on `selective-disclosure.mjs`): Agent A proves one capability without revealing the rest of its manifest; the peer verifies and matches the required capability. DIF presentation-exchange over A2A. 2 tests. | **shipped + integrated** |
-| **Stateful velocity limits** | `gate-contract` `spend()` (v0.6.0, contract_id 175) — a cumulative per-window spend cap tracked in the contract's KV map (`kv-store.put`), the map provisioned by `npm run setup` with the contract as sole reader+writer. Turns the mandate from per-tx into per-window, **enforced in hardware across invocations** (the agent cannot reset the counter). Runnable as `npm run demo:velocity` (and `t3-qa/velocity-test.mjs`): 3 spends, the 3rd rejected once the running total would exceed the cap. | **shipped + integrated** |
-| **In-TEE action dispatch (host `http`)** | `gate-contract` `dispatch_action` (v0.6.0, contract_id 175) makes the approved action's outbound call **from inside the enclave** via the host `http` interface — the path where `http-with-placeholders` injects credentials so the agent never holds them. Wired into `agent.mjs` step [5] alongside the Web Bot Auth signature. Proven live: the contract really executes `http.call` in the TEE and returns a **typed** `host/http.egress_denied` until the destination is added to the host's per-contract `authorised_hosts` allowlist (a Terminal 3-side config, not code). Distinguished from `vp`/`agent-registry`, which 500 — `http` is genuinely served (see Track B Report 7). | **shipped + integrated** (egress pending host allowlist) |
-| **Credential revocation** | `agent/src/revocation.mjs` — a revocation **pre-gate** (`[2b]` in `agent.mjs`) calling `@terminal3/revoke_vc` `isRevoked()` against an EVM status registry: a revoked credential is a kill-switch that blocks the action even if the BBS+ proof still verifies. **Config-gated**: skipped (fail-open) when `REVOCATION_REGISTRY_ADDRESS` + `REVOCATION_RPC_URL` are unset, enforced when set; `failClosed` toggles fail-open/closed on an unreachable registry. Gate logic covered by 6 unit tests (injected `isRevokedFn`). Live enforcement needs a published registry + RPC. | **shipped + integrated** (gated) |
+## Not implemented, and why
 
-## 🔶 High adopt — designed, clear path
-| Adoption | What & why | Effort |
-| --- | --- | --- |
-| **In-contract `vp.verify`** | Move VC verification *into* the TEE so even the agent can't bypass eligibility. **Attempted, blocked by the host:** we implemented it (contract world `import host:interfaces/vp@2.1.0;` + a `verify_vp` entry point calling `vp::verify`), and it **builds and registers** (`contract_id 164`). But the testnet host then 500s on *every* invocation of that contract — `vp.verify` is documented as `host:interfaces@2.2.0` yet exported in the 2.1.0 world. Filed as **Track B Reports 7–8**. The shipped agent stays on the clean `gate@0.5.0` (no `vp` import). | blocked — needs a host that satisfies `vp@2.2.0` + a node-trusted issuer |
+Listed so nobody has to infer it from silence.
 
-## 🟣 Out-of-box adopt — differentiators
-| Adoption | What & why |
+| Adoption | Why not |
 | --- | --- |
-| **ERC-8004 on-chain identity + reputation** | Mint the agent as an **ERC-721 "Trustless Agent"** whose `agentURI` resolves to our `agent-card.json`, and accrue on-chain **reputation** from audited outcomes. ERC-8004 went live on Ethereum mainnet **29 Jan 2026** with 21k+ agents; authored by MetaMask/EF/Google/Coinbase. Our per-action audit rows are exactly the signal a reputation oracle consumes. **Registration script shipped** (`agent/src/erc8004-register.mjs`, `npm run register:erc8004`): real `ethers` call to `IdentityRegistry.register(agentURI)` with the exact EIP-8004 ABI, reads back the minted `agentId` from the `Registered` event. Refuses to run until a gas-funded wallet + registry address are configured (no fake mint) — so the only thing left to "turn it on" is funding, not code. **We also tried the no-wallet route** — Terminal 3's own host `agent-registry.register-agent` (writes an on-chain agent URI via the session DID, covered by testnet credits) — but importing that host interface into a contract hits the same systemic 500 as `vp` (registers as `contract_id 170`, then every invoke 500s). Filed under **Track B Report 7**. So on-chain identity is currently reachable only via the external ERC-8004 route. |
-| **AP2 / agentic-commerce rails** | Align the mandate + Web Bot Auth + in-TEE dispatch path with **Google AP2** and **Visa/Mastercard** agent-pay so the Gatekeeper can transact at real merchants under hardware-bounded delegation. The rails are now in place: the action is mandate-checked in hardware, signed with Web Bot Auth, and **executed from inside the TEE** (`dispatch_action`) with credential injection via `http-with-placeholders` — only the merchant host needs adding to the egress allowlist. |
-
-## References
-- ERC-8004 Trustless Agents — https://eco.com/support/en/articles/13221214-what-is-erc-8004-the-ethereum-standard-enabling-trustless-ai-agents · developer guide https://blog.quicknode.com/erc-8004-a-developers-guide-to-trustless-ai-agent-identity/
-- Web Bot Auth — IETF draft https://datatracker.ietf.org/doc/draft-meunier-web-bot-auth-architecture/ · Cloudflare https://blog.cloudflare.com/verified-bots-with-cryptography/ · repo https://github.com/cloudflare/web-bot-auth
-- A2A Protocol — spec https://a2a-protocol.org/latest/specification/ · repo https://github.com/a2aproject/A2A
-- AI Agents with DIDs + VCs — https://arxiv.org/html/2511.02841v1
+| **ERC-8004 mint** | Needs a gas-funded wallet. The script has the correct ABI, preflights the registry, and **refuses to run unconfigured** — there is no fake mint. Funding is the only missing piece. |
+| **ERC-8004 reputation** | Follows the mint. Our per-action audit rows are the right signal for it, but nothing is written on-chain today. |
+| **In-contract `vp.verify`** | Attempted and blocked by the host: importing `host:interfaces/vp` registers fine, then 500s on every invoke (bug #7, repro contract 164). Without it the enclave cannot verify a BBS+ proof itself — see STATUS_AND_ROADMAP §3.1 for exactly what that costs. |
+| **On-chain revocation registry** | Needs a deployed contract and gas. The `revoke_vc` code path is written and tested with an injected registry, and the status list above covers the same need without a chain. |
+| **AP2 / agentic-commerce rails** | **Not implemented.** The pieces AP2 needs — a hardware-held mandate, a signed request, an in-enclave dispatch — exist here, but no AP2 message format is produced or consumed, so calling this an adoption would be a claim about a resemblance rather than about code. |
+| **MCP** | Not implemented. The agent exposes no MCP server or client. |
+| **Entra Agent ID** | Not implemented. Listed by the ADK; nothing here talks to it. |
+| **x402 / HTTP 402 payments** | Not implemented. It is a natural fit for the mandate — a per-request price the enclave could approve or refuse — but it would need a funded stablecoin wallet to be anything other than a shape. |

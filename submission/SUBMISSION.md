@@ -10,7 +10,7 @@
 | Evidence site | https://gatekeeper-evidence.vercel.app |
 | Network | T3N testnet (`https://cn-api.sg.testnet.t3n.terminal3.io`) |
 | SDK | `@terminal3/t3n-sdk` **5.1.0** (migrated from 3.5.2 for this round) |
-| Verified on | 26 August 2026 |
+| Verified on | 27 August 2026 |
 | **Post-challenge** | **Happy to hand it over to Terminal 3 — see §5** |
 
 ---
@@ -31,10 +31,16 @@ maintenance after the challenge ends*:
 | --- | --- |
 | Migrated 3.5.2 → **5.1.0** | The old pin no longer talks to the node at all (bug #19) |
 | **Broker credential moved into the enclave** | The agent can no longer leak a key it never holds |
-| **`node verify.mjs`** — one command, 85 checks | Prove the repo is healthy with no key, no network, no credits |
-| **MAINTENANCE.md** | Every knob, the five real failure modes, a handover sequence |
+| **Credential bound to the action, in-enclave** | Closes the gap where a verification done for one action could pay for another |
+| **Idempotent dispatch** | A timed-out order can be retried without becoming two orders |
+| **Revocation that actually runs** | W3C Bitstring Status List, published and checked over HTTPS — no chain, no gas |
+| **ERC-8004 live** | Real reads against the reference registry, and a preflight that refuses to mint against the wrong contract |
+| **A2A discovery** | The card is published at the well-known path; a peer needs only the domain |
+| **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
+| **`node verify.mjs`** — one command | Prove the repo is healthy with no key, no network, no credits. It prints its own total |
+| **MAINTENANCE.md** | Every knob, the real failure modes, a handover sequence |
 | Version single-sourced; CI runs the same script | Two classes of drift removed rather than documented |
-| **21 bug reports**, each re-verified today | Including 4 of ours that Terminal 3 has since fixed |
+| **21 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed |
 
 | Bounty requirement | Where |
 | --- | --- |
@@ -167,7 +173,102 @@ buy that really dispatches, an over-mandate buy rejected, a disallowed asset and
 kind rejected, an approved counterparty, an unknown counterparty rejected, and a
 future-dated mandate rejected — each with the enclave's own reason strings.
 
-### 4.1 New this round: the broker credential never touches the agent
+### 4.1 Closing the gap the enclave could not close before
+
+The honest weakness in the previous submission was this: the enclave checked the
+credential's issuer against `allowed_issuers`, but the issuer was a field the
+caller set, sitting next to a claim of "yes, I verified a credential" that was
+bound to nothing at all. An agent could verify a credential for a $500 purchase
+and then submit a $500,000 one.
+
+The agent now commits, **before the decision**, to which credential it verified
+and which action it verified it for — issuer, subject, claims digest, action
+digest, nonce. The enclave recomputes that commitment from the action it is
+actually about to perform, using SHA-256 compiled into the component, so it
+needs no host interface and works on a node that does not serve `vp`. A mismatch
+is a rejection carried in the reasons array. A mandate can require a binding, so
+omitting the field stops being the way around the check, and the issuer the
+mandate is tested against must be the one inside the commitment.
+
+**What this does not do**, because the distinction is the whole point: it does
+not prove the BBS+ proof was valid. A dishonest agent can still commit to a
+credential it never checked. Closing that needs in-contract `vp.verify`, which
+this node does not serve (bug #7). What is gone is the ability to detach a real
+verification from what it authorised.
+
+The scheme exists in JavaScript and in Rust, which is how these things quietly
+become two schemes that each verify only against themselves. So the test suite
+runs the **compiled Rust** and asserts the two agree on every digest and
+commitment.
+
+📷 **Screenshot 19 — `19-qa-console-binding-moved.png`** — a real credential,
+verified for $500, refused when spent on $4,000.
+
+### 4.2 A retry must not become a second order
+
+If the enclave's outbound call times out, the order may already have executed
+upstream, and both answers are wrong: retrying risks a duplicate, giving up
+risks none. `execute_action` takes a caller-chosen idempotency key, records the
+outcome under it, and returns that recorded outcome on a repeat rather than
+dialling out again. The mandate can require one, because on a path that moves
+money the ambiguity is not acceptable.
+
+The record is written *after* the call, deliberately: a crash mid-flight leaves
+no record and the retry goes out. A visible possible-duplicate beats a silent
+"already done" for an order that never happened.
+
+### 4.3 Revocation that runs today
+
+The old revocation gate called T3's `revoke_vc` against an on-chain registry.
+The code was right and it did nothing, because no registry is deployed — it
+failed open. Deploying one needs a funded wallet.
+
+**W3C Bitstring Status List v1.0** needs no chain. Revocation state is a gzipped
+bitstring published inside a credential over HTTPS; a verifier fetches it and
+reads one bit. Ours is generated, verified by reading it straight back, and
+published: 131,072 entries in 556 bytes. That length is the spec's minimum and
+it is a privacy floor — every holder is one bit among 131,072, so an issuer
+watching fetches learns nothing about who is transacting.
+
+Index 7 is revoked on purpose. A check that has only ever returned "fine" has
+not been shown to work, so the demo issues a credential at that index and prints
+the blocked case beside the passing one.
+
+📷 **Screenshot 18 — `18-status-list.png`**
+
+### 4.4 ERC-8004, actually connected
+
+Previously this was a script with the right ABI that had never been pointed at a
+registry. The reference deployment is live on Sepolia at
+`0x7177a686…`, and the read side works today with **no wallet and no gas**:
+resolve any agent's owner and URI, and check whether an address owns one (ours
+does not — a mint needs funding, and the script still refuses rather than
+faking it).
+
+The preflight is the part worth having. `register()` against the wrong address
+either reverts and wastes the fee, or succeeds against some unrelated ERC-721
+and mints a token that is not an agent identity, with nothing to notice. It
+checks that code is deployed, that `name()` looks like a registry, and that the
+selector `0xf2c298be` is present in the bytecode — verified against the real
+chain, including against Sepolia WETH, which it correctly refuses.
+
+📷 **Screenshot 16 — `16-erc8004-live.png`**
+
+### 4.5 The audit trail is no longer just our word for it
+
+The agent prints a structured row per action — which is the *agent's* account of
+events, exactly the thing this project argues you should not have to take on
+faith. `audit.get-mine` returns the host's record of the same dispatches, and it
+works at a zero balance.
+
+The field that makes it worth reading is `committed`. An event can carry
+`outcome: "success"` inside a batch that never committed — the call said it
+worked and then rolled back. The reconciliation keeps those apart and
+corroborates a dispatch only against committed events.
+
+📷 **Screenshot 17 — `17-audit-ledger.png`**
+
+### 4.6 The broker credential never touches the agent
 
 Until this round the outbound order went out with no `Authorization` header at
 all. Pointing it at a real broker would have meant putting the broker's API key
@@ -414,8 +515,11 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**111 automated checks total:** 32 Rust, 40 Node, 13 Playwright end-to-end, 10
-against the live deployed site, 16 on the submission artifacts. The live-site set
+**`node verify.mjs` reports its own total — 161 offline checks** at the time of
+writing (47 Rust, 96 Node, 18 Playwright end-to-end), plus the live-site and
+submission-artifact suites. The number comes from the runners rather than from
+this sentence, because every hand-written count in this repo has been wrong
+within a day of being written. The live-site set
 includes a Web Bot Auth key round trip over the public internet — sign locally,
 fetch the public key from
 `/.well-known/http-message-signatures-directory`, verify — with nothing shared in
@@ -443,16 +547,21 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 13 | `13-qa-console-self-issued.png` | QA wrong path — a self-issued credential refused |
 | 14 | `14-bug-trust-anchor.png` | bug #20 — both constructor forms, same SDK |
 | 15 | `15-bug-metering.png` | bug #21 — publishing a card costs 6.7× a full grant |
+| 16 | `16-erc8004-live.png` | ERC-8004 live reads + mint preflight, no wallet, no gas |
+| 17 | `17-audit-ledger.png` | `audit.get-mine` — the host's own record, read back |
+| 18 | `18-status-list.png` | the published W3C revocation list, 131,072 entries |
+| 19 | `19-qa-console-binding-moved.png` | a credential verified for $500, refused on $4,000 |
 
 Shots 05 and 06 were captured live on 8 August against v0.6.0. They are not
 re-run here: the account is at zero credits, so re-running would replace a real
 working flow with a 403. `capture.mjs --live` refreshes them once credits exist.
 
-Shots 14 and 15 are new today and are in the repo; the evidence site is one
-deploy behind them, because Vercel's free tier refused a further deployment
-today ("more than 100 per day"). It picks them up on the next deploy — the
-files are already in `site/shots/`, since `capture.mjs` now syncs them there
-rather than leaving it as a manual step to forget.
+Shots 14–19 are new and are in the repo; the evidence site is one deploy behind
+them, because Vercel's free tier refused further deployments ("more than 100 per
+day"). The same deploy publishes the A2A agent card and the revocation status
+list, so their live assertions are red until it goes out — the paths are proven
+against the identical files served locally. `capture.mjs` syncs the PNGs into
+`site/shots/` itself now, rather than leaving that as a manual step to forget.
 
 ---
 
@@ -475,10 +584,10 @@ remaining live evidence follows in one pass.
 A full inventory of what is shipped, what is deliberately shallow, and what is
 worth building next is in
 [STATUS_AND_ROADMAP.md](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/STATUS_AND_ROADMAP.md).
-The biggest remaining correctness gap, stated plainly: the enclave checks the
-credential's issuer against `allowed_issuers`, but takes the agent's word that it
-verified the proof. Closing that needs in-contract `vp.verify`, which the node
-does not serve (bug #7) — or a hash commitment, which is implementable today.
+The biggest remaining correctness gap, stated plainly: the enclave can prove the
+agent committed to a specific credential for *this* action (§4.1), but not that
+the underlying BBS+ proof was ever valid. Closing that needs in-contract
+`vp.verify`, which the node does not serve (bug #7).
 
 ---
 

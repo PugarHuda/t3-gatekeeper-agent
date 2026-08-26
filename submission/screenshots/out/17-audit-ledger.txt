@@ -1,0 +1,10 @@
+
+> t3-gatekeeper-agent@0.1.0 audit
+> node src/audit.mjs
+
+T3 audit ledger (audit.get-mine)
+  batches 0  events 0  committed 0  uncommitted 0
+
+  The trail is empty. Audit events are emitted by contract dispatches,
+  and no contract call has run since the account hit zero credits —
+  so an empty page here is the honest state, not a failure.

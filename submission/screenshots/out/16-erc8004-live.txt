@@ -1,0 +1,23 @@
+
+> t3-gatekeeper-agent@0.1.0 erc8004
+> node src/erc8004-status.mjs
+
+ERC-8004 IdentityRegistry — ethereum-sepolia
+  0x7177a6867296406881E20d6647232314736Dd09A
+  https://sepolia.etherscan.io/address/0x7177a6867296406881E20d6647232314736Dd09A
+
+  ✅ a contract is deployed at the address — 6884 bytes
+  ✅ name() looks like an agent registry — "ERC-8004 Trustless Agent"
+  ✅ register(string) is in the bytecode — 0xf2c298be
+
+  registry name: ERC-8004 Trustless Agent
+  safe to register against: yes
+
+  sample agent #1
+    owner 0x9B4Cef62a0ce1671ccFEFA6a6D8cBFa165c49831
+    uri   ipfs://QmTest-ERC8004-v1-Deployment-Test
+
+  our address 0x548a66377d7f34902ce08e5b060b8d6d1a24fe14
+  agents owned: 0 — not registered (needs a gas-funded mint)
+
+To mint: fund that address with ethereum-sepolia ETH, then `npm run register:erc8004`.

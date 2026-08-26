@@ -1,0 +1,11 @@
+
+> t3-gatekeeper-agent@0.1.0 status-list
+> node src/publish-status-list.mjs
+
+Wrote ..\site\status\revocation.json
+  https://gatekeeper-evidence.vercel.app/status/revocation.json
+  entries  131072
+  revoked  7
+  verified: every revoked index reads back as revoked
+
+Deploy with: cd site && npx vercel deploy --prod --yes

@@ -16,6 +16,9 @@ for (const [id, file] of [
   ["s-happy", "11-qa-console-approved.png"],
   ["s-payee", "12-qa-console-rejected.png"],
   ["s-issuer-bad", "13-qa-console-self-issued.png"],
+  // The attack the credential binding exists to stop: a real verification,
+  // moved onto a bigger action.
+  ["s-bind-moved", "19-qa-console-binding-moved.png"],
 ]) {
   await page.getByTestId(id).click();
   await page.waitForFunction(() => document.body.dataset.decision !== undefined);
