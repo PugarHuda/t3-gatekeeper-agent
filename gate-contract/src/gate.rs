@@ -48,6 +48,18 @@ pub struct Mandate {
     /// before this time (a scheduled / future-dated authorization).
     #[serde(default)]
     pub valid_after_secs: u64,
+    /// Entry in `z:<tid>:secrets` holding the bearer token for the outbound
+    /// call. The agent never sees it: the host hands the value to the enclave,
+    /// the enclave puts it in the Authorization header, and nothing outside
+    /// this contract can read the map back. Empty = send no credential.
+    ///
+    /// It lives in the mandate, not in the request, for the same reason every
+    /// other limit does — the caller must not get to choose which credential
+    /// it spends. Naming it here (rather than hardcoding one) is also what
+    /// lets a different operator point this contract at their own broker
+    /// without touching Rust.
+    #[serde(default)]
+    pub credential_key: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -441,7 +453,15 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
             _ => http::Verb::Get,
         };
         let payload = if req.body.is_empty() { None } else { Some(req.body.into_bytes()) };
-        let request = http::Request { method, url: req.url.clone(), headers: None, payload };
+        // The credential is fetched INSIDE the enclave, after the decision. A
+        // rejected action never reaches this line, so it never touches the key.
+        let secret = if mandate.credential_key.is_empty() {
+            None
+        } else {
+            read_secret(&tid_hex, &mandate.credential_key)?
+        };
+        let headers = auth_headers(&mandate.credential_key, secret.as_deref())?;
+        let request = http::Request { method, url: req.url.clone(), headers, payload };
         out["dispatched"] = serde_json::Value::Bool(true);
         out["response"] = match http::call(&request) {
             Ok(resp) => serde_json::json!({ "ok": true, "code": resp.code, "body_len": resp.payload.len() }),
@@ -457,6 +477,31 @@ fn execute_action_wasm(req: ExecuteReq) -> Result<Vec<u8>, String> {
     serde_json::to_vec(&out).map_err(|e| e.to_string())
 }
 
+/// Build the outbound request's headers from the mandate's named credential.
+///
+/// `secret` is what the secrets map returned for `mandate.credential_key`.
+/// Returns `Err` when the mandate names a credential the map does not hold:
+/// a payment instruction that was supposed to be authenticated must not go out
+/// unauthenticated instead. Silently dropping the header would turn a
+/// provisioning mistake into an anonymous order at the broker.
+pub fn auth_headers(
+    credential_key: &str,
+    secret: Option<&str>,
+) -> Result<Option<Vec<(String, String)>>, String> {
+    if credential_key.is_empty() {
+        return Ok(None);
+    }
+    match secret {
+        Some(v) if !v.is_empty() => Ok(Some(vec![(
+            "Authorization".to_string(),
+            format!("Bearer {v}"),
+        )])),
+        _ => Err(format!(
+            "mandate names credential '{credential_key}' but z:<tid>:secrets has no such entry"
+        )),
+    }
+}
+
 #[cfg(target_arch = "wasm32")]
 fn read_mandate(tid_hex: &str) -> Result<Mandate, String> {
     let map_name = format!("z:{tid_hex}:mandate");
@@ -464,6 +509,22 @@ fn read_mandate(tid_hex: &str) -> Result<Mandate, String> {
         .map_err(|e| format!("kv read: {e}"))?
         .ok_or("no mandate provisioned in z:<tid>:mandate[default] — seed it via the tenant SDK")?;
     serde_json::from_slice(&bytes).map_err(|e| format!("mandate parse: {e}"))
+}
+
+/// Read one entry from the tenant's secrets map. Only this contract can: the
+/// map's ACL names it as the sole reader, and `map-entry-set` (the control-plane
+/// write the tenant admin uses to seed it) is the only way a value gets in.
+#[cfg(target_arch = "wasm32")]
+fn read_secret(tid_hex: &str, key: &str) -> Result<Option<String>, String> {
+    let map_name = format!("z:{tid_hex}:secrets");
+    match kv_store::get(&map_name, key.as_bytes()) {
+        Ok(Some(bytes)) => String::from_utf8(bytes)
+            .map(Some)
+            .map_err(|_| "secret is not valid UTF-8".to_string()),
+        Ok(None) => Ok(None),
+        // Absent map and absent entry are the same situation to the caller.
+        Err(e) => Err(format!("secrets read: {e}")),
+    }
 }
 
 #[cfg(test)]
@@ -480,6 +541,7 @@ mod tests {
             counterparty_limits: Default::default(),
             expires_at_secs: 0,
             valid_after_secs: 0,
+            credential_key: String::new(),
         }
     }
 
@@ -709,6 +771,41 @@ mod tests {
     }
 
     // --- the atomic path refuses to run without its host capabilities ---
+    // --- outbound credential (secrets map) ---
+
+    #[test]
+    fn no_credential_key_sends_no_authorization_header() {
+        assert_eq!(auth_headers("", None).unwrap(), None);
+    }
+
+    #[test]
+    fn a_named_credential_becomes_a_bearer_header() {
+        let h = auth_headers("broker_api_key", Some("sk-live-123")).unwrap().unwrap();
+        assert_eq!(h, vec![("Authorization".to_string(), "Bearer sk-live-123".to_string())]);
+    }
+
+    #[test]
+    fn a_named_but_unseeded_credential_fails_closed() {
+        // The alternative — dropping the header and sending anyway — would turn a
+        // provisioning slip into an unauthenticated payment instruction.
+        let err = auth_headers("broker_api_key", None).unwrap_err();
+        assert!(err.contains("broker_api_key"), "error should name the missing entry: {err}");
+        assert!(auth_headers("broker_api_key", Some("")).is_err(), "empty secret is not a credential");
+    }
+
+    #[test]
+    fn the_credential_is_named_by_the_mandate_not_the_caller() {
+        // Deserialising a mandate is the ONLY way credential_key gets set, and
+        // mandates come from KV, which the calling agent cannot write.
+        let m: Mandate = serde_json::from_str(
+            r#"{"max_amount_cents":1,"credential_key":"broker_api_key"}"#,
+        )
+        .unwrap();
+        assert_eq!(m.credential_key, "broker_api_key");
+        let legacy: Mandate = serde_json::from_str(r#"{"max_amount_cents":1}"#).unwrap();
+        assert_eq!(legacy.credential_key, "", "a mandate without the field stays unauthenticated");
+    }
+
     #[test]
     fn execute_action_requires_wasm_host() {
         let req = br#"{"action":{"kind":"rwa.buy","asset":"USDC","amount_cents":1},"url":"https://x/y"}"#;

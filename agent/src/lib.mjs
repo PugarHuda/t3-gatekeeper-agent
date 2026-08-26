@@ -7,11 +7,16 @@ import {
 
 export const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 export const CONTRACT_TAIL = "gate";
-// Source of truth for what `npm run setup` registers. 0.8.0 (trusted issuers +
-// per-counterparty sub-limits) is built and unit-tested but NOT yet registered —
-// the account ran out of credits mid-session. The last version actually on the
-// network is 0.7.0 (contract_id 479). Re-run `npm run setup` once topped up.
-export const CONTRACT_VERSION = "0.8.0";
+// Source of truth for what `npm run setup` registers. 0.9.0 (trusted issuers,
+// per-counterparty sub-limits, and the enclave-held broker credential) is built
+// and unit-tested but NOT yet registered — the account ran out of credits. The
+// last version actually on the network is 0.7.0 (contract_id 479). Re-run
+// `npm run setup` once topped up.
+export const CONTRACT_VERSION = "0.9.0";
+
+// Name of the entry in z:<tid>:secrets holding the broker's bearer token.
+// Only meaningful when BROKER_API_KEY is set — see setup.mjs.
+export const CREDENTIAL_KEY = "broker_api_key";
 
 // Destination of an APPROVED action. The enclave may only reach it once the
 // caller holds an agent-auth grant for its host — see src/grant-egress.mjs.
@@ -33,6 +38,11 @@ export const MANDATE = {
   allowed_kinds: ["rwa.buy"],
   allowed_issuers: (process.env.TRUSTED_ISSUERS ?? "").split(",").filter(Boolean),
   expires_at_secs: 0, // 0 = no expiry
+  // Which secret the enclave authenticates the outbound call with. Named here
+  // rather than in the request so the agent cannot choose which credential it
+  // spends. Empty unless a key was actually sealed in, because the contract
+  // fails closed on a mandate that names a credential the map does not hold.
+  credential_key: process.env.BROKER_API_KEY ? CREDENTIAL_KEY : "",
 };
 
 export function loadEnv(url) {
