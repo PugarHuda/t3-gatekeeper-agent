@@ -9,7 +9,7 @@
 //         node capture.mjs 03         (only shots whose name starts with "03")
 import { execSync } from "node:child_process";
 import { chromium } from "playwright";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -30,29 +30,50 @@ const DID = readFileSync(path.join(AGENT, ".env"), "utf8").match(/^DID=(.*)$/m)?
 const t3n = (args) => `npx --yes @terminal3/t3n-sdk ${args} --env testnet`;
 
 const SHOTS = [
-  { name: "01-quickstart-auth", title: "Quickstart — handshake → authenticate → getUsage (live testnet)",
+  { name: "01-quickstart-auth", title: "Quickstart on SDK 5.1.0 — trustAnchor → handshake → authenticate → getUsage (live)",
     cmd: "node auth-test.mjs", cwd: QA },
   { name: "02-cli-whoami", title: "t3n whoami — the network returns our Agent DID", cmd: t3n("whoami"), cwd: OUT },
-  { name: "03-contract-deployed", title: "Walkthrough — our Rust TEE contract, live on the network",
+  { name: "03-contract-deployed", title: "Our Rust TEE contract, live on the network",
     cmd: t3n(`contract get z:${DID.replace("did:t3n:", "")}:gate`), cwd: OUT },
-  { name: "04-agent-registered", title: "Agent ID registered on-network (agent registry --full)",
+  { name: "04-agent-registered", title: "Agent ID registered on-network (and bug #10 — the address as a decimal array)",
     cmd: t3n(`agent registry ${DID} --full`), cwd: OUT },
   { name: "05-full-flow", title: "The agent: identity → VC gate → TEE mandate → audit → in-TEE dispatch (HTTP 200)",
-    cmd: "npm run demo", cwd: AGENT, env: { ACTION_ENDPOINT: "https://postman-echo.com/post", DEMO_PAUSE_MS: "0" } },
+    cmd: "npm run demo", cwd: AGENT, credits: true,
+    env: { ACTION_ENDPOINT: "https://postman-echo.com/post", DEMO_PAUSE_MS: "0" } },
   { name: "06-egress-grant", title: "agent-auth-update — the caller authorises what the enclave may reach",
-    cmd: "npm run grant:egress", cwd: AGENT, env: { ACTION_ENDPOINT: "https://postman-echo.com/post" } },
-  { name: "07-tests", title: "Offline test suite (27 tests)", cmd: "npm test", cwd: AGENT },
-  // ── bug evidence ────────────────────────────────────────────────────────
-  { name: "08-bug-token-balance", title: "BUG — CLI `token balance` / `token usage` fail (SDK getUsage works)",
+    cmd: "npm run grant:egress", cwd: AGENT, credits: true,
+    env: { ACTION_ENDPOINT: "https://postman-echo.com/post" } },
+  { name: "07-tests", title: "node verify.mjs — one command, 85 checks, no API key, no credits spent",
+    cmd: "node verify.mjs", cwd: REPO,
+    // 167 lines of per-test output is not a readable screenshot; keep the
+    // section headers and the tallies. The full text is in 07-tests.txt.
+    keep: /^───|^— SKIP|test result:|^ℹ (tests|pass|fail)|^All checks|check\(s\) failed/ },
+  // ── what got FIXED since our August report ──────────────────────────────
+  { name: "08-bug-token-balance", title: "FIXED (bug #9) — `token balance` returns a real row now",
     cmd: t3n("token balance"), cwd: OUT },
-  { name: "09-bug-host-card", title: "BUG — documented public-agent step `agent host-card` fails (NotScopeWriter)",
+  { name: "09-bug-host-card", title: "bug #11 — `agent host-card` no longer says NotScopeWriter; now it is only credits",
     cmd: t3n(`agent host-card --file "${path.join(AGENT, "agent-card.json")}"`), cwd: OUT },
-  { name: "10-bug-node-version", title: "BUG — CLI 4.30.0 needs tee:organisation/contracts >= 0.6.0; testnet node runs 0.4.1",
+  { name: "10-bug-node-version", title: "FIXED (bug #12) — the node runs tee:organisation/contracts 0.17.0, was 0.4.1",
     cmd: t3n("contract get tee:organisation/contracts"), cwd: OUT },
+  // ── new this round ──────────────────────────────────────────────────────
+  { name: "14-bug-trust-anchor", title: "bug #20 — the 3.x constructor form is rejected, and the error never names the fix",
+    cmd: "node trust-anchor-probe.mjs", cwd: QA },
+  { name: "15-bug-metering", title: "bug #21 — publishing a card costs 6.7x a full grant; creating the agent was free",
+    cmd: t3n("agent card-publish --owner did:t3n:93d8852130b8fe8e15c156ab8f445af975593db9 --agent did:t3n:8f8849397fb511899fcf90caa4bdc75b0792d808"),
+    cwd: OUT },
 ];
 
-const only = process.argv[2];
-const shots = only ? SHOTS.filter((s) => s.name.startsWith(only)) : SHOTS;
+// `--live` re-runs the two shots that spend credits. Without it they are left
+// alone: capturing a 403 over a good screenshot of the working flow would make
+// the evidence worse, not more current.
+const args = process.argv.slice(2);
+const live = args.includes("--live");
+const only = args.find((a) => !a.startsWith("--"));
+const shots = (only ? SHOTS.filter((s) => s.name.startsWith(only)) : SHOTS)
+  .filter((s) => live || !s.credits);
+if (!live && SHOTS.some((s) => s.credits)) {
+  console.log("Skipping the credit-spending shots (05, 06). Pass --live to refresh them.\n");
+}
 
 function run({ cmd, cwd, env }) {
   try {
@@ -103,7 +124,8 @@ const page = await browser.newPage({ viewport: { width: 1180, height: 800 }, dev
 for (const shot of shots) {
   process.stdout.write(`[capture] ${shot.name} … `);
   // Redact the API key in case a tool ever echoes it back.
-  const raw = run(shot).replaceAll(KEY, "0x<redacted>").trimEnd();
+  let raw = run(shot).replaceAll(KEY, "0x<redacted>").trimEnd();
+  if (shot.keep) raw = raw.split(/\r?\n/).filter((l) => shot.keep.test(l)).join("\n");
   writeFileSync(path.join(OUT, `${shot.name}.txt`), raw);
   await page.setContent(page_html(shot.title, colourise(raw)));
   await page.locator(".win").screenshot({ path: path.join(OUT, `${shot.name}.png`) });
@@ -111,4 +133,17 @@ for (const shot of shots) {
 }
 
 await browser.close();
+
+// The evidence site serves these same files. Copying them here rather than by
+// hand is what stops the site drifting behind the shots — a stale site is a
+// failure the doc tests catch, but only after it has already been deployed.
+const SITE = path.join(REPO, "site", "shots");
+mkdirSync(SITE, { recursive: true });
+let copied = 0;
+for (const f of readdirSync(OUT)) {
+  if (!f.endsWith(".png")) continue;
+  copyFileSync(path.join(OUT, f), path.join(SITE, f));
+  copied++;
+}
+console.log(`Synced ${copied} PNGs to site/shots — redeploy with: cd site && npx vercel deploy --prod`);
 console.log(`\nDone. ${shots.length} screenshots in ${OUT}`);

@@ -1,0 +1,13 @@
+@terminal3/t3n-sdk 5.1.0
+
+[old] new T3nClient({ wasmComponent, handlers })
+      T3nConfigError: T3nClient: `trustAnchor` is required and must be either a TrustAnchor ({ expected_peer_ids, rtmr3_allowlist }) that pins the node's DKG attestation, or the explicit opt-out { unsafe_trust_server: true }. The unsafe option disables attestation verification (local dev / mock-signer nodes only) — never use it against a real node.
+      code=CONFIG_ERROR field=trustAnchor
+      The message is good — it explains what a TrustAnchor is and names the
+      unsafe opt-out. What is missing is the migration: it does not name
+      fetchTrustedManifest (the one-line fix), does not say which version
+      introduced the requirement, and the docs changelog has no SDK history
+      to look it up in.
+
+[new] new T3nClient({ trustAnchor: await fetchTrustedManifest("testnet"), … })
+      constructed ✅

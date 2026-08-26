@@ -197,30 +197,49 @@
 
   <figure>
     <img src="shots/07-tests.png" alt="Node test suite output">
-    <figcaption><span class="pill ok">Tests</span><b>40 offline tests</b>, no credits spent.</figcaption>
+    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 85 checks in one command</b>:
+      Rust unit tests, a wasm component build, the Node suite, and Playwright over the
+      real Rust <code>decide()</code>. No API key, no network, no credits.</figcaption>
   </figure>
 
   <figure>
     <img src="shots/08-bug-token-balance.png" alt="token balance RPC error">
-    <figcaption><span class="pill bug">Bug #9</span><b><code>token balance</code> and <code>token usage</code> always fail.</b>
-      The CLI seals params the server expects as a plain struct. The SDK's own
-      <code>getUsage()</code> works against the same node — so checking your balance,
-      the first thing a new developer does, is broken on the CLI path.</figcaption>
+    <figcaption><span class="pill ok">Bug #9 — fixed</span><b><code>token balance</code> works now.</b>
+      We reported this in August, when every call failed on a params-sealing mismatch.
+      Terminal 3 fixed it server-side; the command returns a real row. (The same
+      server change is what broke SDK 3.5.2 — see bug #19.)</figcaption>
   </figure>
 
   <figure>
     <img src="shots/09-bug-host-card.png" alt="host-card NotScopeWriter error">
-    <figcaption><span class="pill bug">Bug #11</span><b>The documented agent-registration step fails.</b>
-      <code>agent host-card</code> returns <code>NotScopeWriter</code> for a self-owned
-      agent, and the guide never mentions the scope prerequisite.
-      <code>agent set-card --uri</code> is the path that actually works.</figcaption>
+    <figcaption><span class="pill ok">Bug #11 — likely fixed</span><b>No more <code>NotScopeWriter</code>.</b>
+      The documented <code>agent host-card</code> step used to fail on a scope
+      prerequisite the guide never mentioned. It now gets past that and stops only on
+      credits, so the original defect appears resolved.</figcaption>
   </figure>
 
   <figure>
     <img src="shots/10-bug-node-version.png" alt="tee:organisation/contracts version 0.4.1">
-    <figcaption><span class="pill bug">Bug #12</span><b>The CLI is ahead of the node.</b>
-      Org-owned agents need <code>tee:organisation/contracts</code> ≥ 0.6.0; testnet
-      runs 0.4.1, so that entire walkthrough page is unusable.</figcaption>
+    <figcaption><span class="pill ok">Bug #12 — fixed</span><b>Org-owned agents work.</b>
+      The CLI needed <code>tee:organisation/contracts</code> ≥ 0.6.0 while testnet ran
+      0.4.1, making that whole walkthrough page unusable. The node is on <b>0.17.0</b>
+      now and <code>agent create --org</code> succeeds end to end.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/14-bug-trust-anchor.png" alt="trustAnchor CONFIG_ERROR next to the working form">
+    <figcaption><span class="pill bug">Bug #20</span><b><code>trustAnchor</code> is required from SDK 5.x.</b>
+      The change is right — it pins the node's attestation — and the error is clear about
+      the field. It just never names <code>fetchTrustedManifest()</code>, the one-line fix
+      exported from the same module, and no changelog says which version introduced it.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/15-bug-metering.png" alt="card-publish refused for insufficient credit">
+    <figcaption><span class="pill bug">Bug #21</span><b>Metering is inconsistent and unpublished.</b>
+      At a balance of exactly zero, <code>agent create --org</code> minted a DID, issued an
+      API key and hosted a card — free. Publishing that same card demands
+      <code>10000000000</code>, about 6.7&times; the entire initial grant. No price list,
+      no pre-flight estimate, and an empty usage ledger to audit against.</figcaption>
   </figure>
 </div></section>
 
@@ -231,8 +250,8 @@
 npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre>
   <p>Or run the whole suite offline, no credits:</p>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
-cd t3-gatekeeper-agent/agent && npm install && npm test   # 40 tests
-cd ../qa-console && node --test e2e.test.mjs              # 10 Playwright tests</pre>
+cd t3-gatekeeper-agent/agent && npm ci && cd ..
+node verify.mjs                                           # 85 checks, one command</pre>
 </div></section>
 
 <footer><div class="wrap">

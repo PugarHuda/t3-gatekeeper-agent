@@ -1,2 +1,2 @@
-script_name      z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
-current_version  0.6.0
+contract_id      z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
+current_version  0.7.0

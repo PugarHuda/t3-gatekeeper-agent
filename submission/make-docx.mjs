@@ -1,4 +1,4 @@
-// Build submission.docx from SUPERTEAM_SUBMISSION.md, with the screenshots
+// Build submission.docx from the submission markdown, with the screenshots
 // embedded as real image parts.
 //
 // Why a .docx and not the HTML page: uploading a file to Drive and opening it
@@ -104,7 +104,7 @@ const para = (inner, { spacing = 120, align, ind } = {}) =>
   + `<w:spacing w:before="${spacing}" w:after="${spacing}"/></w:pPr>${inner}</w:p>`;
 
 function build() {
-  const md = readFileSync(path.join(HERE, "SUPERTEAM_SUBMISSION.md"), "utf8");
+  const md = readFileSync(path.join(HERE, process.argv[2] ?? "SUBMISSION.md"), "utf8");
   const body = [];
   const media = [];      // {name, data}
   const rels = [];       // {id, target}

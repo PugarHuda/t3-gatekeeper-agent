@@ -36,7 +36,7 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | 17 | No way to see where credits went (`entries: []`) | Aug | **reproduces** |
 | 18 | The published SDK is obfuscated, so any error is undebuggable | Aug | **reproduces on 5.1.0** |
 | 19 | The node dropped support for the SDK the old docs shipped, silently | **new** | open |
-| 20 | `trustAnchor` became mandatory with no migration path | **new** | open |
+| 20 | `trustAnchor` required from 5.x; the error never names the one-line fix | **new** | open |
 | 21 | Metering is inconsistent and unpublished: some writes are free, others cost 6.7× a full grant | **new** | open |
 
 Four fixed, one likely fixed, one partly adopted into the docs. Thank you — the
@@ -114,29 +114,39 @@ would have made both of these a five-minute read.
 **Suggested fix:** reject an unsupported client with an error that names the
 version, and publish a "minimum SDK version" line on the Quickstart.
 
-## #20 — `trustAnchor` became a required constructor field, with no migration path
+## #20 — `trustAnchor` is required from 5.x, and nothing connects the error to the fix
 
-**Impact: high**, and it lands on exactly the same developers as #19.
+**Impact: medium** — a doc gap rather than a defect, but it lands on exactly the
+developers already dealing with #19.
 
 ```js
-new T3nClient({ wasmComponent, handlers: { EthSign: … } });
-// SDK 5.1.0 → T3nConfigError { code: 'CONFIG_ERROR', field: 'trustAnchor' }
+new T3nClient({ wasmComponent, handlers: { EthSign: … } });   // the 3.x form
+// SDK 5.1.0 → T3nConfigError, code=CONFIG_ERROR, field=trustAnchor
 ```
 
-The change itself is good — `trustAnchor: await fetchTrustedManifest("testnet")`
-pins the node's attestation, so a failed handshake is a trust failure rather than
-a silent downgrade, and making it required rather than defaulted is the correct
-call for a security parameter. The error is even well-formed, naming the field.
+Credit where due: the change is right and the error is one of the better ones in
+this SDK. Requiring the anchor rather than defaulting it is the correct call for
+a security parameter — it pins the node's DKG attestation, so a failed handshake
+is a trust failure instead of a silent downgrade — and the message explains what
+a `TrustAnchor` is and names the `{ unsafe_trust_server: true }` opt-out along
+with a warning not to use it against a real node.
 
-The problem is purely that nothing connects the two ends. `fetchTrustedManifest`
-does not exist in 3.5.2, so the fix is not discoverable from the error; the
-Changelog has no SDK section; and the Quickstart shows the new form without
-noting it is new or from which version. A developer returning to a working
-project finds it broken, with a field name and no story.
+The gap is the migration, not the message:
 
-**Suggested fix:** one line in the Changelog and one note on the Quickstart —
-"`trustAnchor` is required from 4.x; on 3.x, upgrade." Also worth naming, since
-it is not obvious: `getScriptVersion` is now `getContractVersion`, same signature.
+- It does not name **`fetchTrustedManifest("testnet")`**, which is the entire
+  fix and is exported from the same module.
+- It does not say which version introduced the requirement, and the docs
+  Changelog has no SDK section to look it up in (see #19).
+- The Quickstart shows the new form without marking it as new, so a developer
+  comparing their working 3.x code against it sees no signal that this one line
+  is the breaking difference.
+
+Repro: `node t3-qa/trust-anchor-probe.mjs` — builds a client both ways against
+the same installed SDK, offline.
+
+**Suggested fix:** append "build one with `fetchTrustedManifest(env)`" to the
+error, and add one Changelog line naming the version. Same note should mention
+that `getScriptVersion` is now `getContractVersion`.
 
 ## #21 — Metering is inconsistent and unpublished
 
