@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import {
   T3nClient, TenantClient, loadWasmComponent, setEnvironment,
-  createEthAuthInput, eth_get_address, metamask_sign,
+  createEthAuthInput, eth_get_address, metamask_sign, fetchTrustedManifest,
 } from "@terminal3/t3n-sdk";
 
 for (const line of readFileSync(new URL("./.env", import.meta.url), "utf8").split(/\r?\n/)) {
@@ -18,7 +18,7 @@ const TAIL = "httptest", VERSION = "0.1.0";
 setEnvironment("testnet");
 const key = process.env.T3N_API_KEY, tenantDid = process.env.DID;
 const address = eth_get_address(key);
-const client = new T3nClient({ wasmComponent: await loadWasmComponent(), handlers: { EthSign: metamask_sign(address, undefined, key) } });
+const client = new T3nClient({ trustAnchor: await fetchTrustedManifest("testnet"), wasmComponent: await loadWasmComponent(), handlers: { EthSign: metamask_sign(address, undefined, key) } });
 await client.handshake();
 await client.authenticate(createEthAuthInput(address));
 const tenant = new TenantClient({ environment: "testnet", t3n: client, tenantDid, baseUrl: BASE_URL });

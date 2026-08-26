@@ -7,7 +7,8 @@
 //
 // The agent here calls its own tenant's contract, so this is a SELF-grant:
 // grantee DID == caller DID. Delegated use is the same call with the agent's DID.
-import { getScriptVersion } from "@terminal3/t3n-sdk";
+// Renamed from `getScriptVersion` in SDK 5.x.
+import { getContractVersion } from "@terminal3/t3n-sdk";
 import { connect, CONTRACT_TAIL, CONTRACT_VERSION, actionEndpoint, BASE_URL } from "./lib.mjs";
 
 // `tee:user/contracts` is a system contract; its version moves, so resolve the
@@ -30,7 +31,7 @@ const grant = {
     scripts: [{
       scriptName,
       versionReq: CONTRACT_VERSION,
-      functions: ["evaluate", "spend", "dispatch_action"],
+      functions: ["evaluate", "spend", "dispatch_action", "execute_action"],
       allowedHosts: hosts,
     }],
   }],
@@ -40,7 +41,7 @@ let res;
 try {
   res = await client.execute({
     script_name: USER_CONTRACT,
-    script_version: await getScriptVersion(BASE_URL, USER_CONTRACT),
+    script_version: await getContractVersion(BASE_URL, USER_CONTRACT),
     function_name: "agent-auth-update",
     input: grant,
   });

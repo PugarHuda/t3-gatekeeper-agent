@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import {
   T3nClient, TenantClient, loadWasmComponent, setEnvironment,
-  createEthAuthInput, eth_get_address, metamask_sign,
+  createEthAuthInput, eth_get_address, metamask_sign, fetchTrustedManifest,
 } from "@terminal3/t3n-sdk";
 import * as vcCore from "@terminal3/vc_core";
 import * as bbs from "@terminal3/bbs_vc";
@@ -40,7 +40,7 @@ async function issueEligibilityCredential(subjectDid) {
   const key = process.env.T3N_API_KEY, tenantDid = process.env.DID;
   const address = eth_get_address(key);
   const wasmComponent = await loadWasmComponent();
-  const client = new T3nClient({ wasmComponent, handlers: { EthSign: metamask_sign(address, undefined, key) } });
+  const client = new T3nClient({ trustAnchor: await fetchTrustedManifest("testnet"), wasmComponent, handlers: { EthSign: metamask_sign(address, undefined, key) } });
 
   // 1. IDENTITY
   await client.handshake();

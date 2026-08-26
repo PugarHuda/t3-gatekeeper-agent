@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import {
   T3nClient, TenantClient, loadWasmComponent, setEnvironment,
-  createEthAuthInput, eth_get_address, metamask_sign,
+  createEthAuthInput, eth_get_address, metamask_sign, fetchTrustedManifest,
 } from "@terminal3/t3n-sdk";
 
 for (const line of readFileSync(new URL("./.env", import.meta.url), "utf8").split(/\r?\n/)) {
@@ -32,6 +32,7 @@ const mandate = {
 
     const wasmComponent = await loadWasmComponent();
     const client = new T3nClient({
+      trustAnchor: await fetchTrustedManifest("testnet"),
       wasmComponent,
       handlers: { EthSign: metamask_sign(address, undefined, key) },
     });

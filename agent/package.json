@@ -16,8 +16,8 @@
     "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs"
   },
   "dependencies": {
-    "@terminal3/t3n-sdk": "^3.5.2",
-    "@terminal3/vc_core": "^0.0.37",
-    "@terminal3/bbs_vc": "^0.2.36"
+    "@terminal3/bbs_vc": "^0.2.36",
+    "@terminal3/t3n-sdk": "^5.1.0",
+    "@terminal3/vc_core": "^0.0.37"
   }
 }

@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import {
   T3nClient, TenantClient, loadWasmComponent, setEnvironment,
-  createEthAuthInput, eth_get_address, metamask_sign,
+  createEthAuthInput, eth_get_address, metamask_sign, fetchTrustedManifest,
 } from "@terminal3/t3n-sdk";
 
 export const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
@@ -52,6 +52,9 @@ export async function connect(envUrl) {
   const address = eth_get_address(key);
   const wasmComponent = await loadWasmComponent();
   const client = new T3nClient({
+    // Required since SDK 5.x: pins the node's attestation so a failed handshake
+    // is a trust failure, not a silent downgrade. 3.x built the client without it.
+    trustAnchor: await fetchTrustedManifest("testnet"),
     wasmComponent,
     handlers: { EthSign: metamask_sign(address, undefined, key) },
   });

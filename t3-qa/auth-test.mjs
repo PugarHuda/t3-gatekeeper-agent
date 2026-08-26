@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import {
   T3nClient, loadWasmComponent, setEnvironment, getEnvironment,
-  createEthAuthInput, eth_get_address, metamask_sign,
+  createEthAuthInput, eth_get_address, metamask_sign, fetchTrustedManifest,
 } from "@terminal3/t3n-sdk";
 
 // minimal .env loader (no dep)
@@ -26,6 +26,7 @@ for (const line of readFileSync(new URL("./.env", import.meta.url), "utf8").spli
     console.log("WASM loaded ✅");
 
     const client = new T3nClient({
+      trustAnchor: await fetchTrustedManifest("testnet"),
       wasmComponent,
       handlers: { EthSign: metamask_sign(address, undefined, key) },
     });
