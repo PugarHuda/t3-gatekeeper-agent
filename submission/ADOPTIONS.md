@@ -42,7 +42,7 @@ Listed so nobody has to infer it from silence.
 
 | Adoption | Why not |
 | --- | --- |
-| **ERC-8004 mint** | Needs a gas-funded wallet. The script has the correct ABI, preflights the registry, and **refuses to run unconfigured** — there is no fake mint. Funding is the only missing piece. |
+| **ERC-8004 mint** | Needs a gas-funded wallet — the one thing that cannot be defaulted. The script has the correct ABI, preflights the registry before spending gas, refuses to run unconfigured (no fake mint), and now defaults `agentURI` to the card served with `application/json` and CORS rather than to raw.githubusercontent, which serves `text/plain`. Set `ERC8004_PRIVATE_KEY` and it mints; nothing else is missing. |
 | **ERC-8004 reputation** | Follows the mint. Our per-action audit rows are the right signal for it, but nothing is written on-chain today. |
 | **In-contract `vp.verify`** | Attempted and blocked by the host: importing `host:interfaces/vp` registers fine, then 500s on every invoke (bug #7). Without it the enclave cannot verify a BBS+ proof itself — see STATUS_AND_ROADMAP §3.1 for exactly what that costs. Re-checked 2026-08-27: the repro contract was reverted in June, so the finding stands on the June evidence and would cost a fresh registration to re-stage. |
 | **On-chain revocation registry** | Needs a deployed contract and gas. The `revoke_vc` code path is written and tested with an injected registry, and the status list above covers the same need without a chain. |
