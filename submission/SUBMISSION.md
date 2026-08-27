@@ -635,16 +635,17 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current
-contract, not a remembered one.
+contract, not a remembered one. It also shows the revocation pre-gate doing
+something for the first time: a control credential at the list index we publish
+as revoked comes back **REVOKED and blocked**, next to a healthy one that does
+not. Until the status list was actually served, that check could only report
+"not checked", which is what it correctly did.
 
-The evidence site is one deploy behind: Vercel's free tier refused further
-deployments for two days ("more than 100 per day"), so shots 14–23, the A2A
-agent card and the revocation status list are in the repo but not yet served.
-Their live assertions are the only red tests in the suite, and they are red for
-that reason alone — the same files are proven against a local server. One
-`cd site && npx vercel deploy --prod --yes` clears it. `capture.mjs` syncs the
-PNGs into `site/shots/` itself, and `npm run status-list` now republishes the
-agent card too, so neither is a manual step to forget.
+Everything above is live at https://gatekeeper-evidence.vercel.app — all 23
+shots, the A2A agent card, the Web Bot Auth key directory and the revocation
+status list. `capture.mjs` syncs the PNGs into `site/shots/` itself, and
+`npm run status-list` republishes the agent card, so neither is a manual step to
+forget.
 
 ---
 
@@ -656,6 +657,7 @@ I would rather state this than imply a live run I did not do.
 | --- | --- |
 | **On the network now** | **v0.10.0, `contract_id 749`**, registered 2026-08-27 |
 | **Proven live** | the KV mandate read, the credential/action binding, idempotent dispatch, in-enclave outbound HTTP (**200**), and `http-with-placeholders` — which until this week had only ever been compiled in |
+| **Also live** | the evidence site, the A2A agent card, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (17/17) |
 | **Still not live** | the ERC-8004 mint (needs a gas-funded wallet) and x402 settlement (needs a facilitator and a funded stablecoin wallet). Both refuse to run unconfigured rather than faking it |
 
 An earlier draft of this section said v0.9.0 was built but unregistered because
