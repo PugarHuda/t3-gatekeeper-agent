@@ -140,3 +140,39 @@ describe("A2A discovery (live)", () => {
     assert.equal(res.headers.get("access-control-allow-origin"), "*");
   });
 });
+
+// ── the evidence page must actually show the evidence ───────────────────────
+//
+// `capture.mjs` syncs every screenshot into `site/shots/`, and for a long time
+// eleven of them sat there unreferenced: captured, deployed, and invisible. The
+// existing check only asserts that images the page *does* reference are not
+// broken, which says nothing about the ones it forgot.
+//
+// This is offline on purpose — it compares two directories in the repo, so it
+// catches the omission before a deploy rather than after one.
+describe("the evidence page references every screenshot it ships", () => {
+  test("no shot is synced to the site and then left off the page", async () => {
+    const { readFile, readdir } = await import("node:fs/promises");
+    const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
+    const referenced = new Set([...html.matchAll(/shots\/([^"']+)/g)].map((m) => m[1]));
+    const present = (await readdir(new URL("../site/shots", import.meta.url)))
+      .filter((f) => f.endsWith(".png"));
+
+    const orphaned = present.filter((f) => !referenced.has(f)).sort();
+    assert.deepEqual(
+      orphaned, [],
+      "these screenshots are deployed but appear nowhere on the page — add a <figure> for each",
+    );
+  });
+
+  test("the page does not reference a screenshot that was never captured", async () => {
+    const { readFile, readdir } = await import("node:fs/promises");
+    const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
+    const referenced = [...html.matchAll(/shots\/([^"']+)/g)].map((m) => m[1]);
+    const present = new Set(await readdir(new URL("../site/shots", import.meta.url)));
+
+    // A reference to a file that does not exist is a broken image on the live
+    // site, which the network test would catch — but only after a deploy.
+    assert.deepEqual(referenced.filter((f) => !present.has(f)).sort(), []);
+  });
+});

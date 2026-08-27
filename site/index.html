@@ -144,9 +144,16 @@
   </figure>
 
   <figure>
-    <img src="shots/03-contract-deployed.png" alt="Contract get showing gate 0.6.0 live">
+    <img src="shots/02-cli-whoami.png" alt="t3n whoami returning the agent DID">
+    <figcaption><span class="pill ok">Identity</span><b>The network knows this agent.</b>
+      <code>t3n whoami</code> resolves the API key to the DID everything else here is
+      scoped to.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/03-contract-deployed.png" alt="Contract get showing gate 0.10.0 live">
     <figcaption><span class="pill ok">Walkthrough</span><b>The Rust contract is live on the network.</b>
-      Anyone can verify it without a key — command at the bottom of this page.</figcaption>
+      <code>gate@0.10.0</code>, contract_id 749. Anyone can verify it without a key —
+      command at the bottom of this page.</figcaption>
   </figure>
 
   <figure>
@@ -241,6 +248,83 @@
       <code>10000000000</code>, about 6.7&times; the entire initial grant. No price list,
       no pre-flight estimate, and an empty usage ledger to audit against.</figcaption>
   </figure>
+  <figure>
+    <img src="shots/16-erc8004-live.png" alt="live ERC-8004 registry reads and a mint preflight">
+    <figcaption><span class="pill ok">Shipped</span><b>ERC-8004, read live and preflighted.</b>
+      Resolve any agent's owner and URI from the reference registry on Sepolia, and check a
+      registry's bytecode carries <code>register(string)</code> <b>before</b> a mint spends
+      gas. It correctly refuses Sepolia WETH. No wallet, no gas.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/17-audit-ledger.png" alt="audit.get-mine read back and reconciled">
+    <figcaption><span class="pill ok">Shipped</span><b>The host's own record, not ours.</b>
+      <code>audit.get-mine</code> read back and reconciled against what the agent claims
+      happened, keeping <i>committed</i> separate from <i>claimed</i> — an event marked
+      success in an uncommitted batch is the contract's story, not a durable fact.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/18-status-list.png" alt="W3C Bitstring Status List published">
+    <figcaption><span class="pill ok">Shipped</span><b>Revocation that runs today.</b>
+      A W3C Bitstring Status List of 131,072 entries, published over HTTPS. No chain, no
+      gas. The holder is one bit among 131,072, so checking it reveals nothing about who is
+      transacting.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/19-qa-console-binding-moved.png" alt="a credential verified for $500 refused on $4,000">
+    <figcaption><span class="pill ok">Shipped</span><b>The eligibility check cannot be detached.</b>
+      A credential verified for a $500 purchase, presented for a $4,000 one. The enclave
+      recomputes the commitment from the action it is about to perform, and refuses.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/20-qa-console-x402-paid.png" alt="the console paying a real HTTP 402">
+    <figcaption><span class="pill ok">Shipped</span><b>Paying a real 402, in the browser.</b>
+      The console fetches a genuine HTTP 402 from its own server and signs an EIP-3009
+      authorization only after the mandate approves the price and the payee. The server
+      recovers the payer from the signature before serving anything.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/21-mcp-server.png" alt="the gate served over MCP to a real client">
+    <figcaption><span class="pill ok">Shipped</span><b>The gate, over MCP.</b>
+      A real MCP client, a real subprocess, eight tools. <code>gate_evaluate</code> answers
+      from the contract's own compiled Rust — offline, free, and with no Terminal 3 account
+      at all. This is how the agent gets distributed rather than cloned.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/22-x402-mandated-payment.png" alt="one payment made, three refused">
+    <figcaption><span class="pill ok">Shipped</span><b>The mandate decides whether to pay.</b>
+      Four paywalls, one payment. A payee the mandate never listed, a price over the API
+      budget, and a mandate that only permits trading are each refused <i>before</i> a
+      signature exists.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/23-probe-before-promote.png" alt="a build proven under a throwaway tail">
+    <figcaption><span class="pill ok">Shipped</span><b>Probe before promote.</b>
+      Registration is not validation: a component importing a host interface the node does
+      not serve registers fine, then fails on every invoke — and takes the pinned version
+      down with it. So a build is proven under a throwaway tail first.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/24-node-discovery.png" alt="the node's own contract inventory">
+    <figcaption><span class="pill bug">Bug #26</span><b>What the node actually runs.</b>
+      Read with a scoped agent key — no session, no credits. Six core contracts, two of
+      them documented nowhere: <code>tee:vc</code> carries a whole OpenID4VP holder stack,
+      <code>tee:agent-connect</code> carries commerce intents.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/25-core-contracts-blocked.png" alt="both undocumented core contracts, and where they stop">
+    <figcaption><span class="pill bug">Bugs #27 / #28</span><b>And why nobody can use them.</b>
+      Every commerce function fails on a host-assembled profile envelope missing
+      <code>kind</code> — a field the profile <i>writer</i> refuses as unrecognised. And
+      <code>issue-credential</code> wants key metadata that the only documented writer
+      accepts silently and the reader still calls missing.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/26-x402-facilitator.png" alt="an independent facilitator verifying our payment">
+    <figcaption><span class="pill ok">Shipped</span><b>Checked by someone who is not us.</b>
+      An independent x402 facilitator recovers our payer address from the signature and
+      simulates <code>transferWithAuthorization</code> against the real token. It gets as
+      far as the balance and stops. Everything but the money.</figcaption>
+  </figure>
 </div></section>
 
 <section><div class="wrap">
@@ -251,7 +335,7 @@ npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35
   <p>Or run the whole suite offline, no credits:</p>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                                           # 85 checks, one command</pre>
+node verify.mjs                                          # 223 checks, one command</pre>
 </div></section>
 
 <footer><div class="wrap">
