@@ -94,10 +94,15 @@ test("small clock skew is tolerated", () => {
   assert.equal(verifyRequest(req, headers, publicKey), true);
 });
 
-test("the freshness window can be widened deliberately", () => {
+test("the freshness window can be widened deliberately — within the signer's own expiry", () => {
   const old = Math.floor(Date.now() / 1000) - 3600;
-  const headers = signRequest(req, { privateKey, keyid, created: old });
-  assert.equal(verifyRequest(req, headers, publicKey, { maxAgeSeconds: 7200 }), true);
+  // The signer states its own deadline (`expires`). A verifier may be stricter
+  // than that, never looser: widening maxAge past a signature that has already
+  // expired must still refuse it.
+  const longLived = signRequest(req, { privateKey, keyid, created: old, ttlSeconds: 7200 });
+  assert.equal(verifyRequest(req, longLived, publicKey, { maxAgeSeconds: 7200 }), true);
+  const expired = signRequest(req, { privateKey, keyid, created: old }); // default 300s TTL
+  assert.equal(verifyRequest(req, expired, publicKey, { maxAgeSeconds: 7200 }), false);
 });
 
 test("created cannot be back-dated without breaking the signature", () => {

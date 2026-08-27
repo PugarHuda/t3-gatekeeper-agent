@@ -9,10 +9,16 @@
 // covered by the signature too, so the body cannot be tampered in flight.
 import {
   generateKeyPairSync, sign as edSign, verify as edVerify,
-  createPublicKey, createPrivateKey, createHash,
+  createPublicKey, createPrivateKey, createHash, randomBytes,
 } from "node:crypto";
 
 const BASE_COMPONENTS = ["@method", "@authority", "@path"];
+
+/** How long a signature is good for. Five minutes is what the draft and
+ *  Cloudflare's reference implementation use. */
+export const DEFAULT_TTL_SECONDS = 300;
+/** Nonce size the web-bot-auth profile fixes: 64 random bytes, base64. */
+const NONCE_BYTES = 64;
 
 export function generateAgentKey() {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
@@ -88,7 +94,16 @@ function componentValue(component, ctx) {
     case "@authority": return u.host;
     case "@path": return u.pathname || "/";
     case "content-digest": return ctx.contentDigestValue;
-    default: throw new Error(`unsupported component ${component}`);
+    default: {
+      // Any other component is a request header (RFC 9421 §2.1). That is what
+      // lets this verify requests from OTHER web-bot-auth implementations —
+      // Cloudflare's covers `signature-agent`, which we do not emit but must
+      // accept. Derived components we do not know are refused, not guessed.
+      if (component.startsWith("@")) throw new Error(`unsupported derived component ${component}`);
+      const v = ctx.headers?.[component] ?? ctx.headers?.[component.toLowerCase()];
+      if (v == null) throw new Error(`covered header ${component} is not present on the request`);
+      return String(v).trim();
+    }
   }
 }
 
@@ -96,8 +111,13 @@ function componentValue(component, ctx) {
 // "@signature-params" line whose value is the inner list + signature params.
 function buildBase(components, ctx, params) {
   const inner = components.map((c) => `"${c}"`).join(" ");
+  // `expires` and `nonce` are what the web-bot-auth profile adds to plain RFC
+  // 9421. Without `expires` a verifier has to invent a freshness policy — and
+  // Cloudflare's refuses outright. Without `nonce` two signatures over the
+  // same request in the same second are byte-identical.
   const sigParamsValue =
-    `(${inner});created=${params.created};keyid="${params.keyid}";alg="ed25519";tag="web-bot-auth"`;
+    `(${inner});created=${params.created};expires=${params.expires}` +
+    `;keyid="${params.keyid}";alg="ed25519";nonce="${params.nonce}";tag="web-bot-auth"`;
   const lines = components.map((c) => `"${c}": ${componentValue(c, ctx)}`);
   lines.push(`"@signature-params": ${sigParamsValue}`);
   return { base: lines.join("\n"), sigParamsValue };
@@ -108,12 +128,18 @@ function buildBase(components, ctx, params) {
  * request has a body) `Content-Digest` header values.
  * `req` = { method, url, body? }.
  */
-export function signRequest(req, { privateKey, keyid, created = Math.floor(Date.now() / 1000) }) {
+export function signRequest(req, {
+  privateKey, keyid,
+  created = Math.floor(Date.now() / 1000),
+  ttlSeconds = DEFAULT_TTL_SECONDS,
+  nonce = randomBytes(NONCE_BYTES).toString("base64"),
+}) {
   const hasBody = req.body != null && req.body !== "";
   const components = hasBody ? [...BASE_COMPONENTS, "content-digest"] : [...BASE_COMPONENTS];
   const cdValue = hasBody ? contentDigest(req.body) : undefined;
   const ctx = { method: req.method, url: req.url, contentDigestValue: cdValue };
-  const { base, sigParamsValue } = buildBase(components, ctx, { keyid, created });
+  const expires = created + ttlSeconds;
+  const { base, sigParamsValue } = buildBase(components, ctx, { keyid, created, expires, nonce });
   const sig = edSign(null, Buffer.from(base, "utf8"), privateKey).toString("base64");
   const headers = {
     "Signature-Input": `sig1=${sigParamsValue}`,
@@ -140,22 +166,26 @@ export function signRequest(req, { privateKey, keyid, created = Math.floor(Date.
 export function verifyRequest(req, headers, publicKey, {
   maxAgeSeconds = 300, skewSeconds = 30, expectedKeyid, now = Math.floor(Date.now() / 1000),
 } = {}) {
-  const sigInput = headers["Signature-Input"] || "";
-  const sigHeader = headers["Signature"] || "";
-  const m = sigInput.match(/^sig1=(.+)$/);
-  const s = sigHeader.match(/^sig1=:(.+):$/);
-  if (!m || !s) return false;
-  const sigParamsValue = m[1];
+  const get = (name) => headers[name] ?? headers[name.toLowerCase()] ?? "";
+  // The label is the signer's choice (`sig1`, `sig`, …). Take the first one;
+  // a request carrying several signatures is out of scope here.
+  const m = String(get("Signature-Input")).match(/^([A-Za-z0-9_-]+)=(.+)$/);
+  const s = String(get("Signature")).match(/^([A-Za-z0-9_-]+)=:(.+):$/);
+  if (!m || !s || m[1] !== s[1]) return false;
+  const sigParamsValue = m[2];
   if (!sigParamsValue.includes('tag="web-bot-auth"')) return false;
   const keyid = (sigParamsValue.match(/keyid="([^"]+)"/) || [])[1];
   const created = Number((sigParamsValue.match(/created=(\d+)/) || [])[1]);
+  const expires = Number((sigParamsValue.match(/expires=(\d+)/) || [])[1]);
 
   if (expectedKeyid != null && keyid !== expectedKeyid) return false;
   if (!Number.isFinite(created)) return false;
-  if (maxAgeSeconds != null) {
-    if (created > now + skewSeconds) return false;      // signed in the future
-    if (now - created > maxAgeSeconds) return false;    // stale — replayed
-  }
+  // A signature that never expires can be replayed for as long as the key
+  // lives. Refuse it rather than substitute a policy the signer did not state.
+  if (!Number.isFinite(expires)) return false;
+  if (created > now + skewSeconds) return false;      // signed in the future
+  if (now > expires + skewSeconds) return false;      // the signer's own deadline
+  if (maxAgeSeconds != null && now - created > maxAgeSeconds) return false; // ours, tighter
   // Recover the exact covered-component set from the signature input.
   const inner = sigParamsValue.match(/^\(([^)]*)\)/);
   if (!inner) return false;
@@ -170,9 +200,20 @@ export function verifyRequest(req, headers, publicKey, {
     if ((headers["Content-Digest"] || "") !== cdValue) return false;
   }
 
-  const ctx = { method: req.method, url: req.url, contentDigestValue: cdValue };
-  const { base, sigParamsValue: expected } = buildBase(components, ctx, { keyid, created });
-  if (sigParamsValue !== expected) return false; // covered set / params must match
+  // Rebuild the signature base from the components the signer declared. The
+  // params line is taken VERBATIM from Signature-Input rather than regenerated:
+  // RFC 9421 lets a signer order its parameters freely, and other
+  // implementations do — regenerating ours and string-comparing would reject
+  // every conformant signature that is not byte-for-byte ours.
+  const ctx = { method: req.method, url: req.url, contentDigestValue: cdValue, headers: req.headers ?? {} };
+  let lines;
+  try {
+    lines = components.map((c) => `"${c}": ${componentValue(c, ctx)}`);
+  } catch {
+    return false; // a covered component this verifier cannot reconstruct
+  }
+  lines.push(`"@signature-params": ${sigParamsValue}`);
+  const base = lines.join("\n");
   const pub = publicKey instanceof Object ? publicKey : createPublicKey(publicKey);
-  return edVerify(null, Buffer.from(base, "utf8"), pub, Buffer.from(s[1], "base64"));
+  return edVerify(null, Buffer.from(base, "utf8"), pub, Buffer.from(s[2], "base64"));
 }
