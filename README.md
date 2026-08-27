@@ -77,6 +77,7 @@ flowchart TD
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
 | `agent/src/mcp-server.mjs` | The agent served over Model Context Protocol (`npm run mcp`) — how a host adopts the gate without cloning anything. |
 | `agent/src/x402.mjs` | HTTP 402 payments, with the mandate deciding whether to pay. |
+| `agent/src/a2a-server.mjs` | The agent as an A2A v1.0 server on the official SDK (`npm run a2a`). |
 | `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
 | `submission/` | Demo script, BUIDL description, [Track B bug reports](submission/TRACK_B_BUG_REPORTS.md) (8 onboarding/SDK/doc issues found while building), [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing + TDX quote layout), [verification log](submission/VERIFICATION.md), and an [adoption roadmap](submission/ADOPTIONS.md) (A2A / ERC-8004 / Web Bot Auth — cheap/high/out-of-box). |
 | `agent/agent-card.json` | A2A + ERC-8004 style agent card (identity, skills, trust). |
@@ -204,6 +205,8 @@ npm run setup               # register the contract, create + seed its KV maps
 npm run grant:egress        # authorise the enclave to reach ACTION_ENDPOINT's host
 npm run demo                # identity -> VC gate -> TEE mandate -> audit -> in-TEE dispatch
 npm run mcp                 # serve the gate over MCP (stdio) to any host that speaks it
+npm run a2a                 # serve the gate over A2A v1.0 (JSON-RPC) to any agent that speaks it
+npm run prove:enclave       # the enclave-only paths, proven live with controls
 ```
 
 `ACTION_ENDPOINT` defaults to the illustrative `https://broker.example/v1/orders`.

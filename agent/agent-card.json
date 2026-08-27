@@ -206,12 +206,12 @@
     },
     {
       "protocol": "A2A",
-      "note": "This document doubles as the A2A AgentCard.",
+      "note": "This document doubles as the A2A AgentCard. A JSON-RPC endpoint on the official @a2a-js/sdk (protocol v1.0) serves evaluate-gated-action and bind-credential as A2A tasks: `npm run a2a` (agent/src/a2a-server.mjs).",
       "status": "active"
     },
     {
       "protocol": "Web Bot Auth",
-      "note": "RFC 9421 HTTP Message Signatures for outbound action requests — implemented in agent/src/web-bot-auth.mjs.",
+      "note": "RFC 9421 HTTP Message Signatures with the web-bot-auth profile (expires, nonce) — agent/src/web-bot-auth.mjs. Verified both ways against Cloudflare's reference implementation. Key directory at /.well-known/http-message-signatures-directory.",
       "status": "active"
     },
     {

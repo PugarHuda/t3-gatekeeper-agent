@@ -99,7 +99,30 @@ test("validation names every missing field a client would dereference", () => {
   for (const f of ["description", "version", "skills"]) {
     assert.ok(r.problems.some((p) => p.includes(f)), `${f} should be reported: ${r.problems}`);
   }
-  assert.ok(r.problems.some((p) => /neither url nor did/.test(p)), "unaddressable card must fail");
+  assert.ok(r.problems.some((p) => /neither url, did nor a supportedInterfaces url/.test(p)), "unaddressable card must fail");
+});
+
+test("a v1.0 card is addressable through supportedInterfaces alone", () => {
+  // No top-level url or did — exactly what the official SDK serves. This used
+  // to be reported as "nothing to talk to".
+  const r = validateAgentCard({
+    name: "a", description: "b", version: "1",
+    supportedInterfaces: [{ url: "https://agent.example/", protocolBinding: "JSONRPC", protocolVersion: "1.0", tenant: "" }],
+    capabilities: {}, skills: [{ id: "s", name: "s" }],
+  });
+  assert.equal(r.valid, true, r.problems.join(","));
+  assert.deepEqual(r.warnings, []);
+});
+
+test("a v1.0 interface without a url is a problem, without a binding a warning", () => {
+  const r = validateAgentCard({
+    name: "a", description: "b", version: "1",
+    supportedInterfaces: [{ protocolVersion: "1.0" }],
+    capabilities: {}, skills: [{ id: "s", name: "s" }],
+  });
+  assert.equal(r.valid, false);
+  assert.ok(r.problems.some((p) => /supportedInterfaces\[0\] has no url/.test(p)));
+  assert.ok(r.warnings.some((w) => /names no protocolBinding/.test(w)));
 });
 
 test("a skill without an id is a problem, without a name only a warning", () => {

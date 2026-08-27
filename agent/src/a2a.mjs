@@ -87,9 +87,22 @@ export function validateAgentCard(card) {
     });
     if (card.skills.length === 0) warnings.push("card advertises no skills");
   }
-  // Not required by the spec, but a card without either cannot be addressed.
-  if (!card.url && !card.did) problems.push("card has neither url nor did — nothing to talk to");
-  if (!card.protocolVersion) warnings.push("no protocolVersion — client must guess the dialect");
+  // A card is addressable one of two ways. v0.3 put a single `url` (or, in
+  // our ERC-8004 flavour, a `did`) at the top level; v1.0 moved to
+  // `supportedInterfaces`, one entry per transport, each with its own URL and
+  // protocol version. A validator that only knew the first shape would call
+  // every v1.0 agent unreachable — which is what this one did until the SDK's
+  // own client resolved our card and this check failed against it.
+  const interfaces = Array.isArray(card.supportedInterfaces) ? card.supportedInterfaces : [];
+  interfaces.forEach((i, n) => {
+    if (!i?.url) problems.push(`supportedInterfaces[${n}] has no url`);
+    if (!i?.protocolBinding) warnings.push(`supportedInterfaces[${n}] names no protocolBinding`);
+  });
+  const addressable = Boolean(card.url || card.did || interfaces.some((i) => i?.url));
+  if (!addressable) problems.push("card has neither url, did nor a supportedInterfaces url — nothing to talk to");
+
+  const version = card.protocolVersion ?? interfaces.find((i) => i?.protocolVersion)?.protocolVersion;
+  if (!version) warnings.push("no protocolVersion — client must guess the dialect");
   if (!card.capabilities) warnings.push("no capabilities block");
 
   return { valid: problems.length === 0, problems, warnings };

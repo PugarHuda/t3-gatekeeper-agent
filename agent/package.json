@@ -13,7 +13,7 @@
     "demo:velocity": "node src/velocity-demo.mjs",
     "register:erc8004": "node src/erc8004-register.mjs",
     "auth": "node src/auth-check.mjs",
-    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/web-bot-auth-interop.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs test/audit.test.mjs test/status-list.test.mjs test/x402.test.mjs test/mcp.test.mjs test/discover.test.mjs",
+    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/a2a-server.test.mjs test/web-bot-auth.test.mjs test/web-bot-auth-interop.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs test/audit.test.mjs test/status-list.test.mjs test/x402.test.mjs test/mcp.test.mjs test/discover.test.mjs",
     "erc8004": "node src/erc8004-status.mjs",
     "audit": "node src/audit.mjs",
     "status-list": "node src/publish-status-list.mjs",
@@ -23,7 +23,8 @@
     "demo:mcp": "node src/mcp-demo.mjs",
     "discover": "node src/discover.mjs",
     "x402:verify": "node src/x402-verify.mjs",
-    "prove:enclave": "node src/prove-enclave.mjs"
+    "prove:enclave": "node src/prove-enclave.mjs",
+    "a2a": "node src/a2a-server.mjs"
   },
   "dependencies": {
     "@a2a-js/sdk": "^1.1.0",

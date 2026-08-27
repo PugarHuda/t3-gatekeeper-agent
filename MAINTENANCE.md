@@ -116,6 +116,33 @@ Note the key kinds are not interchangeable and the node will not tell you which
 one it wanted: the tenant key returns a bare `HTTP 400` from these reads
 (bug #24).
 
+### The live proofs, and when to re-run them
+
+Three commands exercise what `node verify.mjs` deliberately cannot — the paths
+that only exist on a node or on a chain. Run them after a contract
+re-registration, a node upgrade, or before a demo:
+
+```bash
+npm run prove:enclave   # secrets → Authorization header; {{profile.*}}; idempotent replay  (~8 executes)
+npm run x402:verify     # EIP-712 domain vs the deployed token; an independent facilitator's /verify
+npm run discover        # what the node runs, read with the agent key
+```
+
+Each prints PASS/FAIL per check and exits non-zero on any failure. `prove:enclave`
+seeds a random credential and a mandate that names it, and restores the setup
+mandate when it finishes.
+
+### Serving the gate to other agents
+
+```bash
+npm run a2a             # A2A v1.0 JSON-RPC on :41241 (A2A_PORT), card at /.well-known/agent-card.json
+npm run mcp             # MCP over stdio
+```
+
+Both serve the same compiled `decide()`. The A2A card advertises the URL the
+process listens on; set `A2A_BASE_URL` to the public URL when it is behind a
+proxy, or the card will point peers at the wrong place.
+
 ### Handing the gate to someone else's agent
 
 The point of the MCP server is that nobody has to clone this repo to use the

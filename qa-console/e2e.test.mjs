@@ -250,3 +250,96 @@ describe("x402 — the mandate decides whether to pay", () => {
     assert.match((await res.json()).error, /missing signature or authorization/);
   });
 });
+
+// ── A2A, on the wire ─────────────────────────────────────────────────────────
+//
+// agent/test/a2a-server.test.mjs drives the server with the official SDK
+// client, which proves SDK talks to SDK. This block hand-writes the JSON-RPC
+// envelopes from the v1.0 spec and sends them with Playwright's request API —
+// no A2A library on the calling side at all. If the SDK ever wrapped a private
+// dialect, this is where it would show.
+describe("A2A v1.0 — hand-written JSON-RPC, no SDK on the client side", () => {
+  let a2a;
+  before(async () => { a2a = await (await import("../agent/src/a2a-server.mjs")).start(0); });
+  after(() => a2a?.close());
+
+  const MANDATE = { max_amount_cents: 500000, allowed_assets: ["USDC"], allowed_kinds: ["rwa.buy"], expires_at_secs: 0 };
+  let nextId = 1;
+  // v1.0 negotiates the protocol version in a header. Omit it and the server
+  // assumes 0.3 — the dialect it does not speak — and refuses. The official
+  // client sends it silently; a hand-rolled one has to know.
+  const rpc = (method, params, headers = { "A2A-Version": "1.0" }) => page.request.post(a2a.listenUrl, {
+    data: { jsonrpc: "2.0", method, params, id: nextId++ }, headers,
+  });
+  const sendMessage = (data) => rpc("SendMessage", {
+    message: { messageId: `m-${nextId}`, role: "ROLE_USER", parts: [{ data, mediaType: "application/json" }] },
+    configuration: {},
+  });
+
+  test("the card is served at the well-known path and names this endpoint", async () => {
+    const res = await page.request.get(`${a2a.listenUrl}.well-known/agent-card.json`);
+    assert.equal(res.status(), 200);
+    const card = await res.json();
+    assert.equal(card.name, "Gatekeeper Agent");
+    assert.equal(card.supportedInterfaces[0].url, a2a.baseUrl);
+    assert.equal(card.supportedInterfaces[0].protocolBinding, "JSONRPC");
+    assert.ok(card.skills.some((s) => s.id === "evaluate-gated-action"));
+  });
+
+  test("SendMessage with an in-mandate action completes the task, verdict in the artifact", async () => {
+    const res = await sendMessage({ action: { kind: "rwa.buy", asset: "USDC", amount_cents: 100000 }, mandate: MANDATE });
+    assert.equal(res.status(), 200);
+    const { result, error } = await res.json();
+    assert.equal(error, undefined);
+    assert.equal(result.task.status.state, "TASK_STATE_COMPLETED");
+    assert.equal(result.task.artifacts[0].parts[0].data.decision, "approved");
+    assert.deepEqual(result.task.artifacts[0].parts[0].data.reasons, []);
+  });
+
+  test("an over-cap action completes with decision rejected and the rule that refused", async () => {
+    const res = await sendMessage({ action: { kind: "rwa.buy", asset: "USDC", amount_cents: 900000 }, mandate: MANDATE });
+    const { result } = await res.json();
+    assert.equal(result.task.status.state, "TASK_STATE_COMPLETED");
+    const verdict = result.task.artifacts[0].parts[0].data;
+    assert.equal(verdict.decision, "rejected");
+    assert.ok(verdict.reasons.some((r) => /exceeds mandate max/.test(r)));
+    assert.match(result.task.status.message.parts[0].text, /^REJECTED/);
+  });
+
+  test("a mandate with no ceiling fails the task rather than approving by default", async () => {
+    const res = await sendMessage({ action: { kind: "rwa.buy", amount_cents: 1 }, mandate: {} });
+    const { result } = await res.json();
+    assert.equal(result.task.status.state, "TASK_STATE_FAILED");
+    assert.equal(result.task.artifacts?.length ?? 0, 0, "a failed task must carry no verdict");
+    assert.match(result.task.status.message.parts[0].text, /max_amount_cents/);
+  });
+
+  test("GetTask reads a completed task back by id", async () => {
+    const sent = (await (await sendMessage({ action: { kind: "rwa.buy", asset: "USDC", amount_cents: 1 }, mandate: MANDATE })).json()).result.task;
+    const res = await rpc("GetTask", { id: sent.id });
+    const { result } = await res.json();
+    assert.equal(result.id, sent.id);
+    assert.equal(result.status.state, "TASK_STATE_COMPLETED");
+  });
+
+  test("a request without the A2A-Version header is refused BY VERSION, not with a mystery", async () => {
+    const res = await rpc("GetTask", { id: "nope" }, {});
+    const body = await res.json();
+    assert.equal(body.error?.code, -32009, JSON.stringify(body).slice(0, 160));
+    assert.match(body.error.message, /'0.3' is not supported.*1\.0/);
+  });
+
+  test("an unknown method is a JSON-RPC method-not-found, not a crash", async () => {
+    const res = await rpc("DropAllLimits", {});
+    const body = await res.json();
+    assert.ok(body.error, "expected a JSON-RPC error object");
+    assert.equal(body.error.code, -32601);
+  });
+
+  test("a body that is not JSON-RPC is refused with a parse/invalid-request error", async () => {
+    const res = await page.request.post(a2a.listenUrl, { data: "{not json", headers: { "content-type": "application/json" } });
+    const body = await res.json().catch(() => null);
+    assert.ok(body?.error, `expected a JSON-RPC error, got HTTP ${res.status()} ${JSON.stringify(body).slice(0, 120)}`);
+    assert.ok([-32700, -32600].includes(body.error.code), `code ${body.error.code}`);
+  });
+});
