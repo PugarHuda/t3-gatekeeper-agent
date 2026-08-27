@@ -21,7 +21,8 @@
     "probe": "node src/probe-contract.mjs",
     "demo:x402": "node src/x402-demo.mjs",
     "demo:mcp": "node src/mcp-demo.mjs",
-    "discover": "node src/discover.mjs"
+    "discover": "node src/discover.mjs",
+    "x402:domain": "node src/x402-domain-check.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

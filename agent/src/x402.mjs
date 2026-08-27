@@ -155,6 +155,36 @@ export function selectRequirement(challenge, { scheme = "exact", network } = {})
 // ── client: sign ────────────────────────────────────────────────────────────
 
 /**
+ * The EIP-712 domain a requirement signs under.
+ *
+ * Four values, and every one of them load-bearing: get any wrong and the
+ * signature recovers to a stranger, at the only moment it matters. `name` and
+ * `version` are the TOKEN CONTRACT's own domain fields, which is why they are
+ * required in `extra` rather than defaulted to something plausible.
+ *
+ * `npm run x402:domain` checks this against the deployed token's own
+ * DOMAIN_SEPARATOR, so the agreement is verified rather than assumed.
+ */
+export function eip712Domain(requirement) {
+  const name = requirement?.extra?.name;
+  const version = requirement?.extra?.version;
+  if (!name || !version) {
+    throw new Error("x402: requirement.extra must carry the token's EIP-712 `name` and `version`");
+  }
+  return {
+    name,
+    version: String(version),
+    chainId: chainIdFor(requirement.network),
+    verifyingContract: ethers.getAddress(requirement.asset),
+  };
+}
+
+/** The domain separator our signatures commit to, as the token computes it. */
+export function domainSeparator(requirement) {
+  return ethers.TypedDataEncoder.hashDomain(eip712Domain(requirement));
+}
+
+/**
  * Sign an EIP-3009 transfer authorisation for one requirement.
  *
  * The domain's `name` and `version` come from the requirement's `extra`, because
@@ -163,11 +193,7 @@ export function selectRequirement(challenge, { scheme = "exact", network } = {})
  * than defaulted for that reason.
  */
 export async function signPayment({ requirement, resource, wallet, validForSecs = 600, nowSecs }) {
-  const name = requirement?.extra?.name;
-  const version = requirement?.extra?.version;
-  if (!name || !version) {
-    throw new Error("x402: requirement.extra must carry the token's EIP-712 `name` and `version`");
-  }
+  const domain = eip712Domain(requirement); // throws if `extra` is incomplete
   const now = nowSecs ?? Math.floor(Date.now() / 1000);
   const authorization = {
     from: await wallet.getAddress(),
@@ -179,12 +205,6 @@ export async function signPayment({ requirement, resource, wallet, validForSecs 
     validAfter: String(now - 60),
     validBefore: String(now + validForSecs),
     nonce: ethers.hexlify(ethers.randomBytes(32)),
-  };
-  const domain = {
-    name,
-    version: String(version),
-    chainId: chainIdFor(requirement.network),
-    verifyingContract: ethers.getAddress(requirement.asset),
   };
   const signature = await wallet.signTypedData(domain, TRANSFER_WITH_AUTHORIZATION_TYPES, authorization);
 
@@ -221,13 +241,7 @@ export function verifyPayment(paymentPayload, requirement, { nowSecs } = {}) {
 
   let payer;
   try {
-    const domain = {
-      name,
-      version: String(version),
-      chainId: chainIdFor(requirement.network),
-      verifyingContract: ethers.getAddress(requirement.asset),
-    };
-    payer = ethers.verifyTypedData(domain, TRANSFER_WITH_AUTHORIZATION_TYPES, {
+    payer = ethers.verifyTypedData(eip712Domain(requirement), TRANSFER_WITH_AUTHORIZATION_TYPES, {
       from: auth.from, to: auth.to, value: auth.value,
       validAfter: auth.validAfter, validBefore: auth.validBefore, nonce: auth.nonce,
     }, signature);

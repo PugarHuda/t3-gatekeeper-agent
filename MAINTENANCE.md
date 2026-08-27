@@ -158,6 +158,7 @@ balance with `npm --prefix agent run auth` first.
 | Every call 403s, `required=10000000000, available=0` | out of credits | request a top-up (`t.me/wardumb` for testnet grants) |
 | `quota exceeded (fuel_per_minute)` after ~10 calls | the node allows 10 contract executions per minute (bug #23) | nothing to fix — `executeContract()` in `agent/src/lib.mjs` backs off and says so. Check the live limits with `tenant.tenant.me().quotas` |
 | A run of bare `RPC Error: Internal error` on contracts that worked a minute ago | usually the same per-minute quota, which does not always name itself | wait a minute and retry before suspecting the contract |
+| x402 signatures rejected by a facilitator | the token's EIP-712 domain moved, or the wrong asset/network is configured | `npm run x402:domain` — it compares our domain with the deployed token's `DOMAIN_SEPARATOR()` and names which of the four values disagrees |
 | `verify=false` at the eligibility gate, with no reason | something was added to the credential after it was signed (bug #22) | put it in the claims, where `createBbsCredential` signs it — see `credentialStatusOf` |
 | `CONFIG_ERROR field=trustAnchor` | SDK <5.x, or a client built without `fetchTrustedManifest()` | upgrade; see the 5.1.0 migration commit |
 | `host/http.egress_denied` | the destination host is not on the caller's agent-auth grant | `npm run grant:egress` — and note the grant lists *functions*, so a new contract function needs adding there |
