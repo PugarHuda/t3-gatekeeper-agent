@@ -54,7 +54,7 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 25, every one from real command output |
+| Screenshots | §9 — 26, every one from real command output |
 | Bugs faced | §8 — 28 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
@@ -362,10 +362,27 @@ against the *server's own* requirement, never the one echoed back in the payload
 because that field is attacker-controlled; a test signs a one-cent authorisation,
 relabels it as the ten-dollar one, and watches it get refused.
 
-What is not real, said plainly: **settlement**. Broadcasting needs a facilitator
-and a funded wallet. `settle()` posts the spec's `/settle` body when
-`X402_FACILITATOR_URL` is set and **refuses** when it is not, because a receipt
-this process invented would be believed by whatever read it.
+What is not real, said plainly: **settlement**. Broadcasting needs a funded
+wallet. `settle()` posts the spec's `/settle` body when `X402_FACILITATOR_URL`
+is set and **refuses** when it is not, because a receipt this process invented
+would be believed by whatever read it.
+
+Short of that, it is verified by someone who is not us. `npm run x402:verify`
+reads `DOMAIN_SEPARATOR()` off the deployed Base Sepolia USDC contract — ours is
+byte-identical — and then posts a real payload to the public facilitator at
+`x402.org/facilitator`, which recovers our payer address on its own and
+**simulates `transferWithAuthorization` against the token**. It gets as far as
+the balance and stops:
+
+```
+isValid: false   invalid_exact_evm_insufficient_balance
+payer:   0xc752d544…   (the address we signed with)
+"transferWithAuthorization" reverted: ERC20: transfer amount exceeds balance
+```
+
+Signature, domain, nonce, validity window and encoding all passed, in a third
+party's implementation, against the real token. The only thing missing is money,
+and the script says exactly where it goes (*shot 26*).
 
 28 Node tests and 6 Playwright tests, all over real HTTP against a real 402.
 *Shots 20 and 22*, and `npm run demo:x402`.
@@ -635,6 +652,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 23 | `23-probe-before-promote.png` | the build proven under a throwaway tail before production points at it |
 | 24 | `24-node-discovery.png` | what the node actually runs, read with a scoped agent key — including two core contracts nobody documents |
 | 25 | `25-core-contracts-blocked.png` | bugs #27/#28 — the attempt to use those two, and exactly where a tenant caller is stopped |
+| 26 | `26-x402-facilitator.png` | an independent x402 facilitator recovering our payer and simulating the transfer on chain — everything but the money |
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current

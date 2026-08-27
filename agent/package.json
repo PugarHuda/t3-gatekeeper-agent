@@ -22,7 +22,7 @@
     "demo:x402": "node src/x402-demo.mjs",
     "demo:mcp": "node src/mcp-demo.mjs",
     "discover": "node src/discover.mjs",
-    "x402:domain": "node src/x402-domain-check.mjs"
+    "x402:verify": "node src/x402-verify.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

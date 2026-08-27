@@ -1,0 +1,46 @@
+
+> t3-gatekeeper-agent@0.1.0 x402:verify
+> node src/x402-verify.mjs
+
+x402 EIP-712 domain, checked against the deployed token
+  rpc    https://sepolia.base.org
+  token  0x036CbD53842c5426634e7929541eC2318f3dCF7e  "USDC" v"2"  6 decimals
+  chain  84532 (eip155:84532)
+
+  PASS  the CAIP-2 network resolves to the chain we are talking to
+        84532 vs 84532
+  PASS  our domain separator is byte-identical to the token's own
+        ours     0x71f17a3b2ff373b803d70a5a07c046c1a2bc8e89c09ef722fcb047abe94c9818
+        on-chain 0x71f17a3b2ff373b803d70a5a07c046c1a2bc8e89c09ef722fcb047abe94c9818
+  PASS  the fixtures the offline tests use are the token's real values
+        name="USDC" version="2" decimals=6
+  PASS  a signature we produced recovers to its signer under the chain's own domain
+        0x8eac40c6cD9663Db4bD4a6968d5F8eE98edF99cC
+  PASS  and our own verifier agrees
+
+asking an independent facilitator to verify it:
+  https://x402.org/facilitator
+  PASS  the facilitator supports our scheme on our network
+        offers exact, upto, batch-settlement on eip155:84532
+  PASS  it accepted the payload as well-formed
+        HTTP 200
+  PASS  it recovered the SAME payer from our signature
+        0x8eac40c6cD9663Db4bD4a6968d5F8eE98edF99cC  (we signed with 0x8eac40c6cD9663Db4bD4a6968d5F8eE98edF99cC)
+  PASS  the only thing it objects to is an empty wallet
+        invalid_exact_evm_insufficient_balance
+        it simulated transferWithAuthorization on chain and got as far as the
+        balance check — so the signature, domain, nonce and validity window
+        all passed against the real token, in someone else's implementation.
+
+settlement readiness
+  wallet   0x8eac40c6cD9663Db4bD4a6968d5F8eE98edF99cC  (throwaway — set X402_PRIVATE_KEY to keep one)
+  balance  0.0 USDC
+  Empty, which is exactly why /verify stops at the balance check. To settle:
+    1. set X402_PRIVATE_KEY in agent/.env (any key — it needs no gas)
+    2. fund that address with Base Sepolia USDC — https://faucet.circle.com
+    3. set X402_FACILITATOR_URL=https://x402.org/facilitator
+  EIP-3009 settlement is broadcast by the facilitator, so the payer pays no gas.
+
+Signatures this agent produces are valid for USDC at 0x036CbD53842c5426634e7929541eC2318f3dCF7e, and an
+independent facilitator agrees. Settlement needs a funded wallet; the
+cryptography does not, and it is done.

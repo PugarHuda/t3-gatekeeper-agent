@@ -76,6 +76,8 @@ const SHOTS = [
     cmd: "npm run discover", cwd: AGENT },
   { name: "25-core-contracts-blocked", title: "bugs #27/#28 — two undocumented core contracts, and exactly where a tenant caller is stopped",
     cmd: "node core-contracts-probe.mjs", cwd: QA, credits: true },
+  { name: "26-x402-facilitator", title: "x402 verified by someone else: an independent facilitator recovers our payer and simulates the transfer on chain",
+    cmd: "npm run x402:verify", cwd: AGENT },
   { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
     cmd: "npm run probe", cwd: AGENT, credits: true },
 ];
