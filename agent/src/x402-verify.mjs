@@ -170,12 +170,18 @@ console.log(`  balance  ${ethers.formatUnits(balance, Number(decimals))} ${name}
 if (balance > 0n) {
   console.log(`  Funded — this wallet can settle. Set X402_FACILITATOR_URL=${FACILITATOR}`);
   console.log(`  and fetchWithMandate will settle on approval.`);
+} else if (configured) {
+  // The key is kept; only the money is missing. Say the one remaining thing.
+  console.log(`  Empty, which is exactly why /verify stops at the balance check.`);
+  console.log(`  Fund THIS address with Base Sepolia USDC and settlement works:`);
+  console.log(`    ${wallet.address}`);
+  console.log(`    https://faucet.circle.com   (choose Base Sepolia, paste the address)`);
+  console.log(`  It needs USDC only — no ETH. EIP-3009 settlement is broadcast by the`);
+  console.log(`  facilitator, so the payer never pays gas.`);
 } else {
-  console.log(`  Empty, which is exactly why /verify stops at the balance check. To settle:`);
-  console.log(`    1. set X402_PRIVATE_KEY in agent/.env (any key — it needs no gas)`);
-  console.log(`    2. fund that address with Base Sepolia USDC — https://faucet.circle.com`);
-  console.log(`    3. set X402_FACILITATOR_URL=${FACILITATOR}`);
-  console.log(`  EIP-3009 settlement is broadcast by the facilitator, so the payer pays no gas.`);
+  console.log(`  Empty, and the key above is a throwaway — a different address every run,`);
+  console.log(`  so there is nothing stable to fund. Set X402_PRIVATE_KEY in agent/.env`);
+  console.log(`  first, re-run this, and fund the address it prints.`);
 }
 
 console.log(
