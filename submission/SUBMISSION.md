@@ -44,7 +44,7 @@ maintenance after the challenge ends*:
 | **`node verify.mjs`** — one command | Prove the repo is healthy with no key, no network, no credits. It prints its own total |
 | **MAINTENANCE.md** | Every knob, the real failure modes, a handover sequence |
 | Version single-sourced; CI runs the same script | Two classes of drift removed rather than documented |
-| **26 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
+| **28 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
 | **Metering measured, not guessed** | 30,034,055 credits a call; 1,370,147,045 a registration. Nothing publishes these |
 
 | Bounty requirement | Where |
@@ -54,8 +54,8 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 24, every one from real command output |
-| Bugs faced | §8 — 26 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
+| Screenshots | §9 — 25, every one from real command output |
+| Bugs faced | §8 — 28 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
 each command for real and renders its actual stdout and stderr — including the
@@ -499,7 +499,7 @@ to `getContractVersion`. Two lines. Finding those two lines took the afternoon.
 
 ---
 
-## 8. Bugs — 26 reports, each re-verified today
+## 8. Bugs — 28 reports, each re-verified today
 
 The full ledger with repro steps and request IDs:
 **[submission/BUGS.md](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md)**
@@ -634,6 +634,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 22 | `22-x402-mandated-payment.png` | x402 — one payment made, three refused before anything was signed |
 | 23 | `23-probe-before-promote.png` | the build proven under a throwaway tail before production points at it |
 | 24 | `24-node-discovery.png` | what the node actually runs, read with a scoped agent key — including two core contracts nobody documents |
+| 25 | `25-core-contracts-blocked.png` | bugs #27/#28 — the attempt to use those two, and exactly where a tenant caller is stopped |
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current

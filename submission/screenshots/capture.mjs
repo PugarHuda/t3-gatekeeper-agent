@@ -74,6 +74,8 @@ const SHOTS = [
     cmd: "npm run demo:x402", cwd: AGENT },
   { name: "24-node-discovery", title: "What the node actually runs — read with a scoped agent key, no session, no credits (and two core contracts nobody documents)",
     cmd: "npm run discover", cwd: AGENT },
+  { name: "25-core-contracts-blocked", title: "bugs #27/#28 — two undocumented core contracts, and exactly where a tenant caller is stopped",
+    cmd: "node core-contracts-probe.mjs", cwd: QA, credits: true },
   { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
     cmd: "npm run probe", cwd: AGENT, credits: true },
 ];

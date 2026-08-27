@@ -1,0 +1,36 @@
+── tee:agent-connect@1.4.0 — every caller-facing function ──────────────
+
+The contract reads a user-profile envelope the HOST assembles. It requires a
+`kind` field. The profile writer, tee:user's user-upsert, refuses that exact
+field as an unrecognised key. Nothing a caller sends changes either side.
+
+  blocked  commerce-quote           host-assembled envelope, missing `kind`
+  blocked  commerce-intent-create   host-assembled envelope, missing `kind`
+  blocked  commerce-intent-confirm  host-assembled envelope, missing `kind`
+  blocked  commerce-intent-cancel   host-assembled envelope, missing `kind`
+  blocked  commerce-history-get     host-assembled envelope, missing `kind`
+
+  and the profile writer refuses to add it:
+  refused  user-upsert {"kind":"individual"}      UnrecognizedKeys
+  refused  user-upsert {"Kind":"individual"}      UnrecognizedKeys
+  refused  user-upsert {"profile_kind":"individual"} UnrecognizedKeys
+
+── tee:vc@2.6.0 — issuing into the node's own wallet ───────────────────
+
+`issue-credential` demands `keys.generic_api` metadata. The one documented way
+to write keys is user-upsert's `keys` argument, which accepts every shape we
+tried WITHOUT complaint — and the consumer still reports it missing.
+
+  wrote keys={}                 accepted silently; issue-credential -> RPC Error: input: keys.generic_api metadata is required [8ed
+  wrote keys=issuer + alg       accepted silently; issue-credential -> RPC Error: input: keys.generic_api metadata is required [f21
+  wrote keys=a real Ed25519 JWK accepted silently; issue-credential -> RPC Error: input: keys.generic_api metadata is required [19a
+
+  What the same contract does answer:
+    my-presentations -> "{\"presentations\":[]}"
+    submit-vp        -> RPC Error: unsatisfied: query could not be satisfied with available credentials [71695bd2-fc5a-4cf8-8cd9-3dd6a
+
+    That `unsatisfied` is the node acting as a HOLDER: it took the OpenID4VP
+    request, ran the DCQL query against the credentials it keeps, and found
+    none. The stack is real. We just cannot put a credential into it.
+
+Both blockages reproduce. Nothing here is buildable against yet.

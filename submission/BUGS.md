@@ -43,6 +43,8 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | 24 | The `discover*` reads reject the tenant's API key with a bare `HTTP 400`; they need an agent key nothing mentions | **new** | open |
 | 25 | Discovery says a function exists but never how to call it, and `delegation.check` denies without saying what is missing | **new** | open |
 | 26 | Two core contracts are served by the node, documented nowhere, and wrapped by no SDK helper — including a whole OpenID4VP stack | **new** | open |
+| 27 | `tee:agent-connect` is unreachable: the profile *writer* refuses the exact field the profile *reader* requires | **new** | open |
+| 28 | `user-upsert` accepts any `keys` payload silently, and `tee:vc/issue-credential` still calls it missing | **new** | open |
 
 Four fixed, one likely fixed, one partly adopted into the docs. Thank you — the
 ones that got fixed were the ones that most got in a newcomer's way.
@@ -483,3 +485,97 @@ the one we filed, and we would not have found it without discovery.
 **Asked for.** List every core contract the node serves in the docs with its
 functions and their inputs; or, failing that, say in the Quickstart that
 `contracts.list` is how you find out what exists.
+
+## #27 — `tee:agent-connect` is unreachable: one core contract refuses the field another core contract requires
+
+**Where** `tee:agent-connect@1.4.0` and `tee:user@3.6.0`, same node.
+
+**Repro** `node t3-qa/core-contracts-probe.mjs`
+
+**What happens.** Every caller-facing function of the commerce contract fails on
+the same thing:
+
+```
+commerce-quote           → agent-connect: malformed user-profile JSON envelope:
+commerce-intent-create      missing field `kind` at line 1 column 2630
+commerce-intent-confirm
+commerce-intent-cancel
+commerce-history-get
+```
+
+(`commerce-webhook-apply` is a different, system-side path: it wants
+`missing field \`connector\``.)
+
+The envelope is **assembled by the host**, not by the caller. We proved that:
+the byte offset in the error does not move whether we send `user_profile` as an
+object, as a JSON string, as `userProfile`, or not at all. It *did* move — 2162
+→ 2630 — when we wrote a user profile with `submitUserInput`, which is how we
+know the envelope is the stored profile.
+
+So the field has to go into the stored profile. `user-upsert` refuses it:
+
+```
+submitUserInput({ profile: { kind: "individual" } })
+→ Profile validation failed: UnrecognizedKeys { keys: ["kind"] }
+```
+
+Same for `Kind` and `profile_kind`. And `UserInputProfile` in the SDK types has
+an index signature (`[key: string]: unknown`), so the type system says this
+should be allowed while the server says it is not.
+
+**Why it matters.** One core contract on the node cannot be called at all, by
+anyone using the documented client, because a second core contract on the same
+node validates the same document to a different schema. There is no caller-side
+workaround: we tried every channel the SDK exposes.
+
+This is the contract we would most like to use. Our agent is a *mandate gate for
+commerce* — deciding whether an intent may be confirmed is exactly the shape of
+`commerce-intent-confirm`. We have written it up in ADOPTIONS.md as attempted
+and blocked rather than as a design choice, because it was not one.
+
+**Asked for.** Make `user-upsert` accept `kind`, or make `agent-connect` tolerate
+its absence, or document which one is authoritative. Whichever it is, one of the
+two is currently wrong about its own platform's profile shape.
+
+## #28 — `user-upsert` accepts any `keys` payload silently, and the consumer still calls it missing
+
+**Where** `tee:user@3.6.0` (`submitUserInput`) and `tee:vc@2.6.0`
+(`issue-credential`).
+
+**Repro** `node t3-qa/core-contracts-probe.mjs`
+
+**What happens.** `tee:vc/issue-credential` refuses every call with:
+
+```
+input: keys.generic_api metadata is required
+```
+
+`SubmitUserInputArgs.keys?: Record<string, unknown>` is the only documented way
+to write keys, so we wrote them — three different shapes, from an empty object to
+a well-formed Ed25519 JWK. **All three were accepted**, each returning a real
+`txHash`:
+
+```
+keys = { generic_api: {} }                       → { txHash: "tx:121:152240" }
+keys = { generic_api: { issuer, alg } }          → { txHash: "tx:121:152243" }
+keys = { generic_api: <Ed25519 JWK> }            → { txHash: … }
+```
+
+and after each one, `issue-credential` still reported the metadata as required.
+
+**Why it matters.** Two failures compound. The writer performs no validation at
+all on `keys` — an empty object is committed as happily as a real key — so there
+is no feedback loop; and the reader's error names a field without naming the
+shape or the place it should have been written. A developer can loop between
+them indefinitely, as we did, with every write reporting success.
+
+Because of it, the node's OpenID4VP stack is visible but unusable. `submit-vp`
+takes a real DCQL query and answers `unsatisfied: query could not be satisfied
+with available credentials` — it is genuinely running as a holder — and
+`my-presentations` returns `{"presentations":[]}`. There is simply no documented
+way to put a credential in.
+
+**Asked for.** Validate `keys` on write and reject what the consumer will not
+accept; and say in the `issue-credential` error where issuer metadata is meant to
+be registered. If issuer onboarding is an operator action rather than a
+developer one, say *that* — it is a short sentence that saves a long afternoon.
