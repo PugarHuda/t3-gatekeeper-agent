@@ -13,7 +13,8 @@ export const CONTRACT_TAIL = "gate";
 // The last version actually ON the network is 0.7.0 (contract_id 479); later
 // versions are built and unit-tested but unregistered, because the account is
 // out of credits.
-export { CONTRACT_VERSION } from "./gate-cli.mjs";
+import { CONTRACT_VERSION } from "./gate-cli.mjs";
+export { CONTRACT_VERSION };
 
 // Name of the entry in z:<tid>:secrets holding the broker's bearer token.
 // Only meaningful when BROKER_API_KEY is set — see setup.mjs.
@@ -114,4 +115,55 @@ export async function executeContract(tenant, tail, opts, { retries = 3, log = c
       await new Promise((r) => setTimeout(r, waitMs));
     }
   }
+}
+
+/**
+ * Write one KV entry through the control plane, which bypasses the map's ACL.
+ *
+ * This is the tenant admin's pen: the mandate, the sealed credential and the
+ * revocation list all get written this way, and none of them can be written by
+ * the contract or the agent at runtime. Throws on failure — a seed that
+ * silently did not happen is a mandate that silently is not enforced.
+ */
+export async function seedEntry(tenant, tail, key, value) {
+  return tenant.executeControl("map-entry-set", {
+    map_name: tenant.canonicalName(tail),
+    key,
+    value: typeof value === "string" ? value : JSON.stringify(value),
+  });
+}
+
+/**
+ * Authorise the enclave's outbound HTTP for this caller.
+ *
+ * Outbound calls from a contract are authorised by the CALLER, not the
+ * contract: the host resolves the caller's `agent-auth` grant and only then
+ * lets the enclave reach the destination. Without a matching grant the contract
+ * runs fine and `http.call` returns `host/http.egress_denied`.
+ *
+ * `tee:user/contracts` is a system contract whose version moves, so it is
+ * resolved rather than pinned — the server rejects a literal "latest", and
+ * `script_version` is required (omitting it is a 400 with no hint).
+ */
+export async function grantEgress(client, tenant, agentDid, hosts, {
+  functions = ["evaluate", "spend", "dispatch_action", "execute_action"],
+} = {}) {
+  const { getContractVersion } = await import("@terminal3/t3n-sdk");
+  const USER_CONTRACT = "tee:user/contracts";
+  return client.execute({
+    script_name: USER_CONTRACT,
+    script_version: await getContractVersion(BASE_URL, USER_CONTRACT),
+    function_name: "agent-auth-update",
+    input: {
+      agents: [{
+        agentDid,
+        scripts: [{
+          scriptName: tenant.canonicalName(CONTRACT_TAIL),
+          versionReq: CONTRACT_VERSION,
+          functions,
+          allowedHosts: hosts,
+        }],
+      }],
+    },
+  });
 }

@@ -6,7 +6,7 @@
 //   cargo +stable-x86_64-pc-windows-gnu build --lib --target wasm32-wasip2 --release
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, CREDENTIAL_KEY } from "./lib.mjs";
+import { connect, seedEntry, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, CREDENTIAL_KEY } from "./lib.mjs";
 
 const WASM_PATH = fileURLToPath(
   new URL("../../gate-contract/target/wasm32-wasip2/release/gate_contract.wasm", import.meta.url),
@@ -48,14 +48,10 @@ async function ensureMap(tail, readers, writers) {
   }
 }
 
-/** Write one entry through the control plane, which bypasses the map's ACL. */
+/** Seed one entry, reporting rather than throwing — setup should finish its list. */
 async function seed(tail, key, value, label) {
   try {
-    await tenant.executeControl("map-entry-set", {
-      map_name: tenant.canonicalName(tail),
-      key,
-      value,
-    });
+    await seedEntry(tenant, tail, key, value);
     console.log(`${label} ✅`);
   } catch (e) {
     console.log(`${label} note:`, e.message);
@@ -71,7 +67,7 @@ const nobody = { only: [] };
 // hatch — so the agent cannot widen its own limits. Readable by the contract,
 // writable by nobody at runtime (the control plane wrote it).
 await ensureMap("mandate", contractOnly, nobody);
-await seed("mandate", "default", JSON.stringify(MANDATE), `Mandate seeded ${JSON.stringify(MANDATE)}`);
+await seed("mandate", "default", MANDATE, `Mandate seeded ${JSON.stringify(MANDATE)}`);
 
 // The stateful velocity gate (`spend`) keeps its running total here. Restrict
 // BOTH read and write to the contract: spend() read-modify-writes the counter,
