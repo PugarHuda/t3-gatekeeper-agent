@@ -1,0 +1,31 @@
+
+> t3-gatekeeper-agent@0.1.0 demo:mcp
+> node src/mcp-demo.mjs
+
+
+connected to MCP server "gatekeeper" v0.10.0 over stdio
+
+tools it offers (8):
+    gate_evaluate            Evaluate an action against a mandate
+    bind_credential          Bind a verified credential to one action
+    check_credential_status  Check a credential's revocation status
+    discover_agent           Discover an A2A peer from its domain
+    resolve_erc8004_agent    Resolve an ERC-8004 agent on-chain
+    check_erc8004_registry   Preflight an ERC-8004 registry before spending gas
+  ! fetch_paid_resource      Fetch a resource that costs money (x402), with the mandate deciding
+  ! gate_execute             Execute an action inside the enclave
+  ("!" marks the ones that can move money or reach the network)
+
+resource gatekeeper://status
+  contract 0.10.0 · offline decisions ready
+  live dispatch: needs T3N_API_KEY + DID in agent/.env and a funded account
+
+▸ buy $1,000 of USDC from the approved fund
+    APPROVED — inside mandate.
+▸ buy $9,000 — over the mandate
+    REJECTED — amount 900000 exceeds mandate max 500000
+▸ pay someone the mandate never listed
+    REJECTED — counterparty 'did:t3n:unknown-payee' not permitted (allowed_counterparties=["did:t3n:meridian-fund"])
+
+Those verdicts came from gate_cli — the host build of the same Rust the
+enclave runs — over JSON-RPC, with no Terminal 3 account and no credits spent.

@@ -1,0 +1,16 @@
+
+> t3-gatekeeper-agent@0.1.0 probe
+> node src/probe-contract.mjs
+
+Probing probe@0.10.0 (255706 bytes) — NOT the production tail.
+  register note (already at this version?): RPC Error: contract version invalid: version 0.10.0 is not higher than current version 0.10.0 [f61c4230-9f41-4d3a-b1c8-834a1cbd05df]
+  PASS  evaluate — in mandate
+        {"decision":"approved","reasons":[],"evaluated_at_secs":1787803113,"mandate_source":"inline","tenant_did":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","audit":{"kind":"rwa.buy","asset":"USDC","amount_cents":100000,
+  PASS  evaluate — over cap is refused
+        {"decision":"rejected","reasons":["amount 900000 exceeds mandate max 500000"],"evaluated_at_secs":1787803113,"mandate_source":"inline","tenant_did":"did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f","audit":{"kind":"rwa.
+  PASS  dispatch_action — host http resolves
+        {"error":"host/http.egress_denied: host 'example.invalid' not in the authorised_hosts allowlist","ok":false}
+  PASS  dispatch_action — placeholder routing resolves
+        {"error":"host/http.egress_denied: host 'example.invalid' not in the authorised_hosts allowlist","ok":false}
+
+0.10.0 is safe to promote: run `npm run setup` to register it under the production tail.

@@ -1,0 +1,32 @@
+
+> t3-gatekeeper-agent@0.1.0 demo:x402
+> node src/x402-demo.mjs
+
+x402 — the mandate decides whether to pay
+  paywall  http://127.0.0.1:65031/quote   (a real HTTP 402 from this process)
+  wallet   0x3b17E072403E4dA553D2f8137eC984F29B0A1eC8   (ephemeral, unfunded: signatures are real, settlement is not)
+  mandate  max $5.00 · x402.pay only · payee 0x209693Bc6afc0C5328bA36FaF03C514EF312287C
+
+▸ a $0.01 quote from an approved provider
+    price seen by the mandate  1¢ of USDC to 0x209693Bc6afc0C5328bA36FaF03C514EF312287C
+    PAID  → HTTP 200  {"quote":"MERIDIAN-PC-2026","nav_cents":10250}
+    the server recovered the payer from the signature: 0x3b17E072403E4dA553D2f8137eC984F29B0A1eC8
+    settled=false — the authorisation is real, nothing was broadcast
+
+▸ the same price, from a payee the mandate never listed
+    price seen by the mandate  1¢ of USDC to 0x000000000000000000000000000000000000dEaD
+    NOT PAID — counterparty '0x000000000000000000000000000000000000dEaD' not permitted (allowed_counterparties=["0x209693Bc6afc0C5328bA36FaF03C514EF312287C"])
+    nothing was signed, and the resource is still 402
+
+▸ a $10.00 quote — over the whole API budget
+    price seen by the mandate  1000¢ of USDC to 0x209693Bc6afc0C5328bA36FaF03C514EF312287C
+    NOT PAID — amount 1000 exceeds mandate max 500
+    nothing was signed, and the resource is still 402
+
+▸ a mandate that only allows trading, not paying for APIs
+    price seen by the mandate  1¢ of USDC to 0x209693Bc6afc0C5328bA36FaF03C514EF312287C
+    NOT PAID — action kind 'x402.pay' not permitted (allowed_kinds=["rwa.buy"])
+    nothing was signed, and the resource is still 402
+
+The paywall served 1 of 4 requests. The other 3 never
+reached a signature, because a gate that only says yes is not a gate.

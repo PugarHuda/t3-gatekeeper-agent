@@ -33,7 +33,7 @@ const SHOTS = [
   { name: "01-quickstart-auth", title: "Quickstart on SDK 5.1.0 — trustAnchor → handshake → authenticate → getUsage (live)",
     cmd: "node auth-test.mjs", cwd: QA },
   { name: "02-cli-whoami", title: "t3n whoami — the network returns our Agent DID", cmd: t3n("whoami"), cwd: OUT },
-  { name: "03-contract-deployed", title: "Our Rust TEE contract, live on the network",
+  { name: "03-contract-deployed", title: "Our Rust TEE contract, live on the network (0.10.0 — and bug #8: the id field echoes the name back)",
     cmd: t3n(`contract get z:${DID.replace("did:t3n:", "")}:gate`), cwd: OUT },
   { name: "04-agent-registered", title: "Agent ID registered on-network (and bug #10 — the address as a decimal array)",
     cmd: t3n(`agent registry ${DID} --full`), cwd: OUT },
@@ -43,7 +43,7 @@ const SHOTS = [
   { name: "06-egress-grant", title: "agent-auth-update — the caller authorises what the enclave may reach",
     cmd: "npm run grant:egress", cwd: AGENT, credits: true,
     env: { ACTION_ENDPOINT: "https://postman-echo.com/post" } },
-  { name: "07-tests", title: "node verify.mjs — one command, 85 checks, no API key, no credits spent",
+  { name: "07-tests", title: "node verify.mjs — one command, 220 checks, no API key, no credits spent",
     cmd: "node verify.mjs", cwd: REPO,
     // 167 lines of per-test output is not a readable screenshot; keep the
     // section headers and the tallies. The full text is in 07-tests.txt.
@@ -67,6 +67,13 @@ const SHOTS = [
   { name: "15-bug-metering", title: "bug #21 — publishing a card costs 6.7x a full grant; creating the agent was free",
     cmd: t3n("agent card-publish --owner did:t3n:93d8852130b8fe8e15c156ab8f445af975593db9 --agent did:t3n:8f8849397fb511899fcf90caa4bdc75b0792d808"),
     cwd: OUT },
+  // ── distribution and payments ───────────────────────────────────────────
+  { name: "21-mcp-server", title: "The gate over MCP — a real client, a real subprocess, eight tools, no account needed",
+    cmd: "npm run demo:mcp", cwd: AGENT },
+  { name: "22-x402-mandated-payment", title: "x402 — the mandate decides whether to pay, and only then is anything signed",
+    cmd: "npm run demo:x402", cwd: AGENT },
+  { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
+    cmd: "npm run probe", cwd: AGENT, credits: true },
 ];
 
 // `--live` re-runs the two shots that spend credits. Without it they are left

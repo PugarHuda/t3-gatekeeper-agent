@@ -18,7 +18,9 @@
     "audit": "node src/audit.mjs",
     "status-list": "node src/publish-status-list.mjs",
     "mcp": "node src/mcp-server.mjs",
-    "probe": "node src/probe-contract.mjs"
+    "probe": "node src/probe-contract.mjs",
+    "demo:x402": "node src/x402-demo.mjs",
+    "demo:mcp": "node src/mcp-demo.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

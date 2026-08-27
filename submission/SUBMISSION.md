@@ -37,10 +37,14 @@ maintenance after the challenge ends*:
 | **ERC-8004 live** | Real reads against the reference registry, and a preflight that refuses to mint against the wrong contract |
 | **A2A discovery** | The card is published at the well-known path; a peer needs only the domain |
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
+| **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
+| **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
+| **Probe before promote** | `npm run probe` registers to a throwaway tail and invokes it, so a build that would brick the production tail is caught for the price of one registration |
 | **`node verify.mjs`** — one command | Prove the repo is healthy with no key, no network, no credits. It prints its own total |
 | **MAINTENANCE.md** | Every knob, the real failure modes, a handover sequence |
 | Version single-sourced; CI runs the same script | Two classes of drift removed rather than documented |
-| **21 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed |
+| **23 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
+| **Metering measured, not guessed** | 30,034,055 credits a call; 1,370,147,045 a registration. Nothing publishes these |
 
 | Bounty requirement | Where |
 | --- | --- |
@@ -49,7 +53,7 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 15, every one from real command output |
+| Screenshots | §9 — 23, every one from real command output |
 | Bugs faced | §8 — 23 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
@@ -292,6 +296,79 @@ anonymous payment instruction at a broker. Three tests hold that rule down.
 
 ---
 
+### 4.7 The gate, served over MCP
+
+Everything above is only useful to someone who clones this repository. That is
+not distribution, and the brief asked for an agent that can be distributed.
+
+So the agent is now also an **MCP server**. A host adds one line:
+
+```bash
+claude mcp add gatekeeper -- node /abs/path/to/agent/src/mcp-server.mjs
+```
+
+and gets eight tools. The one that matters most is `gate_evaluate`: it answers
+from `gate_cli`, the host build of the *same Rust source* the enclave runs. So a
+host can ask "is this action inside the mandate?" before every action —
+**offline, free, with no Terminal 3 account and no credits** — and get the
+contract's real answer rather than a JavaScript approximation of it that would
+agree with itself and prove nothing.
+
+`gate_execute` is the other half, and it deliberately does not degrade. Without
+credentials it says what is missing and points at `gate_evaluate`. A gate that
+quietly falls back to a local guess when it cannot reach the enclave is not a
+gate, and a host would never know the difference.
+
+The test for this does not call the tool functions. It spawns the server as a
+subprocess and drives it with the official MCP client over stdio, because a test
+that imported the functions would prove the functions work and say nothing about
+whether the server does (19 tests). One of them runs the same input through both
+paths and asserts the results are identical — so if anyone ever reimplements the
+rules in JS to make the server faster, it fails.
+
+*Shot 21.* Also `npm run demo:mcp`, which is the same thing in ten seconds.
+
+### 4.8 x402 — the mandate decides whether to pay
+
+An agent that can pay for things can be talked into paying for the wrong things.
+x402 makes that concrete: a server answers HTTP 402 with a price, and the agent
+signs and retries.
+
+The interesting question is not *can* the agent pay — it holds a key, so it can —
+but *may* it, at this price, to this recipient. So the payment requirement is
+mapped into an ordinary `Action` and goes through the same enclave mandate as
+every trade:
+
+| From the 402 | Becomes |
+| --- | --- |
+| `amount` + the asset's decimals | `amount_cents`, **rounded up** — a fraction of a cent must never round a payment *under* a cap |
+| `extra.name` | `asset` |
+| `payTo` | `counterparty`, so a mandate can allow-list who may be paid |
+| — | `kind: "x402.pay"`, its own category |
+
+That last row is the point. Permission to trade is not permission to spend on
+APIs: a mandate that never mentions `x402.pay` refuses every paywall, because
+deny-by-default already covers it. And an asset that does not declare its
+decimals is **refused rather than guessed** — a wrong guess there is a spending
+limit off by a factor of a hundred.
+
+What is real: the v2 HTTP transport (`PAYMENT-REQUIRED` / `PAYMENT-SIGNATURE` /
+`PAYMENT-RESPONSE`, base64 JSON), a genuine EIP-712 signature over the EIP-3009
+`TransferWithAuthorization` type hash against the real Base Sepolia USDC domain,
+and verification that recovers the payer with ecrecover — the same check a
+facilitator's `/verify` performs, minus the balance read. The verifier compares
+against the *server's own* requirement, never the one echoed back in the payload,
+because that field is attacker-controlled; a test signs a one-cent authorisation,
+relabels it as the ten-dollar one, and watches it get refused.
+
+What is not real, said plainly: **settlement**. Broadcasting needs a facilitator
+and a funded wallet. `settle()` posts the spec's `/settle` body when
+`X402_FACILITATOR_URL` is set and **refuses** when it is not, because a receipt
+this process invented would be believed by whatever read it.
+
+28 Node tests and 6 Playwright tests, all over real HTTP against a real 402.
+*Shots 20 and 22*, and `npm run demo:x402`.
+
 ## 5. After the challenge: I would rather hand this over
 
 **I am happy for Terminal 3 to take this over and host it**, and I would keep
@@ -344,7 +421,7 @@ node verify.mjs
 ```
 
 Rust unit tests → wasm component build → Node tests → Playwright end-to-end over
-the *real* Rust decision function. 85 checks, no API key, no network, no credits.
+the *real* Rust decision function. 220 checks, no API key, no network, no credits.
 It selects the GNU toolchain automatically on Windows, which is otherwise a
 documented footgun a newcomer hits on their first build.
 
@@ -534,13 +611,13 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | --- | --- | --- |
 | 01 | `01-quickstart-auth.png` | Quickstart on 5.1.0 — trustAnchor → handshake → authenticate → getUsage, live |
 | 02 | `02-cli-whoami.png` | the network returning our Agent DID |
-| 03 | `03-contract-deployed.png` | our Rust TEE contract live on the network |
+| 03 | `03-contract-deployed.png` | our Rust TEE contract live at 0.10.0 — and bug #8, the id field echoing the name back |
 | 04 | `04-agent-registered.png` | Agent ID registered — and bug #10, the address as a decimal array |
-| 05 | `05-full-flow.png` | the whole agent: VC gate → TEE mandate → audit → in-TEE dispatch (HTTP 200) |
+| 05 | `05-full-flow.png` | the whole agent on 0.10.0: VC gate → TEE mandate → audit → in-TEE dispatch (**HTTP 200**) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` — the caller authorising enclave egress |
-| 07 | `07-tests.png` | `node verify.mjs` — 85 checks, no key, no credits |
+| 07 | `07-tests.png` | `node verify.mjs` — 220 checks, no key, no credits |
 | 08 | `08-bug-token-balance.png` | bug #9 **fixed** |
-| 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter`, now only credits |
+| 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter` |
 | 10 | `10-bug-node-version.png` | bug #12 **fixed** — node on 0.17.0 |
 | 11 | `11-qa-console-approved.png` | QA happy path |
 | 12 | `12-qa-console-rejected.png` | QA wrong path — unlisted payee refused by name |
@@ -551,17 +628,23 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 17 | `17-audit-ledger.png` | `audit.get-mine` — the host's own record, read back |
 | 18 | `18-status-list.png` | the published W3C revocation list, 131,072 entries |
 | 19 | `19-qa-console-binding-moved.png` | a credential verified for $500, refused on $4,000 |
+| 20 | `20-qa-console-x402-paid.png` | the console paying a real 402, with the payee recovered from the signature |
+| 21 | `21-mcp-server.png` | the gate over MCP — a real client, a real subprocess, eight tools, no account |
+| 22 | `22-x402-mandated-payment.png` | x402 — one payment made, three refused before anything was signed |
+| 23 | `23-probe-before-promote.png` | the build proven under a throwaway tail before production points at it |
 
-Shots 05 and 06 were captured live on 8 August against v0.6.0. They are not
-re-run here: the account is at zero credits, so re-running would replace a real
-working flow with a 403. `capture.mjs --live` refreshes them once credits exist.
+Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
+once the account was topped up — so the working flow in shot 05 is the current
+contract, not a remembered one.
 
-Shots 14–19 are new and are in the repo; the evidence site is one deploy behind
-them, because Vercel's free tier refused further deployments ("more than 100 per
-day"). The same deploy publishes the A2A agent card and the revocation status
-list, so their live assertions are red until it goes out — the paths are proven
-against the identical files served locally. `capture.mjs` syncs the PNGs into
-`site/shots/` itself now, rather than leaving that as a manual step to forget.
+The evidence site is one deploy behind: Vercel's free tier refused further
+deployments for two days ("more than 100 per day"), so shots 14–23, the A2A
+agent card and the revocation status list are in the repo but not yet served.
+Their live assertions are the only red tests in the suite, and they are red for
+that reason alone — the same files are proven against a local server. One
+`cd site && npx vercel deploy --prod --yes` clears it. `capture.mjs` syncs the
+PNGs into `site/shots/` itself, and `npm run status-list` now republishes the
+agent card too, so neither is a manual step to forget.
 
 ---
 
@@ -571,15 +654,22 @@ I would rather state this than imply a live run I did not do.
 
 | | |
 | --- | --- |
-| **On the network now** | v0.7.0, `contract_id 479` |
-| **Built, tested, not registered** | v0.9.0 — trusted issuers, per-counterparty sub-limits, the enclave-held credential |
-| **Why** | balance is 0. Registering v0.7.0's 204 KB wasm consumed the whole grant (bug #16), and every write since returns `required=10000000000, available=0` |
+| **On the network now** | **v0.10.0, `contract_id 749`**, registered 2026-08-27 |
+| **Proven live** | the KV mandate read, the credential/action binding, idempotent dispatch, in-enclave outbound HTTP (**200**), and `http-with-placeholders` — which until this week had only ever been compiled in |
+| **Still not live** | the ERC-8004 mint (needs a gas-funded wallet) and x402 settlement (needs a facilitator and a funded stablecoin wallet). Both refuse to run unconfigured rather than faking it |
 
-v0.9.0's Rust logic is covered by 32 unit tests and its decision path is
-exercised end to end through `gate_cli` by the Playwright suite, so the logic is
-tested — but the KV-mandate read and the enclave credential fetch are wasm-only
-and have not run on a node. With a top-up, `npm run setup` registers it and the
-remaining live evidence follows in one pass.
+An earlier draft of this section said v0.9.0 was built but unregistered because
+the balance was zero. A top-up landed on 2026-08-27, so that is no longer true
+and the live evidence in §9 is from this week.
+
+Getting there taught the two newest bug reports. The build was promoted only
+after `npm run probe` registered it to a throwaway tail and invoked it — which
+is how we learned the node really does serve `http-with-placeholders`, rather
+than assuming it. And the first funded run of the demo failed at the eligibility
+gate with `verify=false`, because the status-list work written during the
+credit outage had been attaching `credentialStatus` *after* signing; the SDK
+offers no way to sign one at all (bug #22). Code written while it cannot be run
+is code that has not been tested, and this is what that costs.
 
 A full inventory of what is shipped, what is deliberately shallow, and what is
 worth building next is in
@@ -605,7 +695,7 @@ No key, no credits, no network — the whole test suite:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                  # 85 checks
+node verify.mjs                  # 220 checks
 ```
 
 With your own key:

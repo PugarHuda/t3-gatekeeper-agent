@@ -19,12 +19,15 @@ for (const [id, file] of [
   // The attack the credential binding exists to stop: a real verification,
   // moved onto a bigger action.
   ["s-bind-moved", "19-qa-console-binding-moved.png"],
+  // Paying for a resource: the console fetches a real 402 from its own server
+  // and the payee's signature check runs before anything is served.
+  ["x-pay-ok", "20-qa-console-x402-paid.png"],
 ]) {
   await page.getByTestId(id).click();
   await page.waitForFunction(() => document.body.dataset.decision !== undefined);
   await page.screenshot({ path: path.join(OUT, file) });
   console.log(`wrote ${file}`);
-  await page.evaluate(() => { delete document.body.dataset.decision; });
+  await page.evaluate(() => { delete document.body.dataset.decision; delete document.body.dataset.paid; });
 }
 
 await browser.close();
