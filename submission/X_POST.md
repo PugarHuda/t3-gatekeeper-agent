@@ -27,7 +27,7 @@ Auditing my own contract for this, I found 3 ways the gate could be bypassed —
 including one where the agent supplied the very limits it was judged against.
 All fixed.
 
-Rust → WASM on @Terminal3io, 82 tests, 19 bugs reported.
+Rust → WASM on @Terminal3io, 220 tests, 23 bugs reported.
 
 https://gatekeeper-evidence.vercel.app
 ```
@@ -45,7 +45,7 @@ An AI agent that can spend your money, without being trusted with it.
 Fund learns one fact — "buyer is accredited" — as a ZK proof. Mandate is enforced
 inside a TEE, so the agent can't raise its own limit.
 
-Rust→WASM on @Terminal3io · 82 tests · 19 bugs found
+Rust→WASM on @Terminal3io · 220 tests · 23 bugs found
 
 https://gatekeeper-evidence.vercel.app
 ```
@@ -128,7 +128,7 @@ and an unconfigured mandate that must deny by default.
 
 **8/**
 ```
-Also filed 19 bugs and doc gaps to @Terminal3io with repro steps, incl. one
+Also filed 23 bugs and doc gaps to @Terminal3io with repro steps, incl. one
 security issue: redactSecrets() redacts `private_key` but NOT `privateKey` —
 the ordinary camelCase spelling. `mnemonic` and `seed` aren't covered at all.
 

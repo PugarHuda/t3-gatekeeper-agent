@@ -7,7 +7,7 @@
 //                 RFC 9421) so the destination can verify it came from this agent
 import * as vcCore from "@terminal3/vc_core";
 import * as bbs from "@terminal3/bbs_vc";
-import { connect, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, actionEndpoint } from "./lib.mjs";
+import { connect, executeContract, CONTRACT_TAIL, CONTRACT_VERSION, MANDATE, actionEndpoint } from "./lib.mjs";
 import { loadAgentKey, signRequest, verifyRequest } from "./web-bot-auth.mjs";
 import { buildOptionsFromEnv, checkCredentialStatus } from "./revocation.mjs";
 import { statusEntry, STATUS_LIST_URL, DEMO_REVOKED_INDEX } from "./status-list.mjs";
@@ -18,21 +18,23 @@ import { randomUUID } from "node:crypto";
 // underlying net worth, name, or DOB. (Predicate-credential model: see README.)
 async function issueEligibilityCredential(subjectDid, statusListIndex = 0) {
   const issuer = new bbs.BbsDID(vcCore.randomKeyBls());
-  const vc = await bbs.createBbsCredential(
-    issuer,
-    new vcCore.DID(...vcCore.getMethodIdentifier(subjectDid)),
-    { accreditedInvestor: true, jurisdiction: "SG" },
-    ["VerifiableCredential", "AccreditationCredential"],
-    undefined, undefined, undefined, undefined, true,
-  );
   // Where this credential's revocation state is published. The holder is one
   // bit in a list of 131,072, so checking it tells the issuer nothing about who
   // is transacting — see src/status-list.mjs.
-  vc.id ??= `urn:vc:eligibility:${statusListIndex}`;
-  vc.credentialStatus = statusEntry({
-    statusListCredential: STATUS_LIST_URL,
-    statusListIndex,
-  });
+  //
+  // It goes in the CLAIMS, not on the finished credential, because
+  // `createBbsCredential` signs the subject and offers no parameter for a
+  // top-level `credentialStatus`. Assigning one afterwards invalidates the BBS+
+  // proof — bug #22 — so the choice is between a status entry the issuer signed
+  // and one anybody could have attached. See `credentialStatusOf`.
+  const status = statusEntry({ statusListCredential: STATUS_LIST_URL, statusListIndex });
+  const vc = await bbs.createBbsCredential(
+    issuer,
+    new vcCore.DID(...vcCore.getMethodIdentifier(subjectDid)),
+    { accreditedInvestor: true, jurisdiction: "SG", credentialStatus: status },
+    ["VerifiableCredential", "AccreditationCredential"],
+    undefined, undefined, undefined, undefined, true,
+  );
   return { vc, issuerDid: issuer.did };
 }
 
@@ -92,7 +94,7 @@ async function act(label, action, mandate = MANDATE) {
   await pace(); // recording pacing (no-op unless DEMO_PAUSE_MS is set)
   let d;
   try {
-    d = await tenant.contracts.execute(CONTRACT_TAIL, {
+    d = await executeContract(tenant, CONTRACT_TAIL, {
       version: CONTRACT_VERSION, functionName: "evaluate", input: { action, mandate },
     });
   } catch (e) {
@@ -143,7 +145,7 @@ async function executeForReal(label, action, credential = binding(action), idemp
   console.log(`\n[LIVE] ${label}`);
   console.log(`       signed (web-bot-auth, body digest)  destination-verifiable=${verifiable}`);
   try {
-    const r = await tenant.contracts.execute(CONTRACT_TAIL, {
+    const r = await executeContract(tenant, CONTRACT_TAIL, {
       version: CONTRACT_VERSION, functionName: "execute_action",
       input: { action, url: ACTION_ENDPOINT, method: "POST", body, credential, idempotency_key: idempotencyKey },
     });

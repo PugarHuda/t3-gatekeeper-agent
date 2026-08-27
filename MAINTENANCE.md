@@ -86,17 +86,43 @@ node verify.mjs                       # prove it works before touching the netwo
 cp agent/.env.example agent/.env      # add T3N_API_KEY + DID
 cd gate-contract && cargo build --lib --target wasm32-wasip2 --release
 cd ../agent
+npm run probe                         # prove the build works under a throwaway tail FIRST
 npm run setup                         # register the contract, create + seed the 4 maps
 npm run grant:egress                  # authorise the enclave's outbound host
 npm run demo                          # the full chain, end to end
+
+### Handing the gate to someone else's agent
+
+The point of the MCP server is that nobody has to clone this repo to use the
+gate. One line, and any MCP host has it:
+
+```bash
+claude mcp add gatekeeper -- node /abs/path/to/agent/src/mcp-server.mjs
+```
+
+`gate_evaluate`, `bind_credential`, `check_credential_status`, `discover_agent`,
+`resolve_erc8004_agent`, `check_erc8004_registry` and `fetch_paid_resource` all
+work with **no Terminal 3 account at all** — they run the compiled contract
+logic locally, or read public chains and documents. Only `gate_execute` needs
+`agent/.env` and credits, and it says so instead of guessing.
+
+Build `gate_cli` first, or the offline tools have nothing to call:
+
+```bash
+cd gate-contract && cargo build --bin gate_cli --release --target x86_64-pc-windows-gnu
+```
+
+(Read `gatekeeper://status` from the server to see whether it found the binary.)
 ```
 
 `npm run setup` is idempotent and safe to re-run: it re-points every map's ACL
 at the newly registered contract id, which is necessary because that id changes
 on every registration.
 
-**`npm run setup` is also the only expensive command.** Registering the ~215 KB
-wasm consumed an entire test grant (1.487e9 credits → 0) in August 2026. Do not
+**`npm run setup` is also the only expensive command.** Measured on
+2026-08-27: registering the 255,706-byte wasm costs **1,370,147,045 credits**
+(about 5,358 per byte), against **30,034,055** for one contract call. A grant of
+4e10 buys roughly 29 registrations, or 1,300 calls. Do not
 run it to "check something" — check with `verify.mjs` instead, and check the
 balance with `npm --prefix agent run auth` first.
 
@@ -105,6 +131,9 @@ balance with `npm --prefix agent run auth` first.
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | Every call 403s, `required=10000000000, available=0` | out of credits | request a top-up (`t.me/wardumb` for testnet grants) |
+| `quota exceeded (fuel_per_minute)` after ~10 calls | the node allows 10 contract executions per minute (bug #23) | nothing to fix — `executeContract()` in `agent/src/lib.mjs` backs off and says so. Check the live limits with `tenant.tenant.me().quotas` |
+| A run of bare `RPC Error: Internal error` on contracts that worked a minute ago | usually the same per-minute quota, which does not always name itself | wait a minute and retry before suspecting the contract |
+| `verify=false` at the eligibility gate, with no reason | something was added to the credential after it was signed (bug #22) | put it in the claims, where `createBbsCredential` signs it — see `credentialStatusOf` |
 | `CONFIG_ERROR field=trustAnchor` | SDK <5.x, or a client built without `fetchTrustedManifest()` | upgrade; see the 5.1.0 migration commit |
 | `host/http.egress_denied` | the destination host is not on the caller's agent-auth grant | `npm run grant:egress` — and note the grant lists *functions*, so a new contract function needs adding there |
 | `read denied` on the spend map | map ACL still points at a previous contract id | re-run `npm run setup` |
@@ -128,7 +157,8 @@ account, no hardcoded DID, no key committed anywhere. Transfer is:
    DID appears in `agent/.env` and in `agent/agent-card.json`; nothing else
    references it, because every canonical map name is derived at runtime from
    `tenant_did()` inside the enclave.
-2. **The contract.** Re-register under the new tenant with `npm run setup`. The
+2. **The contract.** Probe it first (`npm run probe`), then re-register under
+   the new tenant with `npm run setup`. The
    old deployment keeps running under the old tenant and is not shared state.
 3. **The mandate.** Edit `MANDATE` in `agent/src/lib.mjs` and re-run setup, or
    write the KV entry directly. This is the only "business config", and it is

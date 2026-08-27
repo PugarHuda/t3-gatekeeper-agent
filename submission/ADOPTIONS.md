@@ -32,6 +32,8 @@ Run `node verify.mjs` to exercise every shipped row that does not need a network
 | **Idempotent dispatch** | A caller-chosen key; a retry replays the recorded outcome instead of placing a second order. | 5 Rust + 2 Playwright |
 | **Credential/action binding** | The agent commits to which credential it verified *and which action for*; the enclave recomputes that commitment from the action it is about to perform. | 8 Rust + 12 Node cross-language conformance |
 | **Deny-by-default mandates** | Amount cap, assets, kinds, counterparties, per-payee sub-limits, trusted issuers, validity window, expiry. An empty mandate approves nothing. | 47 Rust tests |
+| **MCP server** | The agent *as* an MCP server over stdio: `gate_evaluate`, `bind_credential`, `check_credential_status`, `discover_agent`, `resolve_erc8004_agent`, `check_erc8004_registry`, `fetch_paid_resource`, `gate_execute`, plus two resources. This is the distribution story — a host adds one line of config and gets the mandate gate. | 19 Node tests driving a **real MCP client** over stdio |
+| **x402 (HTTP 402 payments)** | A 402's payment requirement becomes an `Action` and goes through the same mandate. Only on approval is an EIP-3009 `TransferWithAuthorization` signed (real EIP-712) and the request retried. Verification recovers the payer with ecrecover — the facilitator's `/verify` minus the balance read. | 28 Node tests + 6 Playwright, over real HTTP |
 
 ## Not implemented, and why
 
@@ -41,9 +43,8 @@ Listed so nobody has to infer it from silence.
 | --- | --- |
 | **ERC-8004 mint** | Needs a gas-funded wallet. The script has the correct ABI, preflights the registry, and **refuses to run unconfigured** — there is no fake mint. Funding is the only missing piece. |
 | **ERC-8004 reputation** | Follows the mint. Our per-action audit rows are the right signal for it, but nothing is written on-chain today. |
-| **In-contract `vp.verify`** | Attempted and blocked by the host: importing `host:interfaces/vp` registers fine, then 500s on every invoke (bug #7, repro contract 164). Without it the enclave cannot verify a BBS+ proof itself — see STATUS_AND_ROADMAP §3.1 for exactly what that costs. |
+| **In-contract `vp.verify`** | Attempted and blocked by the host: importing `host:interfaces/vp` registers fine, then 500s on every invoke (bug #7). Without it the enclave cannot verify a BBS+ proof itself — see STATUS_AND_ROADMAP §3.1 for exactly what that costs. Re-checked 2026-08-27: the repro contract was reverted in June, so the finding stands on the June evidence and would cost a fresh registration to re-stage. |
 | **On-chain revocation registry** | Needs a deployed contract and gas. The `revoke_vc` code path is written and tested with an injected registry, and the status list above covers the same need without a chain. |
-| **AP2 / agentic-commerce rails** | **Not implemented.** The pieces AP2 needs — a hardware-held mandate, a signed request, an in-enclave dispatch — exist here, but no AP2 message format is produced or consumed, so calling this an adoption would be a claim about a resemblance rather than about code. |
-| **MCP** | Not implemented. The agent exposes no MCP server or client. |
+| **AP2 / agentic-commerce rails** | **Not implemented.** The pieces AP2 needs — a hardware-held mandate, a signed request, an in-enclave dispatch — exist here, but no AP2 message format is produced or consumed, so calling this an adoption would be a claim about a resemblance rather than about code. x402 was built instead because it can be exercised end to end against a real counterparty; an AP2 mandate with no network to present it to would be a shape. |
 | **Entra Agent ID** | Not implemented. Listed by the ADK; nothing here talks to it. |
-| **x402 / HTTP 402 payments** | Not implemented. It is a natural fit for the mandate — a per-request price the enclave could approve or refuse — but it would need a funded stablecoin wallet to be anything other than a shape. |
+| **x402 settlement** | The protocol, the signature and the verification all run (above). **Broadcasting** the authorisation does not: that needs a facilitator and a funded wallet. `settle()` posts the spec's `/settle` body when `X402_FACILITATOR_URL` is set and **refuses** when it is not, because a receipt this process invented would be believed by whatever reads it. |

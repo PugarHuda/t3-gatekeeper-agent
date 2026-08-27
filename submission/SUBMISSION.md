@@ -50,7 +50,7 @@ maintenance after the challenge ends*:
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
 | Screenshots | §9 — 15, every one from real command output |
-| Bugs faced | §8 — 21 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
+| Bugs faced | §8 — 23 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
 each command for real and renders its actual stdout and stderr — including the
@@ -421,7 +421,7 @@ to `getContractVersion`. Two lines. Finding those two lines took the afternoon.
 
 ---
 
-## 8. Bugs — 21 reports, each re-verified today
+## 8. Bugs — 23 reports, each re-verified today
 
 The full ledger with repro steps and request IDs:
 **[submission/BUGS.md](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md)**
@@ -515,7 +515,7 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**`node verify.mjs` reports its own total — 161 offline checks** at the time of
+**`node verify.mjs` reports its own total — 220 offline checks** at the time of
 writing (47 Rust, 96 Node, 18 Playwright end-to-end), plus the live-site and
 submission-artifact suites. The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong

@@ -42,6 +42,25 @@ export async function checkRevocation(vcId, issuer, {
 }
 
 /**
+ * Where a credential's status entry actually lives.
+ *
+ * W3C VCDM 2.0 puts `credentialStatus` at the top level, and that is checked
+ * first. But Terminal 3's BBS+ issuer (`createBbsCredential`) has no parameter
+ * for it and signs only `credentialSubject` — so a top-level entry can be added
+ * ONLY after signing, which invalidates the proof (filed as bug #22, and
+ * demonstrated in test/status-list.test.mjs). Until that is fixed, an issuer
+ * using this SDK has one way to bind a credential to its revocation list that
+ * the signature actually covers: put the same entry inside the subject.
+ *
+ * So both are read, spec placement first. The difference is not cosmetic — an
+ * entry inside the subject is signed by the issuer, and one bolted on top is
+ * not, which is why the unsigned placement cannot be the one we issue.
+ */
+export function credentialStatusOf(vc) {
+  return vc?.credentialStatus ?? vc?.credentialSubject?.credentialStatus ?? null;
+}
+
+/**
  * Revocation, preferring whichever method the credential actually carries.
  *
  * Two mechanisms answer the same question. The on-chain registry above is the
@@ -62,8 +81,9 @@ export async function checkCredentialStatus(vc, {
 } = {}) {
   const { checkStatus } = await import("./status-list.mjs");
 
-  if (vc?.credentialStatus) {
-    const r = await checkStatus(vc.credentialStatus, { fetchImpl });
+  const entry = credentialStatusOf(vc);
+  if (entry) {
+    const r = await checkStatus(entry, { fetchImpl });
     if (r.checked) {
       return {
         checked: true,

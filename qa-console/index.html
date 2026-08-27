@@ -100,6 +100,28 @@
       <b>❌ Idempotency key with a path separator</b>
       <span>the key becomes a KV key — it may not carry structure</span>
     </button>
+
+    <h2 style="margin-top:20px">Paying for a resource (x402)</h2>
+    <div class="sub" style="margin:-6px 0 10px; font-size:12px;">
+      These fetch a real HTTP 402 from this server, and only sign an EIP-3009
+      authorization if the mandate approves the price and the payee.
+    </div>
+    <button data-testid="x-pay-ok" data-x402="payOk">
+      <b>✅ $0.01 quote — in mandate</b>
+      <span>price under the cap, payee on the allow-list</span>
+    </button>
+    <button data-testid="x-pay-payee" data-x402="payPayee">
+      <b>❌ Same price, a payee the mandate never listed</b>
+      <span>refused before any signature exists</span>
+    </button>
+    <button data-testid="x-pay-price" data-x402="payPrice">
+      <b>❌ $10.00 quote — over the API budget</b>
+      <span>the cap applies to paid APIs, not just trades</span>
+    </button>
+    <button data-testid="x-pay-kind" data-x402="payKind">
+      <b>❌ A mandate that never mentions x402</b>
+      <span>deny-by-default: permission to trade is not permission to spend</span>
+    </button>
   </div>
 
   <div class="panel">
@@ -192,9 +214,47 @@
       decision: out.decision, reasons: out.reasons,
     }, null, 2);
     document.body.dataset.decision = out.decision ?? "error";
+    delete document.body.dataset.paid;
+  }
+
+  // ── x402 ──────────────────────────────────────────────────────────────────
+  const X402_BASE = {
+    max_amount_cents: 500, allowed_assets: ["USDC"], allowed_kinds: ["x402.pay"],
+    allowed_counterparties: ["0x209693Bc6afc0C5328bA36FaF03C514EF312287C"],
+    expires_at_secs: 0, valid_after_secs: 0,
+  };
+  const X402 = {
+    payOk:    {},
+    payPayee: { payTo: "0x000000000000000000000000000000000000dEaD" },
+    payPrice: { price: "10000000" }, // 10 USDC against a $5.00 budget
+    payKind:  { mandate: { ...X402_BASE, allowed_kinds: ["rwa.buy"] } },
+  };
+
+  async function pay(name) {
+    const { mandate = X402_BASE, ...rest } = X402[name];
+    $("verdict").textContent = "…"; $("verdict").className = "verdict idle";
+    $("reasons").innerHTML = ""; $("raw").textContent = "";
+
+    const out = await (await fetch("/api/x402", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mandate, ...rest }),
+    })).json();
+
+    $("verdict").textContent = out.paid ? "PAID" : "NOT PAID";
+    $("verdict").className = `verdict ${out.paid ? "approved" : "rejected"}`;
+    $("reasons").innerHTML = (out.reasons ?? []).map((r) => `<li>${r}</li>`).join("");
+    $("raw").textContent = JSON.stringify(out, null, 2);
+    // The signature is what makes this real, so surface who the server recovered
+    // rather than who the client claimed to be.
+    document.body.dataset.decision = out.paid ? "approved" : "rejected";
+    document.body.dataset.paid = String(out.paid);
+    document.body.dataset.payer = out.payer ?? "";
   }
 
   for (const b of document.querySelectorAll("button[data-scenario]")) {
     b.addEventListener("click", () => run(b.dataset.scenario));
+  }
+  for (const b of document.querySelectorAll("button[data-x402]")) {
+    b.addEventListener("click", () => pay(b.dataset.x402));
   }
 </script>

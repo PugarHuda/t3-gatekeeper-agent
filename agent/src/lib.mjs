@@ -7,16 +7,13 @@ import {
 
 export const BASE_URL = "https://cn-api.sg.testnet.t3n.terminal3.io";
 export const CONTRACT_TAIL = "gate";
-// What `npm run setup` registers. Read from the contract's own Cargo.toml so
-// there is exactly one place to bump — a version typed in two files is a
-// version that will eventually disagree with itself, and the failure mode is a
-// contract registered under a number that isn't the code inside it.
+// What `npm run setup` registers. Single-sourced from the contract's Cargo.toml
+// via gate-cli.mjs — see the note there.
 //
-// The last version actually ON the network is 0.7.0 (contract_id 479); 0.9.0 is
-// built and unit-tested but unregistered, because the account is out of credits.
-export const CONTRACT_VERSION = readFileSync(
-  new URL("../../gate-contract/Cargo.toml", import.meta.url), "utf8",
-).match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? "0.0.0";
+// The last version actually ON the network is 0.7.0 (contract_id 479); later
+// versions are built and unit-tested but unregistered, because the account is
+// out of credits.
+export { CONTRACT_VERSION } from "./gate-cli.mjs";
 
 // Name of the entry in z:<tid>:secrets holding the broker's bearer token.
 // Only meaningful when BROKER_API_KEY is set — see setup.mjs.
@@ -85,4 +82,36 @@ export async function connect(envUrl) {
   const agentDid = auth?.value ?? did;
   const tenant = new TenantClient({ environment: "testnet", t3n: client, tenantDid: did, baseUrl: BASE_URL });
   return { client, tenant, agentDid };
+}
+
+/**
+ * `tenant.contracts.execute`, with the node's per-minute fuel quota handled.
+ *
+ * The testnet node caps a tenant at ten contract executions per minute. Nothing
+ * documents it, and it is not a small limit in practice: `npm run demo` makes
+ * eleven, so the last scenario in the demo failed every time until this existed.
+ * Measured 2026-08-27 — ten succeed in ~3s, the eleventh returns
+ * `quota exceeded (fuel_per_minute)`.
+ *
+ * Backoff, not failure, because a quota is a "later", not a "no". Every wait is
+ * announced: a script that silently pauses for a minute looks hung, and the next
+ * person to run it should know why rather than reaching for Ctrl-C.
+ *
+ * Only the quota is retried. A rejected mandate, a bad input or a missing
+ * function are answers, and retrying an answer just spends credits to hear it
+ * again.
+ */
+export async function executeContract(tenant, tail, opts, { retries = 3, log = console.log } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await tenant.contracts.execute(tail, opts);
+    } catch (e) {
+      const msg = String(e?.message ?? e);
+      if (!/fuel_per_minute|quota exceeded/i.test(msg) || attempt >= retries) throw e;
+      // The window is a minute; wait out the remainder rather than hammering it.
+      const waitMs = 20_000 * (attempt + 1);
+      log(`       node fuel quota reached (10 executes/minute) — waiting ${waitMs / 1000}s, attempt ${attempt + 1}/${retries}`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
 }

@@ -75,6 +75,8 @@ flowchart TD
 | `video/` | The demo video, rendered programmatically (Remotion + neural TTS + burned-in captions). Scene lengths derive from the measured audio, so narration cannot drift. |
 | `site/` | The published evidence page ([gatekeeper-evidence.vercel.app](https://gatekeeper-evidence.vercel.app)). |
 | `gate-contract/` | The Rust→WASM TEE mandate contract. Builds to a wasm component, registered to the tenant. |
+| `agent/src/mcp-server.mjs` | The agent served over Model Context Protocol (`npm run mcp`) — how a host adopts the gate without cloning anything. |
+| `agent/src/x402.mjs` | HTTP 402 payments, with the mandate deciding whether to pay. |
 | `t3-qa/` | Verification sandbox — standalone smoke tests for each layer (auth, BBS+ issue/verify, tamper test, contract deploy + invoke, live TDX attestation parse). |
 | `submission/` | Demo script, BUIDL description, [Track B bug reports](submission/TRACK_B_BUG_REPORTS.md) (8 onboarding/SDK/doc issues found while building), [technical deep-dive](submission/TECH_DEEPDIVE.md) (BBS+ pairing + TDX quote layout), [verification log](submission/VERIFICATION.md), and an [adoption roadmap](submission/ADOPTIONS.md) (A2A / ERC-8004 / Web Bot Auth — cheap/high/out-of-box). |
 | `agent/agent-card.json` | A2A + ERC-8004 style agent card (identity, skills, trust). |
@@ -115,9 +117,11 @@ trusts — and the agent generates its own issuer key, so without this it could
 mint its own "accredited investor" credential. And `counterparty_limits`, a
 per-payee ceiling applied *in addition* to the global cap, never instead of it.
 
-> **Deployment state.** v0.8.0 is built and unit-tested but **not registered** —
-> the account's testnet credits ran out (see bug #16). The version live on the
-> network is v0.7.0, `contract_id 479`.
+> **Deployment state.** v0.10.0 is **live**: `contract_id 749`, registered
+> 2026-08-27 after the account was topped up. It was probed under a throwaway
+> tail first (`npm run probe`) to confirm every imported host interface resolves
+> before the production tail was pointed at it — including
+> `http-with-placeholders`, which until then had only ever been compiled in.
 
 ## Advanced SDK adoptions (shipped)
 
@@ -166,9 +170,9 @@ CI runs the same script, so the two cannot drift apart.
 Individually, if you want just one:
 
 ```bash
-cd gate-contract && cargo test                    # 48
-cd agent        && npm test                       # 52
-cd qa-console   && node --test e2e.test.mjs       # 18
+cd gate-contract && cargo test                    # 47
+cd agent        && npm test                       # 148
+cd qa-console   && node --test e2e.test.mjs       # 24
 ```
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the
@@ -194,10 +198,12 @@ cd gate-contract && cargo build --lib --target wasm32-wasip2 --release && cd ..
 cd agent
 cp .env.example .env        # paste T3N_API_KEY + DID from the token-claim page
 npm install
-npm run setup               # register the contract, create + seed its 3 KV maps
+npm run probe               # register to a throwaway tail and invoke it, BEFORE production
+npm run setup               # register the contract, create + seed its KV maps
                             # ^ the ONLY expensive command — see MAINTENANCE.md §4
 npm run grant:egress        # authorise the enclave to reach ACTION_ENDPOINT's host
 npm run demo                # identity -> VC gate -> TEE mandate -> audit -> in-TEE dispatch
+npm run mcp                 # serve the gate over MCP (stdio) to any host that speaks it
 ```
 
 `ACTION_ENDPOINT` defaults to the illustrative `https://broker.example/v1/orders`.
@@ -225,7 +231,7 @@ walk off with the key that pays for it.
 
 ## Bugs & doc gaps found while building
 
-[**submission/BUGS.md**](submission/BUGS.md) is the live ledger — 21 reports with
+[**submission/BUGS.md**](submission/BUGS.md) is the live ledger — 23 reports with
 each one's status as of 2026-08-26, re-verified against SDK 5.1.0 and the
 refreshed docs. Four have since been fixed, one is partly adopted into the docs,
 and three are new this round.

@@ -178,3 +178,75 @@ describe("api abuse", () => {
     assert.equal(res.status(), 404);
   });
 });
+
+// ── paying for a resource, watched from the browser ─────────────────────────
+//
+// The console fetches a real HTTP 402 from this same server, and the server
+// recovers the payer from the EIP-3009 signature before serving. So a green
+// "PAID" here means a signature was produced, transmitted and verified — not
+// that a boolean was set.
+describe("x402 — the mandate decides whether to pay", () => {
+  /** Click an x402 button and wait for the round trip to finish. */
+  async function pay(id) {
+    await page.evaluate(() => { delete document.body.dataset.paid; });
+    await page.getByTestId(id).click();
+    await page.waitForFunction(() => document.body.dataset.paid !== undefined);
+    return {
+      verdict: (await page.getByTestId("verdict").textContent()).trim(),
+      reasons: await page.getByTestId("reasons").locator("li").allTextContents(),
+      raw: JSON.parse(await page.getByTestId("raw").textContent()),
+    };
+  }
+
+  test("an in-mandate price is paid, and the payee recovered the signer", async () => {
+    const { verdict, reasons, raw } = await pay("x-pay-ok");
+    assert.equal(verdict, "PAID");
+    assert.deepEqual(reasons, []);
+    assert.equal(raw.status, 200);
+    assert.equal(raw.action.kind, "x402.pay");
+    assert.equal(raw.action.amount_cents, 1);
+    // The server did not take the client's word for who was paying.
+    assert.equal(raw.payer, raw.signer, "the recovered payer must be the signing wallet");
+    // And it does not claim money moved.
+    assert.equal(raw.settled, false);
+  });
+
+  test("a payee the mandate never listed is refused before signing", async () => {
+    const { verdict, reasons, raw } = await pay("x-pay-payee");
+    assert.equal(verdict, "NOT PAID");
+    assert.equal(raw.status, 402, "the resource must still be unpaid");
+    assert.equal(raw.payer, null, "nothing was signed, so nothing was recovered");
+    assert.ok(reasons.some((r) => /dEaD/i.test(r)), reasons.join(","));
+  });
+
+  test("a price over the API budget is refused", async () => {
+    const { verdict, reasons } = await pay("x-pay-price");
+    assert.equal(verdict, "NOT PAID");
+    assert.ok(reasons.some((r) => /exceeds mandate max/.test(r)), reasons.join(","));
+  });
+
+  test("permission to trade is not permission to spend on APIs", async () => {
+    const { verdict, reasons } = await pay("x-pay-kind");
+    assert.equal(verdict, "NOT PAID");
+    assert.ok(reasons.some((r) => r.includes("x402.pay")), reasons.join(","));
+  });
+
+  test("the paywall itself answers a spec-shaped 402", async () => {
+    const res = await page.request.get(`${base}/api/paywall`);
+    assert.equal(res.status(), 402);
+    const header = res.headers()["payment-required"];
+    assert.ok(header, "a 402 must carry the PAYMENT-REQUIRED header");
+    const challenge = JSON.parse(Buffer.from(header, "base64").toString("utf8"));
+    assert.equal(challenge.x402Version, 2);
+    assert.equal(challenge.accepts[0].scheme, "exact");
+    assert.equal(challenge.accepts[0].extra.assetTransferMethod, "eip3009");
+  });
+
+  test("a junk payment header does not open the paywall", async () => {
+    const res = await page.request.get(`${base}/api/paywall`, {
+      headers: { "payment-signature": Buffer.from('{"x402Version":2}').toString("base64") },
+    });
+    assert.equal(res.status(), 402);
+    assert.match((await res.json()).error, /missing signature or authorization/);
+  });
+});

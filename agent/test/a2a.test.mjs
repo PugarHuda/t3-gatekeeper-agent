@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { issueCapabilityCredential, presentCapability, acceptIfCapable } from "../src/a2a.mjs";
 
@@ -115,4 +115,48 @@ test("an empty skills list is valid but warned about", () => {
   const r = validateAgentCard({ name: "a", description: "b", version: "1", did: "did:t3n:x", skills: [] });
   assert.equal(r.valid, true);
   assert.ok(r.warnings.some((w) => /advertises no skills/.test(w)));
+});
+
+// ── the card must not go stale, and its two copies must not drift ───────────
+//
+// The card is the thing peers, registries and Web Bot Auth verifiers read, and
+// it is the easiest file in the repo to forget: it is not imported by anything,
+// so nothing breaks when it lies. Two copies exist because Vercel deploys only
+// `site/`, which is exactly the shape that drifts.
+describe("the published agent card", () => {
+  const read = async (rel) => JSON.parse(
+    await (await import("node:fs/promises")).readFile(new URL(rel, import.meta.url), "utf8"),
+  );
+
+  test("it is valid by the same rules we apply to other agents' cards", async () => {
+    const { validateAgentCard } = await import("../src/a2a.mjs");
+    const report = validateAgentCard(await read("../agent-card.json"));
+    assert.deepEqual(report.problems, []);
+    assert.deepEqual(report.warnings, []);
+  });
+
+  test("its version is the contract version, not a number someone typed", async () => {
+    const { CONTRACT_VERSION } = await import("../src/gate-cli.mjs");
+    assert.equal((await read("../agent-card.json")).version, CONTRACT_VERSION);
+  });
+
+  test("the copy the site serves is byte-identical to the source", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const source = await readFile(new URL("../agent-card.json", import.meta.url), "utf8");
+    const served = await readFile(new URL("../../site/.well-known/agent-card.json", import.meta.url), "utf8");
+    assert.equal(served, source, "run `npm run status-list` to re-publish the site's copy");
+  });
+
+  test("every skill a peer might select is addressable and described", async () => {
+    const card = await read("../agent-card.json");
+    const ids = card.skills.map((s) => s.id);
+    assert.equal(new Set(ids).size, ids.length, "skill ids must be unique — a peer selects by id");
+    for (const s of card.skills) {
+      assert.ok(s.name && s.description?.length > 40, `skill ${s.id} is not described`);
+      assert.ok(Array.isArray(s.tags) && s.tags.length, `skill ${s.id} has no tags`);
+    }
+    // The adoptions we claim on the card must be the ones that ship.
+    assert.ok(ids.includes("mcp-mandate-gate"));
+    assert.ok(ids.includes("x402-mandated-payment"));
+  });
 });

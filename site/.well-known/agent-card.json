@@ -3,7 +3,7 @@
   "protocolVersion": "0.3.0",
   "name": "Gatekeeper Agent",
   "description": "Executes permissioned financial actions on behalf of a user without holding their credentials or data: a BBS+ verifiable-credential eligibility gate plus a hardware-enforced TEE mandate, with per-action audit.",
-  "version": "0.6.0",
+  "version": "0.10.0",
   "url": "https://github.com/PugarHuda/t3-gatekeeper-agent",
   "did": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
   "provider": {
@@ -13,18 +13,37 @@
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
-    "stateTransitionHistory": true
+    "stateTransitionHistory": true,
+    "extensions": [
+      "mcp-stdio",
+      "x402-exact-evm"
+    ]
   },
-  "defaultInputModes": ["application/json"],
-  "defaultOutputModes": ["application/json"],
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
   "skills": [
     {
       "id": "evaluate-gated-action",
       "name": "Eligibility-gated permissioned action",
       "description": "Verify the user is eligible via a BBS+ credential, then enforce a spending mandate (amount, asset, kind, counterparty, time window) inside a Terminal 3 TEE contract before any action is allowed.",
-      "tags": ["identity", "verifiable-credentials", "tee", "mandate", "audit", "permissioned-finance"],
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"],
+      "tags": [
+        "identity",
+        "verifiable-credentials",
+        "tee",
+        "mandate",
+        "audit",
+        "permissioned-finance"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
       "examples": [
         "Prove I'm an accredited investor without revealing my net worth, then buy up to $5,000 of USDC RWA from an approved counterparty."
       ]
@@ -33,9 +52,19 @@
       "id": "velocity-limited-spend",
       "name": "Hardware-enforced velocity limit",
       "description": "Track a cumulative per-window spend total inside the TEE contract's KV store and reject once the running total would exceed the cap — enforced across invocations so the agent cannot reset the counter.",
-      "tags": ["tee", "mandate", "velocity-limit", "stateful", "kv-store"],
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"],
+      "tags": [
+        "tee",
+        "mandate",
+        "velocity-limit",
+        "stateful",
+        "kv-store"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
       "examples": [
         "Let the agent spend up to $5,000 per day total, no matter how many transactions it splits that across."
       ]
@@ -44,9 +73,18 @@
       "id": "a2a-capability-exchange",
       "name": "A2A capability exchange",
       "description": "Prove to a peer agent that this agent holds a required capability via a BBS+ capability credential, disclosing only that capability and hiding the rest of the manifest.",
-      "tags": ["a2a", "verifiable-credentials", "selective-disclosure", "interoperability"],
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"],
+      "tags": [
+        "a2a",
+        "verifiable-credentials",
+        "selective-disclosure",
+        "interoperability"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
       "examples": [
         "Prove I can execute payments to a counterparty agent without revealing my tier, limit, or region."
       ]
@@ -55,25 +93,153 @@
       "id": "web-bot-auth-signing",
       "name": "Web Bot Auth signed requests",
       "description": "Sign outbound action requests with RFC 9421 HTTP Message Signatures (Ed25519, web-bot-auth tag) so a destination can cryptographically verify the request came from this agent before acting.",
-      "tags": ["web-bot-auth", "rfc9421", "http-message-signatures", "agentic-commerce"],
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"],
+      "tags": [
+        "web-bot-auth",
+        "rfc9421",
+        "http-message-signatures",
+        "agentic-commerce"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
       "examples": [
         "Sign my transfer request so the bank can verify it was issued by this authorized agent."
+      ]
+    },
+    {
+      "id": "mcp-mandate-gate",
+      "name": "Mandate gate over MCP",
+      "description": "Serve the gate to any Model Context Protocol host over stdio: evaluate an action against a mandate using the contract's own compiled logic (offline, free), bind a credential to an action, check revocation, discover peers, resolve ERC-8004 identities, and execute inside the enclave.",
+      "tags": [
+        "mcp",
+        "tooling",
+        "distribution",
+        "mandate",
+        "interoperability"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "examples": [
+        "Add the gatekeeper MCP server and ask it whether a $4,000 purchase is inside my mandate before doing it."
+      ]
+    },
+    {
+      "id": "x402-mandated-payment",
+      "name": "Mandate-gated x402 payment",
+      "description": "Handle an HTTP 402 by turning the payment requirement into an action the mandate judges — price, asset and payee — and only then signing an EIP-3009 transfer authorisation and retrying. A payee or a price outside the mandate is refused before any signature exists.",
+      "tags": [
+        "x402",
+        "payments",
+        "eip-3009",
+        "eip-712",
+        "agentic-commerce",
+        "mandate"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "examples": [
+        "Buy this paid API call, but only up to $5 total and only from providers on my allow-list."
+      ]
+    },
+    {
+      "id": "credential-action-binding",
+      "name": "Credential bound to the action it authorises",
+      "description": "Commit, before the decision, to which credential was verified and which action it was verified for. The enclave recomputes that commitment from the action it is about to perform, so an eligibility check made for a small purchase cannot be reused for a large one.",
+      "tags": [
+        "verifiable-credentials",
+        "tee",
+        "replay-resistance",
+        "mandate"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "examples": [
+        "Prove my accreditation for this exact $1,000 order, and make that proof useless for any other order."
+      ]
+    },
+    {
+      "id": "credential-revocation-check",
+      "name": "W3C Bitstring Status List revocation",
+      "description": "Check a credential's revocation bit in a published 131,072-entry status list over HTTPS, with no chain and no gas, and report 'could not check' as itself rather than as 'not revoked'.",
+      "tags": [
+        "revocation",
+        "bitstring-status-list",
+        "verifiable-credentials",
+        "privacy"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ],
+      "examples": [
+        "Block the action if this investor's accreditation was withdrawn this morning."
       ]
     }
   ],
   "registrations": [
-    { "protocol": "did:t3n", "identifier": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f", "status": "active" },
-    { "protocol": "ERC-8004", "note": "Trustless Agents identity (ERC-721, agentURI -> this card). Registration script ready: `npm run register:erc8004` calls IdentityRegistry.register(agentURI); needs a gas-funded wallet + registry address.", "status": "ready-to-register" },
-    { "protocol": "A2A", "note": "This document doubles as the A2A AgentCard.", "status": "active" },
-    { "protocol": "Web Bot Auth", "note": "RFC 9421 HTTP Message Signatures for outbound action requests — implemented in agent/src/web-bot-auth.mjs.", "status": "active" }
+    {
+      "protocol": "did:t3n",
+      "identifier": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
+      "status": "active"
+    },
+    {
+      "protocol": "ERC-8004",
+      "note": "Trustless Agents identity (ERC-721, agentURI -> this card). `npm run erc8004` does live reads against the reference registry on Sepolia and preflights any registry before a mint; `npm run register:erc8004` performs the mint and refuses to run unconfigured. Only a gas-funded wallet is missing.",
+      "status": "ready-to-register"
+    },
+    {
+      "protocol": "A2A",
+      "note": "This document doubles as the A2A AgentCard.",
+      "status": "active"
+    },
+    {
+      "protocol": "Web Bot Auth",
+      "note": "RFC 9421 HTTP Message Signatures for outbound action requests — implemented in agent/src/web-bot-auth.mjs.",
+      "status": "active"
+    },
+    {
+      "protocol": "MCP",
+      "note": "Served over stdio by `npm run mcp` (agent/src/mcp-server.mjs); eight tools and two resources.",
+      "status": "active"
+    },
+    {
+      "protocol": "x402",
+      "note": "v2 HTTP transport, `exact` scheme on EVM via EIP-3009. Signing and verification run; settlement requires a facilitator and a funded wallet and is refused without one.",
+      "status": "active-unsettled"
+    }
   ],
   "trust": {
-    "execution": { "type": "Intel TDX TEE", "attestation": "verifyTdxQuote; REPORT_DATA bound to the ML-KEM session key" },
-    "credentials": { "type": "W3C Verifiable Credentials", "cryptosuite": "bbs-2023", "selectiveDisclosure": true }
+    "execution": {
+      "type": "Intel TDX TEE",
+      "attestation": "verifyTdxQuote; REPORT_DATA bound to the ML-KEM session key"
+    },
+    "credentials": {
+      "type": "W3C Verifiable Credentials",
+      "cryptosuite": "bbs-2023",
+      "selectiveDisclosure": true
+    }
   },
   "securitySchemes": {
-    "t3n-session": { "type": "mutualTLS", "description": "Encrypted, attested TEE session opened via T3nClient.handshake()." }
+    "t3n-session": {
+      "type": "mutualTLS",
+      "description": "Encrypted, attested TEE session opened via T3nClient.handshake()."
+    }
   }
 }

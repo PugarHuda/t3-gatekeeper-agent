@@ -159,3 +159,61 @@ describe("checking a credential's status over HTTP", () => {
     assert.match(r.reason, /missing statusListCredential or statusListIndex/);
   });
 });
+
+// ── the SDK gap this design exists to work around ───────────────────────────
+//
+// A credential nobody can revoke is not a credential, it is a permanent grant.
+// Terminal 3's BBS+ issuer signs `credentialSubject` and takes no parameter for
+// a top-level `credentialStatus`, so the obvious thing — issue, then attach the
+// status entry — silently destroys the proof. We hit exactly that: the live
+// demo aborted at the eligibility gate with `verify=false` and no explanation.
+//
+// These two tests pin both halves of the finding, so it cannot come back
+// quietly: the failure is real, and the placement we ship instead survives.
+describe("a credential's revocation entry must survive verification", () => {
+  const issue = async (bbs, vcCore, claims) => {
+    const issuer = new bbs.BbsDID(vcCore.randomKeyBls());
+    const subject = new bbs.BbsDID(vcCore.randomKeyBls());
+    const vc = await bbs.createBbsCredential(
+      issuer,
+      new vcCore.DID(...vcCore.getMethodIdentifier(subject.did)),
+      claims,
+      ["VerifiableCredential", "AccreditationCredential"],
+      undefined, undefined, undefined, undefined, true,
+    );
+    return vc;
+  };
+
+  const entry = statusEntry({ statusListCredential: "https://example.test/status.json", statusListIndex: 7 });
+
+  test("bug #22: attaching credentialStatus after signing invalidates the proof", async () => {
+    const bbs = await import("@terminal3/bbs_vc");
+    const vcCore = await import("@terminal3/vc_core");
+
+    const vc = await issue(bbs, vcCore, { accreditedInvestor: true });
+    assert.equal((await bbs.verifyBbsVCW3c(vc)).isValid, true, "baseline credential must verify");
+
+    // The W3C VCDM 2.0 placement — and the only one createBbsCredential leaves
+    // open, since it has no parameter for it.
+    vc.credentialStatus = entry;
+    assert.equal(
+      (await bbs.verifyBbsVCW3c(vc)).isValid, false,
+      "if this ever passes, the SDK gained a signed credentialStatus and " +
+      "src/revocation.mjs should prefer the spec placement outright",
+    );
+  });
+
+  test("the placement we issue is covered by the signature and still readable", async () => {
+    const bbs = await import("@terminal3/bbs_vc");
+    const vcCore = await import("@terminal3/vc_core");
+    const { credentialStatusOf } = await import("../src/revocation.mjs");
+
+    const vc = await issue(bbs, vcCore, { accreditedInvestor: true, credentialStatus: entry });
+    assert.equal((await bbs.verifyBbsVCW3c(vc)).isValid, true);
+    assert.deepEqual(credentialStatusOf(vc), entry);
+
+    // And it is genuinely signed: change one field and the proof fails.
+    vc.credentialSubject.credentialStatus.statusListIndex = "8";
+    assert.equal((await bbs.verifyBbsVCW3c(vc)).isValid, false);
+  });
+});
