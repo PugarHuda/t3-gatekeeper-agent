@@ -19,7 +19,7 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | --- | --- | --- | --- |
 | 1 | `verifyBbsVc` reports the reason as the literal string `undefined` | Jun | **reproduces** |
 | 2 | `getNodeUrl("testnet")` returns `"testnet"`, not a URL | Jun | **reproduces on 5.1.0** |
-| 3 | "Smart VCs" docs promise ZK selective disclosure; no holder-side derive ships | Jun | **reproduces** |
+| 3 | "Smart VCs" docs promise ZK selective disclosure; no holder-side derive ships **in the SDK** | Jun | **sharpened** — the node has one, undocumented; see below |
 | 4 | Referenced onboarding repo `Terminal-3/adk-getting-start` is empty | Jun | **reproduces** (size 0, last push 2026-06-06) |
 | 5 | Windows TEE-contract build fails, undocumented | Jun | **reproduces** (still need the GNU toolchain) |
 | 6 | `tenant.claim()` fails for an already-provisioned tenant | Jun | **reproduces on 5.1.0**, and the method moved — see below |
@@ -40,6 +40,9 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | 21 | Metering is inconsistent and unpublished: some writes are free, others cost 6.7× a full grant | Aug | open, now with numbers |
 | 22 | BBS+ credentials cannot carry a signed `credentialStatus`, so nothing the SDK issues can be revoked | **new** | open |
 | 23 | The per-minute fuel budget is spent at the per-call *maximum*, capping every tenant at 10 calls/minute | **new** | open |
+| 24 | The `discover*` reads reject the tenant's API key with a bare `HTTP 400`; they need an agent key nothing mentions | **new** | open |
+| 25 | Discovery says a function exists but never how to call it, and `delegation.check` denies without saying what is missing | **new** | open |
+| 26 | Two core contracts are served by the node, documented nowhere, and wrapped by no SDK helper — including a whole OpenID4VP stack | **new** | open |
 
 Four fixed, one likely fixed, one partly adopted into the docs. Thank you — the
 ones that got fixed were the ones that most got in a newcomer's way.
@@ -352,3 +355,131 @@ matter on a first project. `tenant.tenant.me().quotas`, 2026-08-27:
 `max_contracts: 10` is the one to warn newcomers about: registrations are the
 most expensive call there is, there is no delete, and re-registering to recover a
 lost `contract_id` (see #8) spends one of the ten.
+
+## #24 — The `discover*` reads reject the tenant's API key with a bare `HTTP 400`
+
+**Where** `@terminal3/t3n-sdk@5.1.0` — `discoverWhoami`, `discoverListContracts`,
+`discoverDescribeContract`, `discoverDescribeFunction`, `discoverCheckDelegation`.
+
+**What happens.** Every one of them fails with the same opaque line when handed
+the API key from the token-claim page — the key every other call in the SDK
+takes, and the only one a developer has after the Quickstart:
+
+```
+discover request failed: server returned HTTP 400
+```
+
+No field, no reason, no response body. The same calls succeed immediately with a
+key of the form `t3n_key_<id>.<secret>`, which comes from a different place
+entirely:
+
+```
+npx @terminal3/t3n-sdk agent create --org <org-did> --name <name> --env testnet
+→ { "agentDid": "did:t3n:…", "apiKey": "t3n_key_<id>.<secret>", "keyId": "<id>" }
+```
+
+**Why it matters.** The type doc for `DiscoverOptions.apiKey` does say
+"the agent's opaque API key (`t3n_key_<...>`)" — but that is a doc comment inside
+a bundled `.d.ts`, and the tenant key is also an "API key", so the natural
+reading is that it is the one you have. Nothing at the call site, in the error,
+or in the docs distinguishes them. We assumed our key was wrong, then that the
+node did not implement the endpoint, and only found the answer by reading the
+type definitions of an obfuscated bundle (bug #18).
+
+**Asked for.** Return which key kind was expected. `HTTP 400` with no body is the
+one response that cannot be acted on.
+
+## #25 — Discovery tells you a function exists, but never how to call it
+
+Two halves of the same problem: the discovery reads answer, and the answer is
+not enough to do anything with.
+
+**(a) `describe.function` carries no signature.** The whole result:
+
+```json
+{ "contract": "tee:agent-connect/contracts", "version": "1.4.0",
+  "descriptor": { "name": "commerce-intent-create" } }
+```
+
+That is the name we already passed in. No parameters, no types, no example. So
+the only way to learn a function's input is to call it with `{}` and read the
+parse error, then add that field and call again. Finding the shape of
+`tee:vc/submit-vp` took four round trips, each one a real request:
+
+```
+missing field `dcql_query_json`  →  missing field `nonce`
+                                 →  missing field `client_id`
+                                 →  missing field `response_uri`
+```
+
+The shape turns out to be an OpenID4VP authorization request. Nothing said so;
+we inferred it from the field names.
+
+**(b) `delegation.check` denies without naming what is missing.** For an agent
+with no delegation:
+
+```json
+{ "authorised": false, "disclosed": false, "satisfied": [], "missing": [] }
+```
+
+`missing: []` alongside `authorised: false` is the least useful pair the shape
+can produce. The response *has* a field for exactly this, and it is empty on the
+one path where a caller needs it — there is nothing to go and grant.
+
+**Why it matters.** Discovery exists so an agent can find out what it may do
+without trial and error. Both halves send you back to trial and error.
+
+**Asked for.** Put the input schema in the function descriptor, and populate
+`missing` when `authorised` is false.
+
+## #26 — Two core contracts are served, documented nowhere, and wrapped by nothing
+
+**What happens.** `discoverListContracts` returns six core contracts. Four are
+familiar from the docs. Two are not:
+
+| Contract | Version | Functions |
+| --- | --- | --- |
+| `tee:vc` | 2.6.0 | `issue-credential`, `submit-vp`, `my-presentations`, `kyc-credential-summary` |
+| `tee:agent-connect` | 1.4.0 | `commerce-intent-create`, `commerce-quote`, `commerce-intent-confirm`, `commerce-intent-cancel`, `commerce-history-get`, `commerce-webhook-apply` |
+
+Both are live. `tee:vc/my-presentations` answers `{"presentations":[]}` today,
+and `submit-vp` accepts a DCQL query and really tries to satisfy it:
+
+```
+submit-vp { dcql_query_json, nonce, client_id, response_uri }
+→ unsatisfied: query could not be satisfied with available credentials
+```
+
+That error is the interesting part: the node is acting as a **holder**, matching
+a query against credentials it keeps. `tee:agent-connect` is a commerce
+intent/quote/confirm API — agentic-commerce rails, on the platform, already
+deployed.
+
+Neither appears in the ADK documentation we could find, neither has an SDK
+helper or an exported type, and neither is mentioned in the Quickstart or the
+Walkthrough. The only way we learned they exist was calling `contracts.list`
+with an agent key — which itself needs bug #24 solved first.
+
+**Why it matters.** We wrote in our own submission that agentic-commerce rails
+were "not implemented, and calling it an adoption would be a claim about a
+resemblance". Terminal 3 has had them deployed the whole time. A builder who
+does not run `contracts.list` will reimplement what the platform already offers,
+which is the most expensive kind of missing documentation.
+
+**This also sharpens our June report #3.** We said the "Smart VCs" ZK
+selective-disclosure story had no holder-side derive that ships. That was right
+about the **SDK** and wrong about the **node**: `tee:vc` carries a full
+OpenID4VP/DCQL holder stack. It is unreachable from a standing start for a
+second reason, though — issuing into it requires issuer metadata a developer has
+no documented way to register:
+
+```
+issue-credential → keys.generic_api metadata is required
+```
+
+So the capability is real, undocumented, and gated. That is a better report than
+the one we filed, and we would not have found it without discovery.
+
+**Asked for.** List every core contract the node serves in the docs with its
+functions and their inputs; or, failing that, say in the Quickstart that
+`contracts.list` is how you find out what exists.

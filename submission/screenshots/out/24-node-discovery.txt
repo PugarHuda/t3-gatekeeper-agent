@@ -1,0 +1,31 @@
+
+> t3-gatekeeper-agent@0.1.0 discover
+> node src/discover.mjs
+
+agent      did:t3n:1e53ab13988131defa156b5ec553f341760ef34d
+orgs       did:t3n:93d8852130b8fe8e15c156ab8f445af975593db9
+
+core contracts the node is running (6):
+  tee:user               3.6.0     egress grants (agent-auth-update) and tenant admission
+  tee:vc                 2.6.0     credential issue + OpenID4VP presentation (see the note in discover's output)
+  tee:agent-registry     1.6.0     registers this agent's card on-network (agent set-card)
+  tee:organisation       0.17.1    org-owned agents; ran 0.4.1 when the CLI needed 0.6.0+ (bug #12)
+  tee:org-data           2.7.0     the 'agent-cards' scope a card write needs; a missing writer here is bug #11
+  tee:agent-connect      1.4.0     commerce intents, quotes and confirmations — T3's own agentic-commerce rails
+
+  Note: tee:vc and tee:agent-connect are served by the node but
+  documented nowhere and wrapped by no SDK helper (bug #26). tee:vc carries a
+  full OpenID4VP holder stack (submit-vp / my-presentations, DCQL queries);
+  tee:agent-connect carries commerce intents and quotes.
+
+our contract, as the node describes it:
+  z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
+  discover request failed: server returned HTTP 404
+  (an agent outside the tenant cannot describe its contracts — expected)
+
+delegation check for evaluate + execute_action:
+  {"authorised":false,"disclosed":false,"satisfied":[],"missing":[]}
+  This is the AGENT's member/org delegation. It is NOT the tenant's
+  agent-auth egress grant — 'authorised: false' here says nothing about
+  whether the enclave may reach its destination. Use npm run grant:egress
+  for that, and note the node returns 'missing: []' either way (bug #25).

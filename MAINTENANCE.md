@@ -91,6 +91,31 @@ npm run setup                         # register the contract, create + seed the
 npm run grant:egress                  # authorise the enclave's outbound host
 npm run demo                          # the full chain, end to end
 
+### Do not hand over the tenant's Ethereum key
+
+`T3N_API_KEY` in `agent/.env` is an Ethereum private key. It can spend credits,
+register contracts and rewrite grants — everything this tenant can do. It is the
+wrong thing to put on a host you do not control.
+
+The node has a second, scoped door: an **agent key**, provisioned once and
+revocable, which the SDK's `discover*` reads take.
+
+```bash
+npx @terminal3/t3n-sdk agent create --org <org-did> --name <name> --env testnet
+# prints { agentDid, apiKey: "t3n_key_<id>.<secret>", keyId } — ONCE
+```
+
+Put it in `agent/.env` as `T3N_AGENT_KEY` and run `npm run discover`: it prints
+which core contracts the node is running and at what version, our contract as
+the node describes it, and this agent's delegation verdict — no session, no
+credits. That is the check to run first when something that worked last week
+stops working, because twice now the cause was the node moving underneath us
+(bugs #12 and #19).
+
+Note the key kinds are not interchangeable and the node will not tell you which
+one it wanted: the tenant key returns a bare `HTTP 400` from these reads
+(bug #24).
+
 ### Handing the gate to someone else's agent
 
 The point of the MCP server is that nobody has to clone this repo to use the

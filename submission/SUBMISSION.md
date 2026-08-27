@@ -39,11 +39,12 @@ maintenance after the challenge ends*:
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
 | **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
 | **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
+| **Node discovery + a scoped handover key** | `npm run discover` reads the node's own inventory with an agent key instead of the tenant's Ethereum key — which is also the key you should hand to whoever hosts this. It found two core contracts the docs never mention |
 | **Probe before promote** | `npm run probe` registers to a throwaway tail and invokes it, so a build that would brick the production tail is caught for the price of one registration |
 | **`node verify.mjs`** — one command | Prove the repo is healthy with no key, no network, no credits. It prints its own total |
 | **MAINTENANCE.md** | Every knob, the real failure modes, a handover sequence |
 | Version single-sourced; CI runs the same script | Two classes of drift removed rather than documented |
-| **23 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
+| **26 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
 | **Metering measured, not guessed** | 30,034,055 credits a call; 1,370,147,045 a registration. Nothing publishes these |
 
 | Bounty requirement | Where |
@@ -53,8 +54,8 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 23, every one from real command output |
-| Bugs faced | §8 — 23 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
+| Screenshots | §9 — 24, every one from real command output |
+| Bugs faced | §8 — 26 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
 each command for real and renders its actual stdout and stderr — including the
@@ -421,7 +422,7 @@ node verify.mjs
 ```
 
 Rust unit tests → wasm component build → Node tests → Playwright end-to-end over
-the *real* Rust decision function. 220 checks, no API key, no network, no credits.
+the *real* Rust decision function. 223 checks, no API key, no network, no credits.
 It selects the GNU toolchain automatically on Windows, which is otherwise a
 documented footgun a newcomer hits on their first build.
 
@@ -498,7 +499,7 @@ to `getContractVersion`. Two lines. Finding those two lines took the afternoon.
 
 ---
 
-## 8. Bugs — 23 reports, each re-verified today
+## 8. Bugs — 26 reports, each re-verified today
 
 The full ledger with repro steps and request IDs:
 **[submission/BUGS.md](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md)**
@@ -592,7 +593,7 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**`node verify.mjs` reports its own total — 220 offline checks** at the time of
+**`node verify.mjs` reports its own total — 223 offline checks** at the time of
 writing (47 Rust, 96 Node, 18 Playwright end-to-end), plus the live-site and
 submission-artifact suites. The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong
@@ -615,7 +616,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 04 | `04-agent-registered.png` | Agent ID registered — and bug #10, the address as a decimal array |
 | 05 | `05-full-flow.png` | the whole agent on 0.10.0: VC gate → TEE mandate → audit → in-TEE dispatch (**HTTP 200**) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` — the caller authorising enclave egress |
-| 07 | `07-tests.png` | `node verify.mjs` — 220 checks, no key, no credits |
+| 07 | `07-tests.png` | `node verify.mjs` — 223 checks, no key, no credits |
 | 08 | `08-bug-token-balance.png` | bug #9 **fixed** |
 | 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter` |
 | 10 | `10-bug-node-version.png` | bug #12 **fixed** — node on 0.17.0 |
@@ -632,6 +633,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 21 | `21-mcp-server.png` | the gate over MCP — a real client, a real subprocess, eight tools, no account |
 | 22 | `22-x402-mandated-payment.png` | x402 — one payment made, three refused before anything was signed |
 | 23 | `23-probe-before-promote.png` | the build proven under a throwaway tail before production points at it |
+| 24 | `24-node-discovery.png` | what the node actually runs, read with a scoped agent key — including two core contracts nobody documents |
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current
@@ -697,7 +699,7 @@ No key, no credits, no network — the whole test suite:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                  # 220 checks
+node verify.mjs                  # 223 checks
 ```
 
 With your own key:

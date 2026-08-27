@@ -43,7 +43,7 @@ const SHOTS = [
   { name: "06-egress-grant", title: "agent-auth-update — the caller authorises what the enclave may reach",
     cmd: "npm run grant:egress", cwd: AGENT, credits: true,
     env: { ACTION_ENDPOINT: "https://postman-echo.com/post" } },
-  { name: "07-tests", title: "node verify.mjs — one command, 220 checks, no API key, no credits spent",
+  { name: "07-tests", title: "node verify.mjs — one command, 223 checks, no API key, no credits spent",
     cmd: "node verify.mjs", cwd: REPO,
     // 167 lines of per-test output is not a readable screenshot; keep the
     // section headers and the tallies. The full text is in 07-tests.txt.
@@ -72,6 +72,8 @@ const SHOTS = [
     cmd: "npm run demo:mcp", cwd: AGENT },
   { name: "22-x402-mandated-payment", title: "x402 — the mandate decides whether to pay, and only then is anything signed",
     cmd: "npm run demo:x402", cwd: AGENT },
+  { name: "24-node-discovery", title: "What the node actually runs — read with a scoped agent key, no session, no credits (and two core contracts nobody documents)",
+    cmd: "npm run discover", cwd: AGENT },
   { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
     cmd: "npm run probe", cwd: AGENT, credits: true },
 ];

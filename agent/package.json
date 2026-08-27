@@ -13,14 +13,15 @@
     "demo:velocity": "node src/velocity-demo.mjs",
     "register:erc8004": "node src/erc8004-register.mjs",
     "auth": "node src/auth-check.mjs",
-    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs test/audit.test.mjs test/status-list.test.mjs test/x402.test.mjs test/mcp.test.mjs",
+    "test": "node --test test/crypto.test.mjs test/edge-cases.test.mjs test/a2a.test.mjs test/web-bot-auth.test.mjs test/revocation.test.mjs test/credential-binding.test.mjs test/audit.test.mjs test/status-list.test.mjs test/x402.test.mjs test/mcp.test.mjs test/discover.test.mjs",
     "erc8004": "node src/erc8004-status.mjs",
     "audit": "node src/audit.mjs",
     "status-list": "node src/publish-status-list.mjs",
     "mcp": "node src/mcp-server.mjs",
     "probe": "node src/probe-contract.mjs",
     "demo:x402": "node src/x402-demo.mjs",
-    "demo:mcp": "node src/mcp-demo.mjs"
+    "demo:mcp": "node src/mcp-demo.mjs",
+    "discover": "node src/discover.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

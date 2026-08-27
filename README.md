@@ -171,7 +171,7 @@ Individually, if you want just one:
 
 ```bash
 cd gate-contract && cargo test                    # 47
-cd agent        && npm test                       # 148
+cd agent        && npm test                       # 151
 cd qa-console   && node --test e2e.test.mjs       # 24
 ```
 
@@ -231,7 +231,7 @@ walk off with the key that pays for it.
 
 ## Bugs & doc gaps found while building
 
-[**submission/BUGS.md**](submission/BUGS.md) is the live ledger — 23 reports with
+[**submission/BUGS.md**](submission/BUGS.md) is the live ledger — 26 reports with
 each one's status as of 2026-08-26, re-verified against SDK 5.1.0 and the
 refreshed docs. Four have since been fixed, one is partly adopted into the docs,
 and three are new this round.
