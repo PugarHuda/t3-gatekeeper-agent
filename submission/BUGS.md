@@ -33,7 +33,7 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | 14 | Quickstart's `setEnvironment("sandbox")` throws | Aug | ✅ **fixed** — `sandbox` now aliases testnet |
 | 15 | `npx @terminal3/t3n-sdk` silently resolves a stale local install | Aug | **not currently reproducible** — see below |
 | 16 | One contract registration exhausts an entire grant | Aug | **reproduces**, now measured — see below |
-| 17 | No way to see where credits went (`entries: []`) | Aug | **reproduces**, and now provably: 5.7e9 spent, ledger still empty |
+| 17 | No way to see where credits went (`entries: []`) | Aug | **reproduces** — but see #29: the node *does* keep a per-call ledger, just not the one the usage read returns |
 | 18 | The published SDK is obfuscated, so any error is undebuggable | Aug | **reproduces on 5.1.0** |
 | 19 | The node dropped support for the SDK the old docs shipped, silently | **new** | open |
 | 20 | `trustAnchor` required from 5.x; the error never names the one-line fix | **new** | open |
@@ -45,6 +45,7 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | 26 | Two core contracts are served by the node, documented nowhere, and wrapped by no SDK helper — including a whole OpenID4VP stack | **new** | open |
 | 27 | `tee:agent-connect` is unreachable: the profile *writer* refuses the exact field the profile *reader* requires | **new** | open |
 | 28 | `user-upsert` accepts any `keys` payload silently, and `tee:vc/issue-credential` still calls it missing | **new** | open |
+| 29 | `audit.get-mine` stays empty through 39 dispatches, while `activity.log` records every one of them | **new** | open |
 
 Four fixed, one likely fixed, one partly adopted into the docs. Thank you — the
 ones that got fixed were the ones that most got in a newcomer's way.
@@ -579,3 +580,50 @@ way to put a credential in.
 accept; and say in the `issue-credential` error where issuer metadata is meant to
 be registered. If issuer onboarding is an operator action rather than a
 developer one, say *that* — it is a short sentence that saves a long afternoon.
+
+## #29 — `audit.get-mine` stays empty while `activity.log` records everything
+
+**Where** `T3nClient.getAuditEvents()` (`audit.get-mine`) vs `T3nClient.getActivityLog()`.
+
+**What happens.** After a day of live use — 98 calls on our tenant contract,
+39 of them `execute_action` dispatches that made real outbound HTTP — the
+documented audit read returns:
+
+```
+{ "batches": [], "next_cursor": null }
+```
+
+Every variant we tried returns the same: no `pii_did`, `pii_did` set to our own
+DID, different page sizes.
+
+`getActivityLog()` on the same client, same DID, same moment:
+
+```
+{ "seq_no": 154450, "hash": "48f04c47…", "timestamp_ms": 1787847350711,
+  "caller_type": "agent", "actor": "did:t3n:3d7dd668…", "on_behalf_of": "did:t3n:3d7dd668…",
+  "org": "did:t3n:93d88521…", "contract": "z:3d7dd668…:gate",
+  "function": "execute_action", "outcome": "success" }
+```
+
+Two hundred of those, newest first, with a sequence number and a hash the node
+assigned. It shows the fuel-quota errors (#23), the probes against the
+undocumented core contracts (#26–#28), every `map-entry-set`, every
+`user-upsert` — the whole session, exactly as it happened.
+
+**Why it matters.** `audit.get-mine` is the read the docs point an operator at.
+It says nothing happened. The record that says what happened is behind a
+method that no page we could find mentions. We had `npm run audit` reading the
+empty one for a month and printing an explanation for why it was empty — an
+explanation that was wrong, because the calls had been made and recorded all
+along.
+
+Either the two are meant to be different things — in which case the docs
+should say what `audit.get-mine` is *for*, since it is not the audit trail —
+or `get-mine` is not being populated for tenant-contract calls.
+
+**Asked for.** Document `activity.log` as the audit trail, or populate
+`audit.get-mine` from it. And say what the `hash` on each entry commits to:
+if it chains, that is a tamper-evident log and worth advertising.
+
+**Worked around** — `npm run audit` now reads `activity.log` and reports
+`audit.get-mine` beside it, empty.

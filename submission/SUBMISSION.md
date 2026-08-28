@@ -39,6 +39,8 @@ maintenance after the challenge ends*:
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
 | **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
 | **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
+| **ERC-8004 identity minted** | Agent #201 on Sepolia, `agentURI` → a conformant registration file, read back live from both registries. It stopped being "ready to register" |
+| **The audit trail, found** | `npm run audit` had been reading `audit.get-mine` — empty through 39 dispatches — and explaining the emptiness. The record was in `activity.log` all along (bug #29) |
 | **A2A v1.0 server on the official SDK** | The card has said "A2A" since June; now there is an endpoint behind it. Tested by the official client AND by hand-written JSON-RPC with no SDK |
 | **Web Bot Auth verified against Cloudflare** | Our signatures pass the reference verifier and theirs pass ours. We had been emitting signatures the reference verifier refuses |
 | **Three enclave paths proven live** | The sealed credential, `{{profile.*}}` substitution and idempotent replay had only ever been unit tests — the same situation the status list was in when it broke |
@@ -47,7 +49,7 @@ maintenance after the challenge ends*:
 | **`node verify.mjs`** — one command | Prove the repo is healthy with no key, no network, no credits. It prints its own total |
 | **MAINTENANCE.md** | Every knob, the real failure modes, a handover sequence |
 | Version single-sourced; CI runs the same script | Two classes of drift removed rather than documented |
-| **28 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
+| **29 bug reports**, each re-verified | Including 4 of ours that Terminal 3 has since fixed, and two new ones found by shipping: a credential the SDK cannot make revocable, and a rate limit smaller than the demo |
 | **Metering measured, not guessed** | 30,034,055 credits a call; 1,370,147,045 a registration. Nothing publishes these |
 
 | Bounty requirement | Where |
@@ -57,8 +59,8 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 29, every one from real command output |
-| Bugs faced | §8 — 28 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
+| Screenshots | §9 — 31, every one from real command output |
+| Bugs faced | §8 — 29 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
 each command for real and renders its actual stdout and stderr — including the
@@ -539,7 +541,7 @@ to `getContractVersion`. Two lines. Finding those two lines took the afternoon.
 
 ---
 
-## 8. Bugs — 28 reports, each re-verified today
+## 8. Bugs — 29 reports, each re-verified today
 
 The full ledger with repro steps and request IDs:
 **[submission/BUGS.md](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md)**
@@ -679,6 +681,8 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 27 | `27-prove-enclave.png` | the sealed credential, placeholder substitution and idempotent replay, each proven live with a control |
 | 28 | `28-a2a-official-client.png` | the official A2A client discovering the card, sending messages, reading tasks back |
 | 29 | `29-web-bot-auth-interop.png` | Web Bot Auth verified both ways against Cloudflare's reference implementation |
+| 30 | `30-erc8004-minted.png` | ERC-8004 agent #201 read back through both registries — token, URI, document, registrations |
+| 31 | `31-activity-ledger.png` | bug #29 — the node's activity ledger, tallied, beside the empty documented audit read |
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current
@@ -705,7 +709,8 @@ I would rather state this than imply a live run I did not do.
 | **On the network now** | **v0.10.0, `contract_id 749`**, registered 2026-08-27 |
 | **Proven live** | the KV mandate read, the credential/action binding, idempotent dispatch, in-enclave outbound HTTP (**200**), and `http-with-placeholders` — which until this week had only ever been compiled in |
 | **Also live** | the evidence site, the A2A agent card, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (17/17) |
-| **Still not live** | the ERC-8004 mint (needs a gas-funded wallet) and x402 settlement (needs a facilitator and a funded stablecoin wallet). Both refuse to run unconfigured rather than faking it |
+| **On chain** | ERC-8004 agent **#201**, Sepolia, tx `0x37965ccd…` — `npm run erc8004` reads it back through both registries |
+| **Still not live** | x402 settlement (needs USDC in the payment wallet — the signatures are already accepted by a public facilitator) |
 
 An earlier draft of this section said v0.9.0 was built but unregistered because
 the balance was zero. A top-up landed on 2026-08-27, so that is no longer true

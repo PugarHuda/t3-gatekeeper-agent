@@ -86,6 +86,10 @@ const SHOTS = [
   { name: "29-web-bot-auth-interop", title: "Web Bot Auth verified both ways against Cloudflare's reference implementation",
     cmd: "node --test test/web-bot-auth-interop.test.mjs", cwd: AGENT,
     keep: /^\s*(✔|✖)|^ℹ (tests|pass|fail)/ },
+  { name: "30-erc8004-minted", title: "ERC-8004 agent #201 on Sepolia — read back through both registries: token → URI → conformant document → registrations[201]",
+    cmd: "npm run erc8004", cwd: AGENT },
+  { name: "31-activity-ledger", title: "bug #29 — the node's activity.log records every call; the documented audit.get-mine is empty beside it",
+    cmd: "npm run audit", cwd: AGENT },
   { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
     cmd: "npm run probe", cwd: AGENT, credits: true },
 ];

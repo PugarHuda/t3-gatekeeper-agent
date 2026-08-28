@@ -136,3 +136,89 @@ export async function ownedBy(owner, opts = {}) {
   const count = await contract.balanceOf(owner);
   return { owner, count: Number(count), registered: count > 0n };
 }
+
+// ── reputation ──────────────────────────────────────────────────────────────
+//
+// The second registry. Any address may leave feedback about an agent; the
+// registry keeps it per client. Signatures are the EIP's verbatim.
+//
+// The reference deployment on Sepolia predates the EIP's final interface: its
+// bytecode carries `getClients`, `getLastIndex`, `readFeedback` and
+// `getIdentityRegistry`, and NOT the final `getSummary`, `giveFeedback` or
+// `readAllFeedback` (checked by selector, 2026-08-28). So the aggregate is
+// computed here from the per-client reads the contract does have, and the
+// preflight says which EIP functions are absent rather than letting a
+// "missing revert data" stand in for an answer.
+export const REPUTATION_ABI = [
+  "function getIdentityRegistry() view returns (address)",
+  "function getClients(uint256 agentId) view returns (address[])",
+  "function getLastIndex(uint256 agentId, address clientAddress) view returns (uint64)",
+  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bool isRevoked)",
+];
+
+/** The EIP's read/write surface, for the selector check. */
+export const REPUTATION_EIP_FUNCTIONS = [
+  "getIdentityRegistry()",
+  "getClients(uint256)",
+  "getLastIndex(uint256,address)",
+  "readFeedback(uint256,address,uint64)",
+  "getSummary(uint256,address[],string,string)",
+  "readAllFeedback(uint256,address[],string,string,bool)",
+  "giveFeedback(uint256,int128,uint8,string,string,string,string,bytes32)",
+];
+
+/** Which of the EIP's functions this deployment actually implements. */
+export async function reputationPreflight(opts = {}) {
+  const network = opts.network ?? DEFAULT_NETWORK;
+  const cfg = REGISTRIES[network];
+  const provider = new ethers.JsonRpcProvider(opts.rpc ?? cfg.rpc);
+  const address = opts.address ?? cfg.reputation;
+  const code = await provider.getCode(address);
+  const present = [], missing = [];
+  for (const sig of REPUTATION_EIP_FUNCTIONS) {
+    (code.includes(ethers.id(sig).slice(2, 10)) ? present : missing).push(sig);
+  }
+  let identityRegistry = null;
+  if (present.includes("getIdentityRegistry()")) {
+    identityRegistry = await new ethers.Contract(address, REPUTATION_ABI, provider).getIdentityRegistry();
+  }
+  return {
+    address, present, missing, identityRegistry,
+    // The two registries are a matched pair only if this one names the other.
+    pairedWithIdentity: identityRegistry?.toLowerCase() === cfg.identity.toLowerCase(),
+  };
+}
+
+/**
+ * What the Reputation Registry holds about one agent. Live reads, no gas.
+ *
+ * Aggregated client-side from the reads that exist. `count: 0` is the true
+ * state of a freshly minted agent and is returned as such — nothing stands in
+ * for a score.
+ */
+export async function readReputation(agentId, opts = {}) {
+  const network = opts.network ?? DEFAULT_NETWORK;
+  const cfg = REGISTRIES[network];
+  if (!cfg?.reputation) throw new Error(`no reputation registry known for ${network}`);
+  const provider = new ethers.JsonRpcProvider(opts.rpc ?? cfg.rpc);
+  const rep = new ethers.Contract(cfg.reputation, REPUTATION_ABI, provider);
+
+  const clients = [...await rep.getClients(agentId)];
+  const feedback = [];
+  for (const client of clients) {
+    const last = Number(await rep.getLastIndex(agentId, client));
+    // Indexes are 1-based per client in the reference implementation; read
+    // whatever exists and keep revoked entries out of the aggregate.
+    for (let i = 1; i <= last; i++) {
+      try {
+        const f = await rep.readFeedback(agentId, client, i);
+        feedback.push({ client, index: i, value: f.value.toString(), decimals: Number(f.valueDecimals), tag1: f.tag1, tag2: f.tag2, revoked: f.isRevoked });
+      } catch { /* an index that was never written */ }
+    }
+  }
+  const live = feedback.filter((f) => !f.revoked);
+  const score = live.length
+    ? live.reduce((a, f) => a + Number(f.value) / 10 ** f.decimals, 0) / live.length
+    : null;
+  return { agentId: String(agentId), registry: cfg.reputation, clients, count: live.length, feedback, score };
+}

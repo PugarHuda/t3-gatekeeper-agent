@@ -19,6 +19,7 @@ import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildStatusList, decodeList, getBit, STATUS_LIST_URL, DEMO_REVOKED_INDEX } from "./status-list.mjs";
+import { buildRegistrationFile, validateRegistrationFile, REGISTRATION_URL } from "./erc8004-registration.mjs";
 
 const revoked = (process.env.REVOKED_INDICES ?? String(DEMO_REVOKED_INDEX))
   .split(",")
@@ -59,5 +60,20 @@ mkdirSync(path.dirname(cardOut), { recursive: true });
 const card = readFileSync(cardSrc, "utf8");
 writeFileSync(cardOut, card);
 console.log(`\nWrote ${path.relative(process.cwd(), cardOut)}  (v${JSON.parse(card).version})`);
+
+// The ERC-8004 registration file — what the on-chain agentURI resolves to.
+// `registrations` is filled from agent/erc8004-minted.json once a mint has
+// happened; before that it is an honest empty list.
+let minted = null;
+try {
+  minted = JSON.parse(readFileSync(new URL("../erc8004-minted.json", import.meta.url), "utf8"));
+} catch { /* not minted yet */ }
+const reg = buildRegistrationFile({ minted, a2aEndpoint: process.env.A2A_BASE_URL || null });
+const check = validateRegistrationFile(reg);
+if (!check.valid) throw new Error(`registration file is not conformant: ${check.problems.join("; ")}`);
+const regOut = fileURLToPath(new URL("../../site/.well-known/erc8004-registration.json", import.meta.url));
+writeFileSync(regOut, JSON.stringify(reg, null, 2) + "\n");
+console.log(`\nWrote ${path.relative(process.cwd(), regOut)}  (${REGISTRATION_URL})`);
+console.log(`  registrations: ${reg.registrations.length ? JSON.stringify(reg.registrations) : "(not minted yet)"}`);
 
 console.log(`\nDeploy with: cd site && npx vercel deploy --prod --yes`);

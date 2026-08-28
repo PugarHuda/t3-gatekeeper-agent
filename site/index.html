@@ -341,6 +341,21 @@
       the format refuses those outright.</figcaption>
   </figure>
   <figure>
+    <img src="shots/30-erc8004-minted.png" alt="ERC-8004 agent 201 read back from both registries">
+    <figcaption><span class="pill ok">On chain</span><b>ERC-8004 agent #201, minted.</b>
+      On the reference IdentityRegistry on Sepolia. The token resolves to an owner and a URI; the URI
+      resolves to a conformant <code>registration-v1</code> document that names the token back; the
+      Reputation Registry answers for the same id — and its deployment turns out to predate the EIP's
+      final interface, which the read says rather than hides.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/31-activity-ledger.png" alt="the node's activity ledger, tallied">
+    <figcaption><span class="pill bug">Bug #29</span><b>The audit trail was somewhere else.</b>
+      <code>audit.get-mine</code>, the documented read, is empty after 39 dispatches. <code>activity.log</code>
+      has every one — contract, function, outcome, sequence number, hash — and the whole session with them:
+      the fuel-quota errors, the probes, the mint of the contract itself.</figcaption>
+  </figure>
+  <figure>
     <img src="shots/26-x402-facilitator.png" alt="an independent facilitator verifying our payment">
     <figcaption><span class="pill ok">Shipped</span><b>Checked by someone who is not us.</b>
       An independent x402 facilitator recovers our payer address from the signature and

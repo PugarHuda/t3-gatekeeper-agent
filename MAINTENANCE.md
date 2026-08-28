@@ -126,6 +126,8 @@ re-registration, a node upgrade, or before a demo:
 npm run prove:enclave   # secrets → Authorization header; {{profile.*}}; idempotent replay  (~8 executes)
 npm run x402:verify     # EIP-712 domain vs the deployed token; an independent facilitator's /verify
 npm run discover        # what the node runs, read with the agent key
+npm run audit           # the node's activity ledger, tallied; audit.get-mine beside it
+npm run erc8004         # our on-chain identity, read back through both registries
 ```
 
 Each prints PASS/FAIL per check and exits non-zero on any failure. `prove:enclave`

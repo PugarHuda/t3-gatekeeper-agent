@@ -1,0 +1,47 @@
+
+> t3-gatekeeper-agent@0.1.0 audit
+> node src/audit.mjs
+
+activity.log — the node's record of this DID's calls (last 200, seq 151403…156084)
+  tee:agent-connect/contracts
+    commerce-history-get     success   0   error   4
+    commerce-intent-cancel   success   0   error   3
+    commerce-intent-confirm  success   0   error   3
+    commerce-intent-create   success   0   error   4
+    commerce-quote           success   0   error   9
+    commerce-webhook-apply   success   0   error   1
+  tee:organisation/contracts
+    create-agent             success   1   error   0
+  tee:tenant/contracts
+    contract-register        success   1   error   2
+    map-entry-set            success   8   error   0
+    tenant-claim             success   0   error   2
+    tenant-me                success   2   error   0
+  tee:user/contracts
+    agent-auth-update        success   3   error   0
+    user-upsert              success  14   error  10
+  tee:vc/contracts
+    issue-credential         success   0   error  10
+    kyc-credential-summary   success   0   error   1
+    my-presentations         success   3   error   0
+    submit-vp                success   0   error   9
+  z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:costprobe
+    evaluate                 success   1   error   0
+  z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate
+    dispatch_action          success   2   error   0
+    evaluate                 success  43   error  13
+    execute_action           success  16   error  23
+    verify_vp                success   0   error   1
+  z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:idreg
+    evaluate                 success   0   error   2
+  z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:probe
+    dispatch_action          success   4   error   0
+    evaluate                 success   5   error   0
+
+  z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate: 98 calls, of which execute_action 39 (16 succeeded, 23 errored)
+  Every entry carries a hash and a sequence number; the node, not the agent, assigned both.
+
+audit.get-mine — the documented audit read
+  batches 0  events 0  committed 0  uncommitted 0
+  Empty, while activity.log shows 39 execute_action calls on the same DID.
+  That is bug #29: the documented read does not surface tenant-contract dispatches.

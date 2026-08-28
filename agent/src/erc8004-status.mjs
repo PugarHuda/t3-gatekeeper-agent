@@ -1,12 +1,13 @@
 // `npm run erc8004` — what our ERC-8004 identity actually looks like on-chain,
-// read live from the registry. No wallet, no gas, no key.
+// read live from the registries. No wallet needed, no gas, no key.
 //
-// This is the honest answer to "do you support ERC-8004": the registry is real,
-// we read it, we can prove whether we are in it, and the write path is
-// preflighted against the same contract. What we have NOT done is mint — that
-// needs a gas-funded wallet, and the script refuses rather than pretending.
+// This is the whole loop, read from the outside in: the registry preflights
+// as a registry; our token resolves to an owner and a URI; the URI resolves
+// to a conformant registration file that names the token back; and the
+// reputation registry answers for the same id. Every line is a live read.
 import { readFileSync } from "node:fs";
-import { preflight, resolveAgent, ownedBy, connect, REGISTRIES, DEFAULT_NETWORK } from "./erc8004.mjs";
+import { preflight, resolveAgent, ownedBy, readReputation, reputationPreflight, connect, REGISTRIES, DEFAULT_NETWORK } from "./erc8004.mjs";
+import { validateRegistrationFile, REGISTRATION_TYPE } from "./erc8004-registration.mjs";
 
 try {
   for (const line of readFileSync(new URL("../.env", import.meta.url), "utf8").split(/\r?\n/)) {
@@ -27,12 +28,53 @@ for (const c of report.checks) console.log(`  ${c.pass ? "✅" : "❌"} ${c.name
 console.log(`\n  registry name: ${report.name ?? "(unreadable)"}`);
 console.log(`  safe to register against: ${report.ok ? "yes" : "NO — do not send a transaction"}\n`);
 
-// Read a live agent back, to show the reads are real and not a shape we invented.
-const sample = process.env.ERC8004_SAMPLE_ID ?? "1";
+// Our own token when we have one, else a sample — the reads are the same.
+let minted = null;
+try { minted = JSON.parse(readFileSync(new URL("../erc8004-minted.json", import.meta.url), "utf8")); } catch { /* not minted */ }
+const sample = process.env.ERC8004_SAMPLE_ID ?? (minted ? String(minted.agentId) : "1");
 const agent = await resolveAgent(sample, { network: net });
 console.log(agent
-  ? `  sample agent #${agent.agentId}\n    owner ${agent.owner}\n    uri   ${agent.uri || "(none set)"}`
-  : `  sample agent #${sample} is not minted`);
+  ? `  agent #${agent.agentId}${minted && String(minted.agentId) === String(agent.agentId) ? " (ours)" : " (sample)"}\n    owner ${agent.owner}\n    uri   ${agent.uri || "(none set)"}`
+  : `  agent #${sample} is not minted`);
+
+// Follow the URI the chain returned and check it is the document the spec
+// asks for. This is what a resolver does, and the one place a mint that
+// "succeeded" can still be useless.
+if (agent?.uri?.startsWith("http")) {
+  try {
+    const res = await fetch(agent.uri, { signal: AbortSignal.timeout(20_000) });
+    const doc = res.ok ? await res.json() : null;
+    const v = doc ? validateRegistrationFile(doc) : { valid: false, problems: [`HTTP ${res.status}`] };
+    const names = v.valid && doc.registrations?.some((r) => String(r.agentId) === String(agent.agentId));
+    console.log(`    ${v.valid ? "✅" : "❌"} the URI resolves to a ${REGISTRATION_TYPE.split("#")[1]} document${v.valid ? "" : ` — ${v.problems.join("; ")}`}`);
+    if (v.valid) {
+      console.log(`    ${names ? "✅" : "❌"} and its registrations[] names agent #${agent.agentId} back`);
+      console.log(`    services: ${doc.services.map((x) => x.name).join(", ")}  ·  trust: ${(doc.supportedTrust ?? []).join(", ")}  ·  x402: ${doc.x402Support}`);
+    }
+  } catch (e) {
+    console.log(`    ❌ could not fetch the URI: ${String(e.message).slice(0, 80)}`);
+  }
+}
+
+// The Reputation Registry, for the same id. A fresh agent has none, and the
+// honest number for that is zero.
+if (agent) {
+  try {
+    const pf = await reputationPreflight({ network: net });
+    console.log(`
+  reputation registry ${pf.address}`);
+    console.log(`    ${pf.pairedWithIdentity ? "✅" : "❌"} getIdentityRegistry() names the identity registry above`);
+    if (pf.missing.length) {
+      console.log(`    ⚠  this deployment predates the EIP's final interface — absent: ${pf.missing.join(", ")}`);
+      console.log(`       present: ${pf.present.join(", ")}`);
+    }
+    const rep = await readReputation(agent.agentId, { network: net });
+    console.log(`    agent #${agent.agentId}: feedback entries ${rep.count}, clients ${rep.clients.length}, score ${rep.score ?? "(none yet — nothing stands in for one)"}`);
+  } catch (e) {
+    console.log(`
+  reputation registry: ${String(e.shortMessage ?? e.message).slice(0, 100)}`);
+  }
+}
 
 // And our own status.
 //

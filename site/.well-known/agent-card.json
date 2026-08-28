@@ -201,8 +201,14 @@
     },
     {
       "protocol": "ERC-8004",
-      "note": "Trustless Agents identity (ERC-721, agentURI -> this card). `npm run erc8004` does live reads against the reference registry on Sepolia and preflights any registry before a mint; `npm run register:erc8004` performs the mint and refuses to run unconfigured. Only a gas-funded wallet is missing.",
-      "status": "ready-to-register"
+      "note": "Trustless Agents identity, minted on the reference IdentityRegistry on Sepolia. agentURI resolves to the ERC-8004 registration-v1 file the site serves. `npm run erc8004` reads it back live.",
+      "status": "active",
+      "identifier": "eip155:11155111:0x7177a6867296406881E20d6647232314736Dd09A#201",
+      "agentId": 201,
+      "agentRegistry": "eip155:11155111:0x7177a6867296406881E20d6647232314736Dd09A",
+      "owner": "0xB2C95Cc1249dC1f33ceD098c78c86c483eA5806f",
+      "tx": "0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb",
+      "agentURI": "https://gatekeeper-evidence.vercel.app/.well-known/erc8004-registration.json"
     },
     {
       "protocol": "A2A",

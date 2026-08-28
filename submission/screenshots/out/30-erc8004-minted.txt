@@ -1,0 +1,34 @@
+
+> t3-gatekeeper-agent@0.1.0 erc8004
+> node src/erc8004-status.mjs
+
+ERC-8004 IdentityRegistry — ethereum-sepolia
+  0x7177a6867296406881E20d6647232314736Dd09A
+  https://sepolia.etherscan.io/address/0x7177a6867296406881E20d6647232314736Dd09A
+
+  ✅ a contract is deployed at the address — 6884 bytes
+  ✅ name() looks like an agent registry — "ERC-8004 Trustless Agent"
+  ✅ register(string) is in the bytecode — 0xf2c298be
+
+  registry name: ERC-8004 Trustless Agent
+  safe to register against: yes
+
+  agent #201 (ours)
+    owner 0xB2C95Cc1249dC1f33ceD098c78c86c483eA5806f
+    uri   https://gatekeeper-evidence.vercel.app/.well-known/erc8004-registration.json
+    ✅ the URI resolves to a registration-v1 document
+    ✅ and its registrations[] names agent #201 back
+    services: web, A2A, DID  ·  trust: tee-attestation, reputation  ·  x402: true
+
+  reputation registry 0xB5048e3ef1DA4E04deB6f7d0423D06F63869e322
+    ✅ getIdentityRegistry() names the identity registry above
+    ⚠  this deployment predates the EIP's final interface — absent: getSummary(uint256,address[],string,string), readAllFeedback(uint256,address[],string,string,bool), giveFeedback(uint256,int128,uint8,string,string,string,string,bytes32)
+       present: getIdentityRegistry(), getClients(uint256), getLastIndex(uint256,address), readFeedback(uint256,address,uint64)
+    agent #201: feedback entries 0, clients 0, score (none yet — nothing stands in for one)
+
+  our address 0xB2C95Cc1249dC1f33ceD098c78c86c483eA5806f
+  (ERC8004_PRIVATE_KEY — the key that will sign the mint)
+  agents owned: 1 — REGISTERED
+  balance:      0.049806929899600581 ETH
+
+Already minted. Nothing to do.
