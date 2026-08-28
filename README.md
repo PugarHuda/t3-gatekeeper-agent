@@ -144,6 +144,21 @@ advertises (see [submission/ADOPTIONS.md](submission/ADOPTIONS.md)):
   exchanging a BBS+ capability credential with **selective disclosure**: an agent
   proves one capability without revealing the rest of its manifest.
 
+- **The registered component, hosted in JavaScript** — `agent/gate-wasm/` is
+  jco's transpilation of the exact `gate_contract.wasm` that `npm run setup`
+  registers, and `agent/src/gate-wasm.mjs` is its host: a clock, a tenant id,
+  an in-memory KV store, and an outbound-HTTP import that refuses. `evaluate`
+  and `spend` run the enclave's real code paths with no Rust toolchain, no
+  enclave and no account, so `npm ci && npm run mcp` is a working gate. A test
+  holds the component to `gate_cli` verdict by verdict, and another fails when
+  the checked-in glue is not made from the component on disk
+  (`npm run gate:transpile` after every contract change).
+- **MCP Registry listing** — `agent/server.json` in the registry's schema,
+  validated offline; the package has its `bin` (`t3-gatekeeper-mcp`) and
+  `mcpName`. Publishing is the owner's two commands (MAINTENANCE.md §4).
+- **Accessibility, measured** — axe-core through Playwright over the evidence
+  site and the QA console, part of `node verify.mjs`.
+
 Plus a **credential-revocation pre-gate** (`agent/src/revocation.mjs`,
 `@terminal3/revoke_vc` `isRevoked()`): a revoked credential blocks the action even
 if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
@@ -155,25 +170,25 @@ if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 
 ```bash
 node verify.mjs        # Rust, wasm build, Node, Playwright. No key needed.
-                       # Prints its own total (118 at the time of writing).
+                       # Prints its own total (298 at the time of writing).
 ```
 
 CI runs the same script, so the two cannot drift apart.
 
 | Suite | Count | What it covers |
 | --- | --- | --- |
-| Rust (`gate-contract`) | 48 | the mandate rules, every dimension, deny-by-default, the enclave-held credential |
-| Node (`agent`) | 52 | BBS+, selective disclosure, A2A, revocation, Web Bot Auth + key directory + replay window |
-| QA console (`qa-console`) | 18 | Playwright over the **real** Rust `decide()` — happy path, 6 wrong paths, 4 API-abuse cases |
-| Live site | 10 | the deployed page, incl. a Web Bot Auth key round trip over the public internet |
+| Rust (`gate-contract`) | 47 | the mandate rules, every dimension, deny-by-default, the enclave-held credential, binding, idempotency |
+| Node (`agent`) | 206 | BBS+, A2A v1.0 (official client), MCP (stdio + HTTP), Web Bot Auth incl. Cloudflare interop, x402, ERC-8004, status list, audit, the wasm component host, the registry listing |
+| QA console (`qa-console`) | 41 + 3 | Playwright over the **real** Rust `decide()` — happy path, wrong paths, API abuse, x402, signed A2A + MCP by hand, pending/failure states; plus axe-core accessibility |
+| Live site | 19 | the deployed page and its endpoints, incl. a Web Bot Auth key round trip over the public internet |
 | Doc / docx / video | 16 | the submission artifacts actually render, and the video decodes with audio |
 
 Individually, if you want just one:
 
 ```bash
 cd gate-contract && cargo test                    # 47
-cd agent        && npm test                       # 191
-cd qa-console   && node --test e2e.test.mjs       # 38
+cd agent        && npm test                       # 206
+cd qa-console   && npm test                       # 41 + 3 (Playwright, axe)
 ```
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the
@@ -205,6 +220,8 @@ npm run setup               # register the contract, create + seed its KV maps
 npm run grant:egress        # authorise the enclave to reach ACTION_ENDPOINT's host
 npm run demo                # identity -> VC gate -> TEE mandate -> audit -> in-TEE dispatch
 npm run mcp                 # serve the gate over MCP (stdio) to any host that speaks it
+                            #   (works right after `npm install` — gate_evaluate runs the
+                            #    registered wasm component; gate_cli adds binding checks)
 npm run a2a                 # serve the gate over A2A v1.0 (JSON-RPC) to any agent that speaks it
 npm run prove:enclave       # the enclave-only paths, proven live with controls
 ```

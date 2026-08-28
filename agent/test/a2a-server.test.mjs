@@ -118,7 +118,7 @@ describe("evaluate-gated-action, over A2A", () => {
     };
     const direct = await decide(args);
     const { verdict } = await ask(args);
-    assert.deepEqual(verdict, direct);
+    assert.deepEqual(verdict, { ...direct, engine: "gate_cli" });
     assert.equal(direct.decision, "rejected");
   });
 

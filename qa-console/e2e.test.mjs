@@ -435,3 +435,41 @@ describe("MCP over HTTP — hand-written JSON-RPC, signed", () => {
     assert.ok(body.error, JSON.stringify(body).slice(0, 160));
   });
 });
+
+describe("when the server is gone, the console says so", () => {
+  test("a failed request is NO ANSWER with the cause — not a verdict, not a hang", async () => {
+    await page.route("**/api/decide", (route) => route.abort("connectionrefused"));
+    await page.evaluate(() => { delete document.body.dataset.decision; });
+    await page.getByTestId("s-happy").click();
+    await page.waitForFunction(() => document.body.dataset.decision !== undefined);
+    assert.equal(await page.evaluate(() => document.body.dataset.decision), "error");
+    assert.equal((await page.getByTestId("verdict").textContent()).trim(), "NO ANSWER");
+    const reasons = await page.getByTestId("reasons").locator("li").allTextContents();
+    assert.equal(reasons.length, 1);
+    assert.match(reasons[0], /server\.mjs/);
+    // Buttons are released again — a dead server must not lock the console.
+    assert.equal(await page.getByTestId("s-over").isDisabled(), false);
+    await page.unroute("**/api/decide");
+  });
+
+  test("and recovers on the next click once the server answers", async () => {
+    const { verdict } = await runScenario("s-happy");
+    assert.equal(verdict, "APPROVED");
+  });
+
+  test("while a decision is pending every scenario is locked and the pressed one is marked", async () => {
+    let release;
+    await page.route("**/api/decide", (route) => { release = () => route.continue(); });
+    await page.evaluate(() => { delete document.body.dataset.decision; });
+    await page.getByTestId("s-over").click();
+    await page.waitForFunction(() => document.querySelector('[data-testid="s-over"]').disabled);
+    assert.equal(await page.getByTestId("s-over").getAttribute("aria-pressed"), "true");
+    assert.equal(await page.getByTestId("s-happy").getAttribute("aria-pressed"), "false");
+    assert.equal(await page.getByTestId("s-happy").isDisabled(), true);
+    assert.equal((await page.getByTestId("verdict").textContent()).trim(), "…");
+    release();
+    await page.waitForFunction(() => document.body.dataset.decision !== undefined);
+    assert.equal((await page.getByTestId("verdict").textContent()).trim(), "REJECTED");
+    await page.unroute("**/api/decide");
+  });
+});

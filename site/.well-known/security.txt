@@ -1,0 +1,7 @@
+# RFC 9116 — how to report a security issue in Gatekeeper.
+Contact: https://github.com/PugarHuda/t3-gatekeeper-agent/issues
+Contact: https://github.com/PugarHuda/t3-gatekeeper-agent/security/advisories/new
+Expires: 2027-08-28T00:00:00.000Z
+Preferred-Languages: en, id
+Canonical: https://gatekeeper-evidence.vercel.app/.well-known/security.txt
+Policy: https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/MAINTENANCE.md

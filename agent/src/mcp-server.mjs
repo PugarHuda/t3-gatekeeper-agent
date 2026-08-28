@@ -30,6 +30,7 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 
 import { decide, gateCliPath, BUILD_HINT, CONTRACT_VERSION } from "./gate-cli.mjs";
+import { decideWith } from "./engine.mjs";
 import { discoverPeer } from "./a2a.mjs";
 import { checkStatus, statusEntry, STATUS_LIST_URL } from "./status-list.mjs";
 import { resolveAgent, preflight, DEFAULT_NETWORK } from "./erc8004.mjs";
@@ -86,33 +87,38 @@ const server = new McpServer(
 );
 
 // ── gate_evaluate ───────────────────────────────────────────────────────────
+// Which engine decides is engine.mjs's business; see there for the two.
 server.registerTool(
   "gate_evaluate",
   {
     title: "Evaluate an action against a mandate",
     description:
       "Decide whether an action is inside a spending mandate, using the contract's own compiled " +
-      "Rust logic (gate_cli, the host build of the enclave's decide()). Offline, free, and no " +
-      "credentials needed. Returns the decision plus a machine-readable reason for every rule " +
-      "that refused. An empty mandate approves nothing.",
+      "logic: gate_cli (the Rust host build of the enclave's decide()) or the registered wasm " +
+      "component itself, hosted in JavaScript. Offline, free, and no credentials needed. Returns " +
+      "the decision, a machine-readable reason for every rule that refused, and which engine " +
+      "answered. An empty mandate approves nothing.",
     inputSchema: {
       action: z.object(actionShape),
       mandate: z.object(mandateShape),
       now_secs: z.number().int().optional().describe("Unix seconds to evaluate at. Defaults to now; pass one to test a time window deterministically."),
       credential: z.record(z.string(), z.unknown()).optional().describe("Credential binding from bind_credential. Required when the mandate sets require_credential."),
       idempotency_key: z.string().optional(),
+      engine: z.enum(["auto", "gate_cli", "component"]).optional()
+        .describe("auto (default) uses gate_cli when built, else the wasm component. gate_cli is required for credential/idempotency checks."),
     },
     outputSchema: {
       decision: z.enum(["approved", "rejected"]),
       reasons: z.array(z.string()),
-      action_digest: z.string(),
-      expected_commitment: z.string().nullable(),
+      action_digest: z.string().optional(),
+      expected_commitment: z.string().nullable().optional(),
       now_secs: z.number().int(),
+      engine: z.enum(["gate_cli", "component"]),
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   async (args) => {
-    const out = await decide(args);
+    const out = await decideWith(args);
     const verdict = out.decision === "approved"
       ? "APPROVED — inside mandate."
       : `REJECTED — ${out.reasons.join("; ")}`;

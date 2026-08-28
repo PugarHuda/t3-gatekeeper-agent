@@ -138,6 +138,7 @@
   .shot { border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); overflow:hidden; box-shadow:var(--shadow); }
   .shot img { width:100%; height:auto; display:block; }
   .shot.tall { max-height:70vh; overflow-y:auto; overscroll-behavior:contain; }
+  .shot.tall:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   figcaption { margin-top:10px; color:var(--dim); font-size:14px; line-height:1.6; max-width:80ch; }
   figcaption b { color:var(--head); font-weight:600; }
   figcaption .open { margin-left:8px; white-space:nowrap; font-size:13px; }
@@ -208,15 +209,14 @@
     <div class="path">
       <div class="text">
       <h3>Serve the gate over MCP</h3>
-      <p>Eight tools, stdio or Streamable HTTP. <code>gate_evaluate</code> answers from the contract's own compiled Rust — offline, no Terminal 3 account.</p>
+      <p>Eight tools, stdio or Streamable HTTP. <code>gate_evaluate</code> answers from the contract's own compiled logic — the registered wasm component, hosted in JavaScript — so it needs no Rust toolchain, no Terminal 3 account, and nothing online.</p>
       </div>
       <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
-cd t3-gatekeeper-agent
-<span class="c"># the host build of decide(), shared by every surface</span>
-cd gate-contract &amp;&amp; cargo build --bin gate_cli --release &amp;&amp; cd ..
-cd agent &amp;&amp; npm ci
-npm run mcp          <span class="c"># stdio server; npm run demo:mcp drives it</span></pre></div>
+cd t3-gatekeeper-agent/agent &amp;&amp; npm ci
+npm run mcp          <span class="c"># stdio server; npm run demo:mcp drives it</span>
+<span class="c"># optional: the Rust host build adds credential-binding + idempotency checks</span>
+<span class="c">#   cd ../gate-contract &amp;&amp; cargo build --bin gate_cli --release</span></pre></div>
       <div class="code"><button class="copy" type="button" aria-label="Copy host configuration">Copy</button>
 <pre><span class="c">// any MCP host: Claude Code, Claude Desktop, Cursor …</span>
 { "mcpServers": { "gatekeeper": {
@@ -252,7 +252,7 @@ curl -s localhost:41241/.well-known/agent-card.json</pre></div>
 npm run erc8004              <span class="c"># owner, URI, registration doc, reputation</span>
 npm run discover             <span class="c"># what the node runs (scoped agent key)</span></pre></div>
       <div class="code"><button class="copy" type="button" aria-label="Copy command">Copy</button>
-<pre>node verify.mjs              <span class="c"># 277 checks, no API key, no credits</span></pre></div>
+<pre>node verify.mjs              <span class="c"># 298 checks, no API key, no credits</span></pre></div>
     </div>
   </div>
 </div></section>
@@ -304,7 +304,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   <dl class="ledger">
     <div><dt>Contract</dt><dd><b>gate@0.10.0</b> — Rust → wasm32-wasip2, live on T3N testnet as contract_id 749</dd></div>
     <div><dt>Mandate rules</dt><dd><b>11</b> enforced in the enclave: cap, assets, kinds, counterparties, per-payee limits, issuer trust list, validity window, credential binding, idempotency</dd></div>
-    <div><dt>Checks</dt><dd><b>277</b> offline in one command — 47 Rust, 191 Node, 38 Playwright — plus 19 live against the node</dd></div>
+    <div><dt>Checks</dt><dd><b>298</b> offline in one command — 47 Rust, 206 Node, 41 Playwright, 3 axe-core — plus 19 live against the node</dd></div>
     <div><dt>Distribution</dt><dd>MCP (stdio + Streamable HTTP) · A2A v1.0 on the official SDK · ERC-8004 agent #201</dd></div>
     <div><dt>Payments</dt><dd>x402 through the mandate — <b>0.01 USDC settled</b> on Base Sepolia via the public facilitator</dd></div>
     <div><dt>Interop</dt><dd>Web Bot Auth (RFC 9421) verified both ways against Cloudflare's reference implementation</dd></div>
@@ -356,7 +356,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/05-full-flow.png" width="1448" height="9770" loading="lazy" decoding="async" alt="Full agent run"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="Full agent run (scrolls)"><img src="shots/05-full-flow.png" width="1448" height="9770" loading="lazy" decoding="async" alt="Full agent run"></div>
     <figcaption><span class="pill ok">Use case</span><b>The whole chain, one run.</b>
       Identity → BBS+ credential gate → revocation check → TEE mandate → audit row →
       signed dispatch. Six scenarios: one approved and dispatched for real
@@ -383,9 +383,9 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
 
   <figure>
     <div class="shot"><img src="shots/07-tests.png" width="1448" height="1400" loading="lazy" decoding="async" alt="node verify.mjs output: Rust, wasm build, Node and Playwright suites all passing"></div>
-    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 277 checks in one command</b>:
-      Rust unit tests, a wasm component build, the Node suite (191), and Playwright (38) over the
-      real Rust <code>decide()</code>. No API key, no network, no credits.
+    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 298 checks in one command</b>:
+      Rust unit tests, a wasm component build, the Node suite (206), Playwright (41) over the
+      real Rust <code>decide()</code>, and axe-core over both pages (3). No API key, no network, no credits.
       <a class="open" href="shots/07-tests.png">Full size ↗</a></figcaption>
   </figure>
   </div>
@@ -441,7 +441,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   <h3>Distribution &amp; adoption<small>MCP, A2A, Web Bot Auth, ERC-8004, x402, revocation</small></h3>
 
   <figure>
-    <div class="shot tall"><img src="shots/21-mcp-server.png" width="1448" height="3066" loading="lazy" decoding="async" alt="the gate served over MCP to a real client"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="the gate served over MCP to a real client (scrolls)"><img src="shots/21-mcp-server.png" width="1448" height="3066" loading="lazy" decoding="async" alt="the gate served over MCP to a real client"></div>
     <figcaption><span class="pill ok">Shipped</span><b>The gate, over MCP.</b>
       A real MCP client, a real subprocess, eight tools. <code>gate_evaluate</code> answers
       from the contract's own compiled Rust — offline, free, and with no Terminal 3 account
@@ -450,7 +450,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/28-a2a-official-client.png" width="1448" height="2068" loading="lazy" decoding="async" alt="the official A2A client driving the server"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="the official A2A client driving the server (scrolls)"><img src="shots/28-a2a-official-client.png" width="1448" height="2068" loading="lazy" decoding="async" alt="the official A2A client driving the server"></div>
     <figcaption><span class="pill ok">Shipped</span><b>A2A v1.0, on the official SDK.</b>
       A JSON-RPC endpoint serving the gate as A2A tasks. The official <code>@a2a-js/sdk</code> client
       discovers the card, sends messages and reads tasks back; a rejected action <i>completes</i>
@@ -468,7 +468,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/30-erc8004-minted.png" width="1448" height="3598" loading="lazy" decoding="async" alt="ERC-8004 agent 201 read back from both registries"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="ERC-8004 agent 201 read back from both registries (scrolls)"><img src="shots/30-erc8004-minted.png" width="1448" height="3598" loading="lazy" decoding="async" alt="ERC-8004 agent 201 read back from both registries"></div>
     <figcaption><span class="pill ok">On chain</span><b>ERC-8004 agent #201, minted.</b>
       On the reference IdentityRegistry on Sepolia. The token resolves to an owner and a URI; the URI
       resolves to a conformant <code>registration-v1</code> document that names the token back; the
@@ -478,7 +478,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/16-erc8004-live.png" width="1448" height="2300" loading="lazy" decoding="async" alt="live ERC-8004 registry reads and a mint preflight"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="live ERC-8004 registry reads and a mint preflight (scrolls)"><img src="shots/16-erc8004-live.png" width="1448" height="2300" loading="lazy" decoding="async" alt="live ERC-8004 registry reads and a mint preflight"></div>
     <figcaption><span class="pill ok">Shipped</span><b>ERC-8004, read live and preflighted.</b>
       Resolve any agent's owner and URI from the reference registry on Sepolia, and check a
       registry's bytecode carries <code>register(string)</code> <b>before</b> a mint spends
@@ -487,7 +487,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/22-x402-mandated-payment.png" width="1448" height="3470" loading="lazy" decoding="async" alt="one payment made, three refused"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="one payment made, three refused (scrolls)"><img src="shots/22-x402-mandated-payment.png" width="1448" height="3470" loading="lazy" decoding="async" alt="one payment made, three refused"></div>
     <figcaption><span class="pill ok">Shipped</span><b>The mandate decides whether to pay.</b>
       Four paywalls, one payment. A payee the mandate never listed, a price over the API
       budget, and a mandate that only permits trading are each refused <i>before</i> a
@@ -496,7 +496,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/32-x402-settled.png" width="1448" height="2068" loading="lazy" decoding="async" alt="the x402 settlement checked on chain"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="the x402 settlement checked on chain (scrolls)"><img src="shots/32-x402-settled.png" width="1448" height="2068" loading="lazy" decoding="async" alt="the x402 settlement checked on chain"></div>
     <figcaption><span class="pill ok">On chain</span><b>x402, settled.</b>
       0.01 USDC moved on Base Sepolia through the mandate: the resource server verified and settled
       through the public facilitator, which broadcast the transfer — the payer paid no gas. The evidence
@@ -506,7 +506,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/26-x402-facilitator.png" width="1448" height="4632" loading="lazy" decoding="async" alt="an independent facilitator verifying our payment"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="an independent facilitator verifying our payment (scrolls)"><img src="shots/26-x402-facilitator.png" width="1448" height="4632" loading="lazy" decoding="async" alt="an independent facilitator verifying our payment"></div>
     <figcaption><span class="pill ok">Shipped</span><b>Checked by someone who is not us.</b>
       An independent x402 facilitator recovers our payer address from the signature and
       simulates <code>transferWithAuthorization</code> against the real token. It gets as
@@ -524,7 +524,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/27-prove-enclave.png" width="1448" height="4318" loading="lazy" decoding="async" alt="three enclave paths proven live with controls"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="three enclave paths proven live with controls (scrolls)"><img src="shots/27-prove-enclave.png" width="1448" height="4318" loading="lazy" decoding="async" alt="three enclave paths proven live with controls"></div>
     <figcaption><span class="pill ok">Proven live</span><b>The paths that were only unit tests.</b>
       The sealed broker credential (401 without it, 200 through the enclave), <code>{{profile.*}}</code>
       substitution (a real field is delivered, a missing one comes back <code>placeholder_unknown</code>),
@@ -544,7 +544,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/23-probe-before-promote.png" width="1448" height="2022" loading="lazy" decoding="async" alt="a build proven under a throwaway tail"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="a build proven under a throwaway tail (scrolls)"><img src="shots/23-probe-before-promote.png" width="1448" height="2022" loading="lazy" decoding="async" alt="a build proven under a throwaway tail"></div>
     <figcaption><span class="pill ok">Shipped</span><b>Probe before promote.</b>
       Registration is not validation: a component importing a host interface the node does
       not serve registers fine, then fails on every invoke — and takes the pinned version
@@ -603,7 +603,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/24-node-discovery.png" width="1448" height="3238" loading="lazy" decoding="async" alt="the node's own contract inventory"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="the node's own contract inventory (scrolls)"><img src="shots/24-node-discovery.png" width="1448" height="3238" loading="lazy" decoding="async" alt="the node's own contract inventory"></div>
     <figcaption><span class="pill bug">Bug #26</span><b>What the node actually runs.</b>
       Read with a scoped agent key — no session, no credits. Six core contracts, two of
       them documented nowhere: <code>tee:vc</code> carries a whole OpenID4VP holder stack,
@@ -612,7 +612,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/25-core-contracts-blocked.png" width="1448" height="3598" loading="lazy" decoding="async" alt="both undocumented core contracts, and where they stop"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="both undocumented core contracts, and where they stop (scrolls)"><img src="shots/25-core-contracts-blocked.png" width="1448" height="3598" loading="lazy" decoding="async" alt="both undocumented core contracts, and where they stop"></div>
     <figcaption><span class="pill bug">Bugs #27 / #28</span><b>And why nobody can use them.</b>
       Every commerce function fails on a host-assembled profile envelope missing
       <code>kind</code> — a field the profile <i>writer</i> refuses as unrecognised. And
@@ -622,7 +622,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   </figure>
 
   <figure>
-    <div class="shot tall"><img src="shots/31-activity-ledger.png" width="1448" height="4542" loading="lazy" decoding="async" alt="the node's activity ledger, tallied"></div>
+    <div class="shot tall" tabindex="0" role="region" aria-label="the node's activity ledger, tallied (scrolls)"><img src="shots/31-activity-ledger.png" width="1448" height="4542" loading="lazy" decoding="async" alt="the node's activity ledger, tallied"></div>
     <figcaption><span class="pill bug">Bug #29</span><b>The audit trail was somewhere else.</b>
       <code>audit.get-mine</code>, the documented read, is empty after 39 dispatches. <code>activity.log</code>
       has every one — contract, function, outcome, sequence number, hash — and the whole session with them:
@@ -642,7 +642,7 @@ npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35
   <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent &amp;&amp; npm ci &amp;&amp; cd ..
-node verify.mjs                                          <span class="c"># 277 checks, one command</span></pre></div>
+node verify.mjs                                          <span class="c"># 298 checks, one command</span></pre></div>
   <p style="margin-top:18px">On chain, without us in the loop:</p>
   <ul class="endpoints">
     <li><a href="https://sepolia.etherscan.io/tx/0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb">0x37965ccd…c634bebb</a><em>Sepolia · ERC-8004 mint, agent #201</em></li>
@@ -652,7 +652,7 @@ node verify.mjs                                          <span class="c"># 277 c
 
 <section id="endpoints"><div class="wrap">
   <h2>Endpoints this site serves</h2>
-  <p class="note">All static, all CORS-open, all read by a test in the suite.</p>
+  <p class="note">All static, all read by a test in the suite.</p>
   <ul class="endpoints">
     <li><a href="/.well-known/agent-card.json">/.well-known/agent-card.json</a><em>application/json</em>
         <span>A2A v1.0 agent card — skills, security schemes, the JSON-RPC interface.</span></li>
@@ -660,6 +660,8 @@ node verify.mjs                                          <span class="c"># 277 c
         <span>ERC-8004 <code>registration-v1</code> document; the on-chain URI of agent #201 points here.</span></li>
     <li><a href="/.well-known/http-message-signatures-directory">/.well-known/http-message-signatures-directory</a><em>http-message-signatures-directory+json</em>
         <span>Web Bot Auth key directory — the public key every outbound request is signed with.</span></li>
+    <li><a href="/.well-known/security.txt">/.well-known/security.txt</a><em>text/plain</em>
+        <span>RFC 9116 — where to report a security issue, and until when this file is valid.</span></li>
     <li><a href="/status/revocation.json">/status/revocation.json</a><em>application/json</em>
         <span>W3C Bitstring Status List, 131,072 entries; credential revocation with no chain.</span></li>
   </ul>

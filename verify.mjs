@@ -37,14 +37,14 @@ const steps = [
     cwd: "agent",
   },
   {
-    name: "QA console end-to-end (Playwright, drives the real Rust decide())",
-    cmd: ["node", "--test", "e2e.test.mjs"],
+    name: "QA console end-to-end + accessibility (Playwright, drives the real Rust decide(); axe-core)",
+    cmd: ["node", "--test", "e2e.test.mjs", "a11y.test.mjs"],
     cwd: "qa-console",
     // Needs the host build of gate_cli, which the Rust step above does not produce.
     pre: [...cargo, "build", "--bin", "gate_cli", "--release", ...hostArgs],
     preCwd: "gate-contract",
     skipIf: () => !existsSync("qa-console/node_modules"),
-    skipWhy: "qa-console/node_modules is missing (it is a junction to submission/demo-web)",
+    skipWhy: "qa-console/node_modules is missing — run `npm ci` in qa-console/ (and `npx playwright install chromium`)",
   },
 ];
 

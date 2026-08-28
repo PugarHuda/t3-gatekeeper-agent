@@ -38,6 +38,9 @@ maintenance after the challenge ends*:
 | **A2A discovery** | The card is published at the well-known path; a peer needs only the domain |
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
 | **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
+| **The registered component, hosted in JavaScript** | The exact wasm `npm run setup` registers is transpiled with jco and run by a JS host — clock, tenant id, in-memory KV, an http import that refuses. `gate_evaluate` needs no Rust toolchain now, and a test holds the component to `gate_cli` verdict by verdict |
+| **Listed for the MCP Registry** | `server.json` in the registry's own schema, validated offline; the npm package has its `bin`, `mcpName` and a `files` whitelist. Two commands on the owner's accounts publish it |
+| **Accessibility measured, not assumed** | axe-core through Playwright over the site and the console, in `verify.mjs`. The first run found a real defect; it is fixed |
 | **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
 | **x402 settled, on chain** | 0.01 USDC moved through the mandate, verified and broadcast by a third-party facilitator, confirmed from the Transfer log and block-tagged balances — not from the receipt |
 | **ERC-8004 identity minted** | Agent #201 on Sepolia, `agentURI` → a conformant registration file, read back live from both registries. It stopped being "ready to register" |
@@ -130,7 +133,7 @@ approves nothing.
 | Build | `cargo build --lib --target wasm32-wasip2 --release` → 215 KB component (bug #5 covers the Windows blocker and the fix) |
 | Register | `TenantClient.contracts.register()` → **v0.10.0 = contract_id 749**, promoted only after `npm run probe` proved the build under a throwaway tail (v0.7.0 = 479 and v0.6.0 = 175 before it) |
 | Invoke | `contracts.execute("gate", …)` → approved/rejected, decided inside the TEE |
-| Test | 47 Rust + 191 Node + 38 Playwright, all green — `node verify.mjs` counts them itself |
+| Test | 47 Rust + 206 Node + 41 Playwright + 3 axe, all green — `node verify.mjs` counts them itself |
 
 📷 **Screenshot 03 — `03-contract-deployed.png`** — live on the network, checkable without my key.
 
@@ -537,7 +540,7 @@ node verify.mjs
 ```
 
 Rust unit tests → wasm component build → Node tests → Playwright end-to-end over
-the *real* Rust decision function. 277 checks, no API key, no network, no credits.
+the *real* Rust decision function, then axe-core over both pages. 298 checks, no API key, no network, no credits.
 It selects the GNU toolchain automatically on Windows, which is otherwise a
 documented footgun a newcomer hits on their first build.
 
@@ -712,8 +715,8 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**`node verify.mjs` reports its own total — 277 offline checks** at the time of
-writing (47 Rust, 191 Node, 38 Playwright end-to-end), plus the live-site and
+**`node verify.mjs` reports its own total — 298 offline checks** at the time of
+writing (47 Rust, 206 Node, 41 Playwright end-to-end, 3 axe-core), plus the live-site and
 submission-artifact suites (19 live). The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong
 within a day of being written. The live-site set
@@ -735,7 +738,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 04 | `04-agent-registered.png` | Agent ID registered — and bug #10, the address as a decimal array |
 | 05 | `05-full-flow.png` | the whole agent on 0.10.0: VC gate → TEE mandate → audit → in-TEE dispatch (**HTTP 200**) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` — the caller authorising enclave egress |
-| 07 | `07-tests.png` | `node verify.mjs` — 277 checks, no key, no credits |
+| 07 | `07-tests.png` | `node verify.mjs` — 298 checks, no key, no credits |
 | 08 | `08-bug-token-balance.png` | bug #9 **fixed** |
 | 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter` |
 | 10 | `10-bug-node-version.png` | bug #12 **fixed** — node on 0.17.0 |
@@ -827,7 +830,7 @@ No key, no credits, no network — the whole test suite:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                  # 277 checks
+node verify.mjs                  # 298 checks
 ```
 
 With your own key:

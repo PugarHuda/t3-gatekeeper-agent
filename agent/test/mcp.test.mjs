@@ -127,8 +127,23 @@ test("MCP server", async (t) => {
     };
     const direct = await decide(args);
     const viaMcp = (await client.callTool({ name: "gate_evaluate", arguments: args })).structuredContent;
-    assert.deepEqual(viaMcp, direct);
+    assert.deepEqual(viaMcp, { ...direct, engine: "gate_cli" });
     assert.equal(direct.decision, "rejected"); // the sub-limit binds under the global cap
+
+    // The other engine is the registered component itself, hosted in JS. Same
+    // verdict, same reasons, and it says which engine answered.
+    const viaComponent = (await client.callTool({ name: "gate_evaluate", arguments: { ...args, engine: "component" } })).structuredContent;
+    assert.equal(viaComponent.engine, "component");
+    assert.equal(viaComponent.decision, direct.decision);
+    assert.deepEqual(viaComponent.reasons, direct.reasons);
+    assert.equal(viaComponent.now_secs, args.now_secs);
+
+    // What the component host does not do, it says so — no silent downgrade.
+    const refused = await client.callTool({ name: "gate_evaluate", arguments: {
+      ...args, engine: "component", idempotency_key: "order-1",
+    } });
+    assert.equal(refused.isError, true);
+    assert.match(refused.content[0].text, /gate_cli/);
   });
 
   await t.test("bind_credential produces the commitment the enclave will recompute", { skip: need() }, async () => {

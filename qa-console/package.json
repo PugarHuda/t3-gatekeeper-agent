@@ -6,8 +6,13 @@
   "description": "Browser console + Playwright E2E over the gate contract's real Rust decision logic (happy path, wrong paths, API abuse) — runs offline, spends no testnet credits.",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test e2e.test.mjs",
+    "test": "node --test e2e.test.mjs a11y.test.mjs",
     "test:site": "node --test site.test.mjs",
-    "shots": "node shots.mjs"
+    "shots": "node shots.mjs",
+    "test:a11y": "node --test a11y.test.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "playwright": "1.61.0"
   }
 }

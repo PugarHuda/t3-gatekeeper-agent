@@ -31,7 +31,8 @@ import { agentCardHandler, jsonRpcHandler, UserBuilder } from "@a2a-js/sdk/serve
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-import { decide, gateCliPath, BUILD_HINT, CONTRACT_VERSION } from "./gate-cli.mjs";
+import { gateCliPath, BUILD_HINT, CONTRACT_VERSION } from "./gate-cli.mjs";
+import { decideWith } from "./engine.mjs";
 import { bindCredential } from "./credential-binding.mjs";
 import { createMcpServer } from "./mcp-server.mjs";
 import { requireWebBotAuth } from "./a2a-auth.mjs";
@@ -171,9 +172,10 @@ export class GatekeeperExecutor {
         if (!req.mandate || typeof req.mandate.max_amount_cents !== "number") {
           throw new Error("mandate.max_amount_cents is required — a mandate with no ceiling is not a mandate");
         }
-        result = await decide({
+        result = await decideWith({
           action: req.action, mandate: req.mandate, now_secs: req.now_secs,
           credential: req.credential ?? null, idempotency_key: req.idempotency_key ?? null,
+          engine: req.engine,
         });
         if (result?.error) throw new Error(result.error);
       } else {
@@ -297,7 +299,7 @@ export function start(port = 0, { host = "127.0.0.1", advertise, ...appOptions }
 
 if (process.argv[1]?.endsWith("a2a-server.mjs")) {
   if (!gateCliPath()) {
-    console.error(`gate_cli is not built — evaluate-gated-action will fail every task.\n  ${BUILD_HINT}`);
+    console.error(`gate_cli is not built — evaluate-gated-action runs the registered wasm component instead; credential bindings and idempotency keys cannot be checked until you build it.\n  ${BUILD_HINT}`);
   }
   const port = Number(process.env.A2A_PORT || 41241);
   const { baseUrl } = await start(port, { host: "0.0.0.0", advertise: process.env.A2A_BASE_URL });

@@ -171,13 +171,40 @@ work with **no Terminal 3 account at all** — they run the compiled contract
 logic locally, or read public chains and documents. Only `gate_execute` needs
 `agent/.env` and credits, and it says so instead of guessing.
 
-Build `gate_cli` first, or the offline tools have nothing to call:
+`gate_evaluate` works with nothing but `npm ci`: the registered wasm component
+is checked in, transpiled by jco (`agent/gate-wasm/`), and hosted by
+`agent/src/gate-wasm.mjs`. Build `gate_cli` as well if you want credential
+bindings and idempotency keys checked offline — only the Rust host build does
+those, and the tool says so instead of silently skipping them:
 
 ```bash
 cd gate-contract && cargo build --bin gate_cli --release --target x86_64-pc-windows-gnu
 ```
 
-(Read `gatekeeper://status` from the server to see whether it found the binary.)
+(Read `gatekeeper://status` from the server to see whether it found the binary;
+every `gate_evaluate` answer names the engine that produced it.)
+
+**After any change to the contract**, rebuild the component *and* re-transpile
+it, or the JavaScript host keeps running yesterday's rules:
+
+```bash
+cd gate-contract && cargo build --lib --target wasm32-wasip2 --release
+cd ../agent && npm run gate:transpile      # refuses if the component is missing
+```
+
+`agent/test/gate-wasm.test.mjs` compares the sha256 in `agent/gate-wasm/source.json`
+with the component on disk and fails until you do.
+
+**Publishing the MCP server** (owner's accounts; nothing here does it for you):
+
+```bash
+cd agent && npm publish                           # package t3-gatekeeper-agent
+mcp-publisher login github                        # namespace io.github.PugarHuda
+mcp-publisher publish                             # uploads agent/server.json
+```
+
+`npm test` validates `server.json` against the registry schema first, so a
+listing the registry would refuse never gets as far as the upload.
 ```
 
 `npm run setup` is idempotent and safe to re-run: it re-points every map's ACL
@@ -253,9 +280,14 @@ either the operator's own `.env` or the enclave.
   (a host build of the same decision function, used by the QA console). Cargo
   cannot target-gate a bin, so a bare `cargo build --target wasm32-wasip2`
   fails. `verify.mjs` and CI already pass `--lib`.
-- **The QA console never reimplements the rules.** It shells out to `gate_cli`.
-  A JavaScript copy of the mandate logic would drift from the contract and prove
-  nothing, so if you are tempted to add one, don't.
+- **Nothing reimplements the rules.** The QA console shells out to `gate_cli`;
+  the MCP server's second engine is the registered wasm component itself, run
+  through jco. A JavaScript copy of the mandate logic would drift from the
+  contract and prove nothing, so if you are tempted to add one, don't — there
+  are already two hosts of the one source, and a test holds them to each other.
+- **`qa-console/node_modules` is a real install now**, not a junction:
+  `cd qa-console && npm ci && npx playwright install chromium`. Playwright is
+  pinned to the same version the demo recorder uses.
 - **`z:<tid>:spent` and `z:<tid>:dispatched` need the contract in *both* readers
   and writers.** Both read-modify-write; a write-only ACL fails with
   `read denied`.

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.PugarHuda/gatekeeper",
+  "title": "Gatekeeper",
+  "description": "Mandate gate for agent spending: actions and x402 payments judged by the enclave contract's logic.",
+  "version": "0.1.0",
+  "websiteUrl": "https://gatekeeper-evidence.vercel.app",
+  "repository": {
+    "url": "https://github.com/PugarHuda/t3-gatekeeper-agent",
+    "source": "github",
+    "id": "1269356629",
+    "subfolder": "agent"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "t3-gatekeeper-agent",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "T3N_API_KEY",
+          "description": "Tenant API key. Needed only by gate_execute (the enclave path); every read-only tool works without it.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "DID",
+          "description": "Tenant DID the gate contract is registered under (with T3N_API_KEY).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "X402_PRIVATE_KEY",
+          "description": "EVM key that signs x402 payments in fetch_paid_resource. Optional.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "X402_FACILITATOR_URL",
+          "description": "x402 facilitator used for verify/settle. Defaults to the public one.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "https://x402.org/facilitator"
+        }
+      ]
+    }
+  ]
+}

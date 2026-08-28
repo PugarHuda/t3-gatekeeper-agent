@@ -1,0 +1,12 @@
+{
+  "component": "gate-contract/target/wasm32-wasip2/release/gate_contract.wasm",
+  "sha256": "6d89a62fb98b576f0f7a414b592a51333182ed8c11bb95dd90121e49695f9123",
+  "bytes": 255706,
+  "version": "0.10.0",
+  "files": [
+    "gate_contract.core.wasm",
+    "gate_contract.core2.wasm",
+    "gate_contract.core3.wasm",
+    "gate_contract.js"
+  ]
+}

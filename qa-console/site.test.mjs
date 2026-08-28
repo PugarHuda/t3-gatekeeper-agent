@@ -182,3 +182,55 @@ describe("the evidence page references every screenshot it ships", () => {
     assert.deepEqual(referenced.filter((f) => !present.has(f)).sort(), []);
   });
 });
+
+// ── the page's own links, checked offline ───────────────────────────────────
+describe("the evidence page's links resolve", () => {
+  const html = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
+
+  test("every in-page anchor points at an element that exists", () => {
+    const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+    const anchors = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(anchors.length >= 10, `expected a navigable page, found ${anchors.length} anchors`);
+    assert.deepEqual(anchors.filter((a) => !ids.has(a)), []);
+  });
+
+  test("every 'full size' link is the same file its figure shows", () => {
+    const figures = [...html.matchAll(/<figure>([\s\S]*?)<\/figure>/g)].map((m) => m[1]);
+    assert.equal(figures.length, 32);
+    for (const f of figures) {
+      const img = /<img src="shots\/([^"]+)"/.exec(f)?.[1];
+      const open = /class="open" href="shots\/([^"]+)"/.exec(f)?.[1];
+      assert.ok(img && open, "figure without an image or a full-size link");
+      assert.equal(open, img);
+    }
+  });
+
+  test("every same-origin file the page links to is deployed with it", async () => {
+    const { access } = await import("node:fs/promises");
+    const local = [...html.matchAll(/(?:href|src)="(\/[^"#]+|(?!https?:|#|mailto:)[a-z0-9_./-]+\.[a-z0-9]+)"/gi)]
+      .map((m) => m[1]).filter((u) => !u.startsWith("//"));
+    assert.ok(local.length > 40, `only ${local.length} local references found`);
+    const missing = [];
+    for (const u of new Set(local)) {
+      const rel = u.replace(/^\//, "");
+      try { await access(new URL(`../site/${rel}`, import.meta.url)); } catch { missing.push(u); }
+    }
+    assert.deepEqual(missing, []);
+  });
+
+  test("the on-chain links name the transactions the evidence describes", () => {
+    assert.match(html, /sepolia\.etherscan\.io\/tx\/0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb/);
+    assert.match(html, /sepolia\.basescan\.org\/tx\/0x52b164d133b4f9873947458c45615287177a8471fc621a6caf34aae8c5c97671/);
+  });
+
+  test("security.txt is published, unexpired, and says where to report", async () => {
+    const txt = readFileSync(new URL("../site/.well-known/security.txt", import.meta.url), "utf8");
+    const expires = /^Expires: (.+)$/m.exec(txt)?.[1];
+    assert.ok(expires, "RFC 9116 requires Expires");
+    assert.ok(new Date(expires) > new Date(), "security.txt has expired — bump Expires");
+    assert.match(txt, /^Contact: https:\/\/github\.com\/PugarHuda\/t3-gatekeeper-agent/m);
+    assert.match(txt, /^Canonical: https:\/\/gatekeeper-evidence\.vercel\.app\/\.well-known\/security\.txt$/m);
+    const headers = JSON.parse(readFileSync(new URL("../site/vercel.json", import.meta.url), "utf8")).headers;
+    assert.ok(headers.some((h) => h.source === "/.well-known/security.txt"), "vercel must serve it as text/plain");
+  });
+});

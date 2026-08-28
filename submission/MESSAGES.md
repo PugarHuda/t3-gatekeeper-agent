@@ -47,7 +47,7 @@ caller's own published key. x402 payments go through the same mandate — one
 was settled on Base Sepolia through the public facilitator and checked against
 the chain.
 
-277 offline checks in one command with no API key; 32 screenshots, all from
+298 offline checks in one command with no API key; 32 screenshots, all from
 real command output, republished at gatekeeper-evidence.vercel.app; 29 bug
 reports re-verified against the refreshed docs, four already fixed by
 Terminal 3, and three that turned out to be corrections to our own earlier
