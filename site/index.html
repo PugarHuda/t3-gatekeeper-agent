@@ -4,90 +4,275 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gatekeeper Agent — Terminal 3 ADK evidence</title>
-<meta name="description" content="Screenshot evidence: Agent ID, test credits, and a Rust TEE contract live on the Terminal 3 network.">
+<meta name="description" content="Gatekeeper: an agent that proves eligibility with a BBS+ credential and enforces its spending mandate inside a TEE. Adopt it over MCP, A2A or ERC-8004; every claim here is the output of a command in the repo.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0e13">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   :root {
-    --bg:#0a0e13; --panel:#0e141b; --line:#1e2b3a; --ink:#c8d6e5; --dim:#7c8fa4;
-    --ok:#5ddba4; --bad:#ff7b72; --accent:#79c0ff; --head:#e8f0f8;
+    --bg:#0a0e13; --panel:#0e141b; --panel-2:#121a23; --line:#1e2b3a; --line-strong:#2c3d51;
+    --ink:#c8d6e5; --dim:#8a9db3; --head:#e8f0f8;
+    --ok:#5ddba4; --bad:#ff7b72; --warn:#f2c14e; --accent:#79c0ff; --accent-ink:#0a0e13;
+    --sans:"Inter",ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Consolas,"SF Mono",monospace;
+    --radius:10px; --wrap:1040px;
+    --shadow:0 10px 30px -12px rgba(0,0,0,.7), 0 2px 6px -2px rgba(0,0,0,.5);
   }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink);
-         font:16px/1.65 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif; }
-  .wrap { max-width:1000px; margin:0 auto; padding:0 22px; }
-  header { border-bottom:1px solid var(--line); padding:54px 0 40px; }
-  h1 { margin:0 0 12px; font-size:clamp(26px,4.4vw,40px); line-height:1.15; color:var(--head); letter-spacing:-.5px; }
-  .tag { display:inline-block; font-size:12px; letter-spacing:1.1px; text-transform:uppercase;
-         color:var(--accent); border:1px solid var(--line); border-radius:99px; padding:4px 12px; margin-bottom:18px; }
-  .lede { font-size:18px; color:var(--dim); max-width:62ch; margin:0 0 22px; }
-  .links a { display:inline-block; margin:0 14px 8px 0; color:var(--accent); text-decoration:none;
-             border-bottom:1px solid transparent; }
-  .links a:hover { border-bottom-color:var(--accent); }
-  .meta { margin-top:20px; font-size:13px; color:var(--dim); font-family:ui-monospace,Consolas,monospace;
-          word-break:break-all; }
-  section { padding:44px 0; border-bottom:1px solid var(--line); }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim);
-       margin:0 0 20px; font-weight:600; }
-  h3 { color:var(--head); font-size:19px; margin:0 0 8px; }
-  p { max-width:66ch; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:8px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
-  .card b { display:block; color:var(--head); font-size:22px; margin-bottom:2px; }
-  .card span { color:var(--dim); font-size:13px; }
-  figure { margin:0 0 34px; }
-  figure img { width:100%; display:block; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
-  figcaption { margin-top:10px; color:var(--dim); font-size:14px; }
-  figcaption b { color:var(--head); font-weight:600; }
-  .pill { font-size:11px; letter-spacing:.6px; text-transform:uppercase; padding:2px 8px;
-          border-radius:99px; margin-right:8px; border:1px solid var(--line); }
-  .pill.ok { color:var(--ok); } .pill.bug { color:var(--bad); }
-  ol { max-width:66ch; padding-left:20px; } li { margin-bottom:9px; }
-  code, pre { font-family:ui-monospace,Consolas,monospace; }
-  code { color:var(--accent); font-size:.92em; }
-  pre { background:var(--panel); border:1px solid var(--line); border-radius:10px;
-        padding:15px 17px; overflow-x:auto; font-size:13.5px; color:var(--ink); }
-  footer { padding:34px 0 60px; color:var(--dim); font-size:14px; }
-  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:18px 0 6px; font-size:13.5px; }
-  .step { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+  html { scroll-behavior:smooth; scroll-padding-top:64px; }
+  @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 var(--sans);
+         -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  ::selection { background:var(--accent); color:var(--accent-ink); }
+  * { scrollbar-color:var(--line-strong) transparent; scrollbar-width:thin; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:var(--line-strong); border-radius:99px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-track { background:transparent; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+  .skip { position:absolute; left:-999px; top:8px; background:var(--accent); color:var(--accent-ink);
+          padding:8px 12px; border-radius:6px; font-weight:600; z-index:20; }
+  .skip:focus { left:8px; }
+
+  a { color:var(--accent); text-decoration:underline; text-decoration-color:color-mix(in srgb,var(--accent) 35%,transparent);
+      text-underline-offset:3px; text-decoration-thickness:1px; }
+  a:hover { text-decoration-color:var(--accent); }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 22px; }
+
+  /* ── top bar ─────────────────────────────────────────────── */
+  .bar { position:sticky; top:0; z-index:10; background:color-mix(in srgb,var(--bg) 94%,transparent);
+         backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .bar .wrap { display:flex; align-items:center; gap:18px; height:52px; }
+  .brand { font-weight:600; color:var(--head); text-decoration:none; white-space:nowrap; letter-spacing:-.01em; }
+  .brand small { color:var(--dim); font-weight:500; margin-left:8px; }
+  .bar nav { display:flex; gap:2px; margin-left:auto; overflow-x:auto; scrollbar-width:none; }
+  .bar nav::-webkit-scrollbar { display:none; }
+  .bar nav a { color:var(--dim); text-decoration:none; font-size:14px; padding:6px 10px; border-radius:6px; white-space:nowrap; }
+  .bar nav a:hover { color:var(--head); background:var(--panel-2); }
+  .bar nav a.ext { color:var(--accent); }
+  @media (max-width:640px) { .brand small { display:none; } }
+
+  /* ── header ──────────────────────────────────────────────── */
+  header.hero { border-bottom:1px solid var(--line); padding:64px 0 44px; }
+  h1 { margin:0 0 16px; font-size:clamp(28px,4.6vw,44px); line-height:1.1; color:var(--head);
+       letter-spacing:-.025em; font-weight:700; text-wrap:balance; max-width:22ch; }
+  .lede { font-size:18px; line-height:1.55; color:var(--dim); max-width:60ch; margin:0 0 24px; text-wrap:pretty; }
+  .lede b { color:var(--ink); font-weight:600; }
+  .actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:8px; font-weight:600;
+         font-size:14.5px; text-decoration:none; border:1px solid var(--line-strong); color:var(--head);
+         background:var(--panel); transition:background .15s ease-out, border-color .15s ease-out; }
+  .btn:hover { background:var(--panel-2); border-color:var(--accent); }
+  .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .btn.primary:hover { background:#9ad0ff; }
+  .btn svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .ids { margin-top:26px; display:grid; gap:4px 18px; grid-template-columns:max-content 1fr; font-size:13px;
+         font-family:var(--mono); color:var(--dim); word-break:break-all; }
+  .ids dt { color:var(--dim); margin:0; }
+  .ids dd { margin:0; color:var(--ink); }
+  @media (max-width:520px) { .ids { grid-template-columns:1fr; } .ids dd { margin-bottom:6px; } }
+
+  /* ── sections ────────────────────────────────────────────── */
+  main > section { padding:48px 0; border-bottom:1px solid var(--line); }
+  h2 { font-size:24px; line-height:1.2; letter-spacing:-.02em; color:var(--head); margin:0 0 18px; font-weight:700; text-wrap:balance; }
+  h3 { color:var(--head); font-size:19px; line-height:1.3; margin:0 0 8px; letter-spacing:-.01em; font-weight:600; text-wrap:balance; }
+  p { max-width:66ch; margin:0 0 14px; text-wrap:pretty; }
+  p:last-child { margin-bottom:0; }
+  .note { font-size:14px; color:var(--dim); }
+  section h2 + .note { margin-top:-8px; margin-bottom:20px; }
+
+  /* what shipped: a ledger, not a metric grid */
+  .ledger { display:grid; grid-template-columns:max-content 1fr; gap:0 26px; margin:0; max-width:760px;
+            border-top:1px solid var(--line); }
+  .ledger > div { display:contents; }
+  .ledger dt, .ledger dd { margin:0; padding:11px 0; border-bottom:1px solid var(--line); }
+  .ledger dt { color:var(--dim); font-size:14px; padding-top:13px; }
+  .ledger dd { color:var(--ink); font-variant-numeric:tabular-nums; }
+  .ledger dd b { color:var(--head); font-weight:600; }
+  @media (max-width:520px) { .ledger { grid-template-columns:1fr; } .ledger dt { border:0; padding-bottom:0; } }
+
+  /* the flow strip */
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:20px 0 8px; font-size:13.5px; }
+  .step { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--ink); }
+  .step.enclave { border-color:color-mix(in srgb,var(--ok) 45%,var(--line)); color:var(--ok); }
   .arrow { color:var(--dim); }
+
+  /* ── use it ──────────────────────────────────────────────── */
+  .paths { display:grid; gap:28px; margin-top:6px; }
+  .path { display:grid; grid-template-columns:minmax(220px,1fr) minmax(0,2fr); gap:6px 28px; align-items:start; min-width:0; }
+  .path h3 { font-size:17px; }
+  .path p { font-size:14.5px; color:var(--dim); margin-bottom:10px; }
+  .path .text { grid-row:1 / span 3; }
+  @media (max-width:760px) { .path { grid-template-columns:1fr; } .path .text { grid-row:auto; } }
+  .code { position:relative; margin:0 0 10px; min-width:0; }
+  .path > * { min-width:0; }
+  .code + .code { margin-top:10px; }
+  pre { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+        padding:14px 72px 14px 16px; overflow-x:auto; font:13.5px/1.6 var(--mono); color:var(--ink); tab-size:4; }
+  pre .c { color:var(--dim); }
+  pre .k { color:var(--accent); }
+  code { font-family:var(--mono); color:var(--accent); font-size:.92em; }
+  .copy { position:absolute; top:8px; right:8px; font:600 12px/1 var(--sans); color:var(--dim);
+          background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:6px 9px; cursor:pointer;
+          transition:color .15s ease-out, border-color .15s ease-out; }
+  .copy:hover { color:var(--head); border-color:var(--line-strong); }
+  .copy[data-done="1"] { color:var(--ok); border-color:color-mix(in srgb,var(--ok) 45%,var(--line)); }
+  .copy:focus-visible { outline-offset:1px; }
+
+  /* ── demo ────────────────────────────────────────────────── */
+  video { width:100%; display:block; aspect-ratio:16/9; border:1px solid var(--line); border-radius:12px;
+          background:#000; box-shadow:var(--shadow); }
+
+  /* ── evidence ────────────────────────────────────────────── */
+  .toc { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 30px; padding:0; list-style:none; font-size:14px; }
+  .toc a { display:inline-block; padding:6px 12px; border:1px solid var(--line); border-radius:99px; color:var(--ink);
+           text-decoration:none; background:var(--panel); }
+  .toc a:hover { border-color:var(--accent); color:var(--head); }
+  .toc a small { color:var(--dim); margin-left:6px; font-variant-numeric:tabular-nums; }
+  .group { margin-top:36px; }
+  .group:first-of-type { margin-top:0; }
+  .group > h3 { font-size:21px; padding-bottom:10px; border-bottom:1px solid var(--line); margin-bottom:22px; }
+  .group > h3 small { color:var(--dim); font-weight:500; font-size:14px; margin-left:10px; }
+  figure { margin:0 0 36px; }
+  .shot { border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); overflow:hidden; box-shadow:var(--shadow); }
+  .shot img { width:100%; height:auto; display:block; }
+  .shot.tall { max-height:70vh; overflow-y:auto; overscroll-behavior:contain; }
+  figcaption { margin-top:10px; color:var(--dim); font-size:14px; line-height:1.6; max-width:80ch; }
+  figcaption b { color:var(--head); font-weight:600; }
+  figcaption .open { margin-left:8px; white-space:nowrap; font-size:13px; }
+  .pill { display:inline-block; font:600 11px/1 var(--sans); letter-spacing:.06em; text-transform:uppercase;
+          padding:5px 8px; border-radius:99px; margin-right:8px; border:1px solid var(--line); vertical-align:1px; }
+  .pill.ok { color:var(--ok); border-color:color-mix(in srgb,var(--ok) 35%,var(--line)); }
+  .pill.bug { color:var(--bad); border-color:color-mix(in srgb,var(--bad) 35%,var(--line)); }
+  .pill.fixed { color:var(--warn); border-color:color-mix(in srgb,var(--warn) 35%,var(--line)); }
+
+  /* ── endpoints ───────────────────────────────────────────── */
+  .endpoints { list-style:none; padding:0; margin:0; border-top:1px solid var(--line); }
+  .endpoints li { display:grid; grid-template-columns:1fr auto; gap:4px 16px; padding:12px 0; border-bottom:1px solid var(--line); align-items:baseline; }
+  .endpoints a { font-family:var(--mono); font-size:13.5px; word-break:break-all; }
+  .endpoints span { color:var(--dim); font-size:13.5px; grid-column:1 / -1; }
+  .endpoints em { font-style:normal; color:var(--dim); font-size:12.5px; font-family:var(--mono); white-space:nowrap; }
+  @media (max-width:640px) { .endpoints li { grid-template-columns:1fr; } }
+
+  footer { padding:34px 0 64px; color:var(--dim); font-size:14px; }
+  footer a { color:var(--accent); }
 </style>
 </head>
 <body>
+<a class="skip" href="#use">Skip to how to use it</a>
 
-<header><div class="wrap">
-  <div class="tag">Terminal 3 Agent Developer Kit</div>
+<div class="bar"><div class="wrap">
+  <a class="brand" href="#top">Gatekeeper<small>Terminal 3 ADK</small></a>
+  <nav aria-label="Page">
+    <a href="#use">Use it</a>
+    <a href="#demo">Demo</a>
+    <a href="#problem">Problem</a>
+    <a href="#evidence">Evidence</a>
+    <a href="#verify">Verify</a>
+    <a href="#endpoints">Endpoints</a>
+    <a class="ext" href="https://github.com/PugarHuda/t3-gatekeeper-agent">GitHub ↗</a>
+  </nav>
+</div></div>
+
+<header class="hero" id="top"><div class="wrap">
   <h1>An agent that can spend your money — without being trusted with it.</h1>
   <p class="lede">
     Gatekeeper proves an investor is eligible without seeing their identity, then
-    enforces their spending mandate inside a TEE. The agent never holds the
-    credentials, and it cannot widen its own limits.
+    enforces their spending mandate inside a TEE. <b>The agent never holds the
+    credentials, and it cannot widen its own limits.</b> One compiled Rust
+    <code>decide()</code> serves the CLI, the console, the MCP server, the A2A
+    endpoint and the enclave — so every surface gives the same verdict.
   </p>
-  <div class="links">
-    <a href="https://github.com/PugarHuda/t3-gatekeeper-agent">GitHub repo →</a>
-    <a href="#demo">Demo video →</a>
+  <div class="actions">
+    <a class="btn primary" href="#use">Adopt it over MCP or A2A</a>
+    <a class="btn" href="https://github.com/PugarHuda/t3-gatekeeper-agent">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4.5 1.5-4.5-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg>
+      Source
+    </a>
+    <a class="btn" href="#demo">Watch the demo · 2½ min</a>
   </div>
-  <div class="meta">
-    Agent DID · did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f<br>
-    Contract · z:3d7dd668…:gate — live on T3N testnet
-  </div>
+  <dl class="ids">
+    <dt>Agent DID</dt><dd>did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f</dd>
+    <dt>Contract</dt><dd>z:3d7dd668…:gate — gate@0.10.0, contract_id 749, T3N testnet</dd>
+    <dt>ERC-8004</dt><dd>agent #201 on Sepolia · IdentityRegistry 0x7177a6867296406881E20d6647232314736Dd09A</dd>
+  </dl>
 </div></header>
+
+<main>
+
+<section id="use"><div class="wrap">
+  <h2>Use it</h2>
+  <p class="note">Three ways in, none of them a fork. Every command below is in the repo's <code>package.json</code>.</p>
+  <div class="paths">
+    <div class="path">
+      <div class="text">
+      <h3>Serve the gate over MCP</h3>
+      <p>Eight tools, stdio or Streamable HTTP. <code>gate_evaluate</code> answers from the contract's own compiled Rust — offline, no Terminal 3 account.</p>
+      </div>
+      <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
+<pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
+cd t3-gatekeeper-agent
+<span class="c"># the host build of decide(), shared by every surface</span>
+cd gate-contract &amp;&amp; cargo build --bin gate_cli --release &amp;&amp; cd ..
+cd agent &amp;&amp; npm ci
+npm run mcp          <span class="c"># stdio server; npm run demo:mcp drives it</span></pre></div>
+      <div class="code"><button class="copy" type="button" aria-label="Copy host configuration">Copy</button>
+<pre><span class="c">// any MCP host: Claude Code, Claude Desktop, Cursor …</span>
+{ "mcpServers": { "gatekeeper": {
+    "command": "node",
+    "args": ["&lt;repo&gt;/agent/src/mcp-server.mjs"] } } }</pre></div>
+    </div>
+    <div class="path">
+      <div class="text">
+      <h3>Talk to it over A2A v1.0</h3>
+      <p>JSON-RPC on the official <code>@a2a-js/sdk</code>. Discover the card, <code>SendMessage</code>, read the task back. Every request must carry a Web Bot Auth signature, resolved from <em>your</em> published key directory.</p>
+      </div>
+      <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
+<pre>cd agent &amp;&amp; npm run a2a      <span class="c"># :41241 by default (A2A_PORT)</span>
+curl -s localhost:41241/.well-known/agent-card.json</pre></div>
+      <div class="code"><button class="copy" type="button" aria-label="Copy request">Copy</button>
+<pre>POST /   <span class="c">A2A-Version: 1.0 · Signature, Signature-Input, Signature-Agent</span>
+{ "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
+  "params": { "message": { "role": "user", "parts": [{ "data": {
+    "action": { "kind": "rwa.buy", "asset": "USDC", "amount_cents": 100000,
+                "counterparty": "did:t3n:meridian-fund" },
+    "mandate": { "max_amount_cents": 500000,
+                 "allowed_assets": ["USDC"], "allowed_kinds": ["rwa.buy"],
+                 "allowed_counterparties": ["did:t3n:meridian-fund"] }
+  } }] } } }</pre></div>
+    </div>
+    <div class="path">
+      <div class="text">
+      <h3>Resolve it on chain, or check it offline</h3>
+      <p>ERC-8004 agent #201 on the reference IdentityRegistry. The token's URI resolves to the <a href="/.well-known/erc8004-registration.json">registration file on this site</a>, which names the token back. No wallet needed to read it.</p>
+      </div>
+      <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
+<pre>cd agent
+npm run erc8004              <span class="c"># owner, URI, registration doc, reputation</span>
+npm run discover             <span class="c"># what the node runs (scoped agent key)</span></pre></div>
+      <div class="code"><button class="copy" type="button" aria-label="Copy command">Copy</button>
+<pre>node verify.mjs              <span class="c"># 277 checks, no API key, no credits</span></pre></div>
+    </div>
+  </div>
+</div></section>
 
 <section id="demo"><div class="wrap">
   <h2>Demo — 2½ minutes</h2>
-  <video controls preload="metadata" playsinline poster="shots/05-full-flow.png"
-         style="width:100%;border:1px solid var(--line);border-radius:12px;background:#000">
+  <video controls preload="metadata" playsinline poster="shots/05-full-flow.png">
     <source src="gatekeeper-demo.mp4" type="video/mp4">
     Your browser cannot play this video —
     <a href="gatekeeper-demo.mp4">download it instead</a>.
   </video>
-  <p style="margin-top:12px;font-size:14px;color:var(--dim)">
+  <p class="note" style="margin-top:12px">
     Captions are burned in. Subtitle file:
-    <a href="gatekeeper-demo.srt" style="color:var(--accent)">gatekeeper-demo.srt</a>.
+    <a href="gatekeeper-demo.srt">gatekeeper-demo.srt</a>.
     Built with Remotion — the scenes are React, the narration is neural TTS, and every
     scene's length is derived from its measured audio rather than hand-timed.
   </p>
 </div></section>
 
-<section><div class="wrap">
+<section id="problem"><div class="wrap">
   <h2>The problem</h2>
   <h3>Private-credit funds can only sell to accredited investors — and proving it costs everyone.</h3>
   <p>
@@ -102,10 +287,10 @@
     <b>Who this is for:</b> tokenised RWA and private-credit distribution
     platforms, and the treasury or wealth agents that transact with them.
   </p>
-  <div class="flow">
-    <span class="step">Investor delegates a mandate</span><span class="arrow">→</span>
-    <span class="step">Agent proves eligibility (BBS+)</span><span class="arrow">→</span>
-    <span class="step">Enclave enforces the mandate</span><span class="arrow">→</span>
+  <div class="flow" aria-label="How a purchase flows">
+    <span class="step">Investor delegates a mandate</span><span class="arrow" aria-hidden="true">→</span>
+    <span class="step">Agent proves eligibility (BBS+)</span><span class="arrow" aria-hidden="true">→</span>
+    <span class="step enclave">Enclave enforces the mandate</span><span class="arrow" aria-hidden="true">→</span>
     <span class="step">Order leaves the TEE, signed</span>
   </div>
   <p style="margin-top:18px">
@@ -114,279 +299,396 @@
     so the agent cannot raise its own ceiling: the decision and the outbound
     order are the same enclave call, and a rejected action never reaches the network.
   </p>
-</div></section>
 
-<section><div class="wrap">
-  <h2>What shipped</h2>
-  <div class="cards">
-    <div class="card"><b>0.7.0</b><span>Rust → WASM contract, live on testnet</span></div>
-    <div class="card"><b>107</b><span>automated tests — 28 Rust, 40 Node, 39 integration</span></div>
-    <div class="card"><b>19</b><span>bugs &amp; doc gaps reported with repro steps</span></div>
-    <div class="card"><b>8</b><span>mandate dimensions enforced in hardware</span></div>
-  </div>
+  <h3 style="margin-top:34px">What shipped</h3>
+  <dl class="ledger">
+    <div><dt>Contract</dt><dd><b>gate@0.10.0</b> — Rust → wasm32-wasip2, live on T3N testnet as contract_id 749</dd></div>
+    <div><dt>Mandate rules</dt><dd><b>11</b> enforced in the enclave: cap, assets, kinds, counterparties, per-payee limits, issuer trust list, validity window, credential binding, idempotency</dd></div>
+    <div><dt>Checks</dt><dd><b>277</b> offline in one command — 47 Rust, 191 Node, 38 Playwright — plus 19 live against the node</dd></div>
+    <div><dt>Distribution</dt><dd>MCP (stdio + Streamable HTTP) · A2A v1.0 on the official SDK · ERC-8004 agent #201</dd></div>
+    <div><dt>Payments</dt><dd>x402 through the mandate — <b>0.01 USDC settled</b> on Base Sepolia via the public facilitator</dd></div>
+    <div><dt>Interop</dt><dd>Web Bot Auth (RFC 9421) verified both ways against Cloudflare's reference implementation</dd></div>
+    <div><dt>Findings</dt><dd><b>29</b> bug and doc-gap reports with repro steps; 4 already fixed by Terminal 3</dd></div>
+  </dl>
   <p style="margin-top:20px">
-    The agent signs every outbound order with Web Bot Auth (RFC 9421), and its
-    public key is published here —
-    <a href="/.well-known/http-message-signatures-directory" style="color:var(--accent)">
-    <code>/.well-known/http-message-signatures-directory</code></a> — so any
-    destination can verify a request came from this agent with nothing shared in
-    advance. That round trip is itself a test in the suite.
+    The agent signs every outbound order with Web Bot Auth, and its public key is
+    published here —
+    <a href="/.well-known/http-message-signatures-directory"><code>/.well-known/http-message-signatures-directory</code></a>
+    — so any destination can verify a request came from this agent with nothing
+    shared in advance. That round trip is itself a test in the suite.
   </p>
 </div></section>
 
-<section><div class="wrap">
+<section id="evidence"><div class="wrap">
   <h2>Evidence</h2>
+  <p class="note">32 screenshots, every one the output of a command in <code>submission/screenshots/capture.mjs</code>. Long outputs scroll inside their frame; each has a full-size link.</p>
+  <ul class="toc" aria-label="Evidence groups">
+    <li><a href="#ev-live">Live on the network<small>7</small></a></li>
+    <li><a href="#ev-console">The gate in the browser<small>5</small></a></li>
+    <li><a href="#ev-adopt">Distribution &amp; adoption<small>12</small></a></li>
+    <li><a href="#ev-findings">Platform findings<small>8</small></a></li>
+  </ul>
+
+  <div class="group" id="ev-live">
+  <h3>Live on the network<small>identity, contract, the whole chain</small></h3>
 
   <figure>
-    <img src="shots/01-quickstart-auth.png" alt="Quickstart authentication output">
+    <div class="shot"><img src="shots/01-quickstart-auth.png" width="1448" height="1176" loading="lazy" decoding="async" alt="Quickstart authentication output"></div>
     <figcaption><span class="pill ok">Quickstart</span><b>One authenticated call.</b>
-      handshake → authenticate → getUsage against live testnet.</figcaption>
+      handshake → authenticate → getUsage against live testnet.
+      <a class="open" href="shots/01-quickstart-auth.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/02-cli-whoami.png" alt="t3n whoami returning the agent DID">
+    <div class="shot"><img src="shots/02-cli-whoami.png" width="1448" height="186" loading="lazy" decoding="async" alt="t3n whoami returning the agent DID"></div>
     <figcaption><span class="pill ok">Identity</span><b>The network knows this agent.</b>
       <code>t3n whoami</code> resolves the API key to the DID everything else here is
-      scoped to.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/03-contract-deployed.png" alt="Contract get showing gate 0.10.0 live">
-    <figcaption><span class="pill ok">Walkthrough</span><b>The Rust contract is live on the network.</b>
-      <code>gate@0.10.0</code>, contract_id 749. Anyone can verify it without a key —
-      command at the bottom of this page.</figcaption>
+      scoped to.
+      <a class="open" href="shots/02-cli-whoami.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/05-full-flow.png" alt="Full agent run">
+    <div class="shot"><img src="shots/03-contract-deployed.png" width="1448" height="312" loading="lazy" decoding="async" alt="Contract get showing gate 0.10.0 live"></div>
+    <figcaption><span class="pill ok">Walkthrough</span><b>The Rust contract is live on the network.</b>
+      <code>gate@0.10.0</code>, contract_id 749. Anyone can verify it without a key —
+      command under <a href="#verify">Verify it yourself</a>.
+      <a class="open" href="shots/03-contract-deployed.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/05-full-flow.png" width="1448" height="9770" loading="lazy" decoding="async" alt="Full agent run"></div>
     <figcaption><span class="pill ok">Use case</span><b>The whole chain, one run.</b>
       Identity → BBS+ credential gate → revocation check → TEE mandate → audit row →
       signed dispatch. Six scenarios: one approved and dispatched for real
       (<code>HTTP 200</code> from inside the enclave), five rejected, each with the
-      enclave's own reason.</figcaption>
+      enclave's own reason.
+      <a class="open" href="shots/05-full-flow.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/06-egress-grant.png" alt="agent-auth-update grant accepted">
+    <div class="shot"><img src="shots/06-egress-grant.png" width="1448" height="996" loading="lazy" decoding="async" alt="agent-auth-update grant accepted"></div>
     <figcaption><span class="pill ok">Agent Auth</span><b>The caller authorises what the enclave may reach.</b>
       An <code>agent-auth</code> grant scoped to contract, functions and destination
-      hosts. Without it the same call returns <code>egress_denied</code>.</figcaption>
+      hosts. Without it the same call returns <code>egress_denied</code>.
+      <a class="open" href="shots/06-egress-grant.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/04-agent-registered.png" alt="Agent registry record">
+    <div class="shot"><img src="shots/04-agent-registered.png" width="1448" height="546" loading="lazy" decoding="async" alt="Agent registry record"></div>
     <figcaption><span class="pill ok">Agent ID</span><b>Registered on-network.</b>
       The DID resolves to an ERC-8004 / A2A agent card.
-      (The <code>owner_eth_address</code> rendering here is bug #10.)</figcaption>
+      (The <code>owner_eth_address</code> rendering here is bug #10.)
+      <a class="open" href="shots/04-agent-registered.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/11-qa-console-approved.png" alt="QA console approving an in-mandate action">
+    <div class="shot"><img src="shots/07-tests.png" width="1448" height="1400" loading="lazy" decoding="async" alt="node verify.mjs output: Rust, wasm build, Node and Playwright suites all passing"></div>
+    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 277 checks in one command</b>:
+      Rust unit tests, a wasm component build, the Node suite (191), and Playwright (38) over the
+      real Rust <code>decide()</code>. No API key, no network, no credits.
+      <a class="open" href="shots/07-tests.png">Full size ↗</a></figcaption>
+  </figure>
+  </div>
+
+  <div class="group" id="ev-console">
+  <h3>The gate in the browser<small>the QA console, driven by Playwright</small></h3>
+
+  <figure>
+    <div class="shot"><img src="shots/11-qa-console-approved.png" width="2200" height="1440" loading="lazy" decoding="async" alt="QA console approving an in-mandate action"></div>
     <figcaption><span class="pill ok">QA</span><b>Happy path.</b>
       An in-mandate purchase approved. Every verdict comes from the contract's real
-      Rust <code>decide()</code> — the rules are never reimplemented in JavaScript.</figcaption>
+      Rust <code>decide()</code> — the rules are never reimplemented in JavaScript.
+      <a class="open" href="shots/11-qa-console-approved.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/12-qa-console-rejected.png" alt="QA console rejecting an unknown counterparty">
+    <div class="shot"><img src="shots/12-qa-console-rejected.png" width="2200" height="1440" loading="lazy" decoding="async" alt="QA console rejecting an unknown counterparty"></div>
     <figcaption><span class="pill ok">QA</span><b>Wrong path.</b>
       An unlisted payee refused by name. Playwright drives six scenarios plus four
-      API-abuse cases, including a negative amount that must not wrap past the cap.</figcaption>
+      API-abuse cases, including a negative amount that must not wrap past the cap.
+      <a class="open" href="shots/12-qa-console-rejected.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/13-qa-console-self-issued.png" alt="QA console rejecting a self-issued credential">
+    <div class="shot"><img src="shots/13-qa-console-self-issued.png" width="2200" height="1440" loading="lazy" decoding="async" alt="QA console rejecting a self-issued credential"></div>
     <figcaption><span class="pill ok">QA</span><b>The attack that matters.</b>
       A BBS+ signature proves the <i>issuer</i> signed the claim — never that the
       issuer is anyone the fund trusts. An agent that mints its own
       "accredited investor" credential is refused against the mandate's issuer
-      trust list.</figcaption>
+      trust list.
+      <a class="open" href="shots/13-qa-console-self-issued.png">Full size ↗</a></figcaption>
   </figure>
 
   <figure>
-    <img src="shots/07-tests.png" alt="Node test suite output">
-    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 85 checks in one command</b>:
-      Rust unit tests, a wasm component build, the Node suite, and Playwright over the
-      real Rust <code>decide()</code>. No API key, no network, no credits.</figcaption>
-  </figure>
-
-  <figure>
-    <img src="shots/08-bug-token-balance.png" alt="token balance RPC error">
-    <figcaption><span class="pill ok">Bug #9 — fixed</span><b><code>token balance</code> works now.</b>
-      We reported this in August, when every call failed on a params-sealing mismatch.
-      Terminal 3 fixed it server-side; the command returns a real row. (The same
-      server change is what broke SDK 3.5.2 — see bug #19.)</figcaption>
-  </figure>
-
-  <figure>
-    <img src="shots/09-bug-host-card.png" alt="host-card NotScopeWriter error">
-    <figcaption><span class="pill ok">Bug #11 — likely fixed</span><b>No more <code>NotScopeWriter</code>.</b>
-      The documented <code>agent host-card</code> step used to fail on a scope
-      prerequisite the guide never mentioned. It now gets past that and stops only on
-      credits, so the original defect appears resolved.</figcaption>
-  </figure>
-
-  <figure>
-    <img src="shots/10-bug-node-version.png" alt="tee:organisation/contracts version 0.4.1">
-    <figcaption><span class="pill ok">Bug #12 — fixed</span><b>Org-owned agents work.</b>
-      The CLI needed <code>tee:organisation/contracts</code> ≥ 0.6.0 while testnet ran
-      0.4.1, making that whole walkthrough page unusable. The node is on <b>0.17.0</b>
-      now and <code>agent create --org</code> succeeds end to end.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/14-bug-trust-anchor.png" alt="trustAnchor CONFIG_ERROR next to the working form">
-    <figcaption><span class="pill bug">Bug #20</span><b><code>trustAnchor</code> is required from SDK 5.x.</b>
-      The change is right — it pins the node's attestation — and the error is clear about
-      the field. It just never names <code>fetchTrustedManifest()</code>, the one-line fix
-      exported from the same module, and no changelog says which version introduced it.</figcaption>
-  </figure>
-
-  <figure>
-    <img src="shots/15-bug-metering.png" alt="card-publish refused for insufficient credit">
-    <figcaption><span class="pill bug">Bug #21</span><b>Metering is inconsistent and unpublished.</b>
-      At a balance of exactly zero, <code>agent create --org</code> minted a DID, issued an
-      API key and hosted a card — free. Publishing that same card demands
-      <code>10000000000</code>, about 6.7&times; the entire initial grant. No price list,
-      no pre-flight estimate, and an empty usage ledger to audit against.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/16-erc8004-live.png" alt="live ERC-8004 registry reads and a mint preflight">
-    <figcaption><span class="pill ok">Shipped</span><b>ERC-8004, read live and preflighted.</b>
-      Resolve any agent's owner and URI from the reference registry on Sepolia, and check a
-      registry's bytecode carries <code>register(string)</code> <b>before</b> a mint spends
-      gas. It correctly refuses Sepolia WETH. No wallet, no gas.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/17-audit-ledger.png" alt="audit.get-mine read back and reconciled">
-    <figcaption><span class="pill ok">Shipped</span><b>The host's own record, not ours.</b>
-      <code>audit.get-mine</code> read back and reconciled against what the agent claims
-      happened, keeping <i>committed</i> separate from <i>claimed</i> — an event marked
-      success in an uncommitted batch is the contract's story, not a durable fact.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/18-status-list.png" alt="W3C Bitstring Status List published">
-    <figcaption><span class="pill ok">Shipped</span><b>Revocation that runs today.</b>
-      A W3C Bitstring Status List of 131,072 entries, published over HTTPS. No chain, no
-      gas. The holder is one bit among 131,072, so checking it reveals nothing about who is
-      transacting.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/19-qa-console-binding-moved.png" alt="a credential verified for $500 refused on $4,000">
+    <div class="shot"><img src="shots/19-qa-console-binding-moved.png" width="2200" height="1440" loading="lazy" decoding="async" alt="a credential verified for $500 refused on $4,000"></div>
     <figcaption><span class="pill ok">Shipped</span><b>The eligibility check cannot be detached.</b>
       A credential verified for a $500 purchase, presented for a $4,000 one. The enclave
-      recomputes the commitment from the action it is about to perform, and refuses.</figcaption>
+      recomputes the commitment from the action it is about to perform, and refuses.
+      <a class="open" href="shots/19-qa-console-binding-moved.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/20-qa-console-x402-paid.png" alt="the console paying a real HTTP 402">
+    <div class="shot"><img src="shots/20-qa-console-x402-paid.png" width="2200" height="1440" loading="lazy" decoding="async" alt="the console paying a real HTTP 402"></div>
     <figcaption><span class="pill ok">Shipped</span><b>Paying a real 402, in the browser.</b>
       The console fetches a genuine HTTP 402 from its own server and signs an EIP-3009
       authorization only after the mandate approves the price and the payee. The server
-      recovers the payer from the signature before serving anything.</figcaption>
+      recovers the payer from the signature before serving anything.
+      <a class="open" href="shots/20-qa-console-x402-paid.png">Full size ↗</a></figcaption>
   </figure>
+  </div>
+
+  <div class="group" id="ev-adopt">
+  <h3>Distribution &amp; adoption<small>MCP, A2A, Web Bot Auth, ERC-8004, x402, revocation</small></h3>
+
   <figure>
-    <img src="shots/21-mcp-server.png" alt="the gate served over MCP to a real client">
+    <div class="shot tall"><img src="shots/21-mcp-server.png" width="1448" height="3066" loading="lazy" decoding="async" alt="the gate served over MCP to a real client"></div>
     <figcaption><span class="pill ok">Shipped</span><b>The gate, over MCP.</b>
       A real MCP client, a real subprocess, eight tools. <code>gate_evaluate</code> answers
       from the contract's own compiled Rust — offline, free, and with no Terminal 3 account
-      at all. This is how the agent gets distributed rather than cloned.</figcaption>
+      at all. This is how the agent gets distributed rather than cloned.
+      <a class="open" href="shots/21-mcp-server.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/22-x402-mandated-payment.png" alt="one payment made, three refused">
-    <figcaption><span class="pill ok">Shipped</span><b>The mandate decides whether to pay.</b>
-      Four paywalls, one payment. A payee the mandate never listed, a price over the API
-      budget, and a mandate that only permits trading are each refused <i>before</i> a
-      signature exists.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/23-probe-before-promote.png" alt="a build proven under a throwaway tail">
-    <figcaption><span class="pill ok">Shipped</span><b>Probe before promote.</b>
-      Registration is not validation: a component importing a host interface the node does
-      not serve registers fine, then fails on every invoke — and takes the pinned version
-      down with it. So a build is proven under a throwaway tail first.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/24-node-discovery.png" alt="the node's own contract inventory">
-    <figcaption><span class="pill bug">Bug #26</span><b>What the node actually runs.</b>
-      Read with a scoped agent key — no session, no credits. Six core contracts, two of
-      them documented nowhere: <code>tee:vc</code> carries a whole OpenID4VP holder stack,
-      <code>tee:agent-connect</code> carries commerce intents.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/25-core-contracts-blocked.png" alt="both undocumented core contracts, and where they stop">
-    <figcaption><span class="pill bug">Bugs #27 / #28</span><b>And why nobody can use them.</b>
-      Every commerce function fails on a host-assembled profile envelope missing
-      <code>kind</code> — a field the profile <i>writer</i> refuses as unrecognised. And
-      <code>issue-credential</code> wants key metadata that the only documented writer
-      accepts silently and the reader still calls missing.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/27-prove-enclave.png" alt="three enclave paths proven live with controls">
-    <figcaption><span class="pill ok">Proven live</span><b>The paths that were only unit tests.</b>
-      The sealed broker credential (401 without it, 200 through the enclave), <code>{{profile.*}}</code>
-      substitution (a real field is delivered, a missing one comes back <code>placeholder_unknown</code>),
-      and idempotent replay (the retry is not dispatched; the recorded outcome is returned byte for byte).
-      Each with its control, each a deterministic signal — never a body read back.</figcaption>
-  </figure>
-  <figure>
-    <img src="shots/28-a2a-official-client.png" alt="the official A2A client driving the server">
+    <div class="shot tall"><img src="shots/28-a2a-official-client.png" width="1448" height="2068" loading="lazy" decoding="async" alt="the official A2A client driving the server"></div>
     <figcaption><span class="pill ok">Shipped</span><b>A2A v1.0, on the official SDK.</b>
       A JSON-RPC endpoint serving the gate as A2A tasks. The official <code>@a2a-js/sdk</code> client
       discovers the card, sends messages and reads tasks back; a rejected action <i>completes</i>
-      the task with decision rejected. Playwright sends the same envelopes by hand, with no SDK.</figcaption>
+      the task with decision rejected. Playwright sends the same envelopes by hand, with no SDK.
+      <a class="open" href="shots/28-a2a-official-client.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/29-web-bot-auth-interop.png" alt="Cloudflare's reference implementation verifying our signatures">
+    <div class="shot"><img src="shots/29-web-bot-auth-interop.png" width="1448" height="1400" loading="lazy" decoding="async" alt="Cloudflare's reference implementation verifying our signatures"></div>
     <figcaption><span class="pill ok">Verified both ways</span><b>Web Bot Auth against the reference implementation.</b>
       Our signatures pass Cloudflare's verifier with the key resolved from our published JWKS, and theirs
       pass ours. Before this our signatures carried no <code>expires</code>, and the verifier that defines
-      the format refuses those outright.</figcaption>
+      the format refuses those outright.
+      <a class="open" href="shots/29-web-bot-auth-interop.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/30-erc8004-minted.png" alt="ERC-8004 agent 201 read back from both registries">
+    <div class="shot tall"><img src="shots/30-erc8004-minted.png" width="1448" height="3598" loading="lazy" decoding="async" alt="ERC-8004 agent 201 read back from both registries"></div>
     <figcaption><span class="pill ok">On chain</span><b>ERC-8004 agent #201, minted.</b>
       On the reference IdentityRegistry on Sepolia. The token resolves to an owner and a URI; the URI
       resolves to a conformant <code>registration-v1</code> document that names the token back; the
       Reputation Registry answers for the same id — and its deployment turns out to predate the EIP's
-      final interface, which the read says rather than hides.</figcaption>
+      final interface, which the read says rather than hides.
+      <a class="open" href="shots/30-erc8004-minted.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/31-activity-ledger.png" alt="the node's activity ledger, tallied">
-    <figcaption><span class="pill bug">Bug #29</span><b>The audit trail was somewhere else.</b>
-      <code>audit.get-mine</code>, the documented read, is empty after 39 dispatches. <code>activity.log</code>
-      has every one — contract, function, outcome, sequence number, hash — and the whole session with them:
-      the fuel-quota errors, the probes, the mint of the contract itself.</figcaption>
+    <div class="shot tall"><img src="shots/16-erc8004-live.png" width="1448" height="2300" loading="lazy" decoding="async" alt="live ERC-8004 registry reads and a mint preflight"></div>
+    <figcaption><span class="pill ok">Shipped</span><b>ERC-8004, read live and preflighted.</b>
+      Resolve any agent's owner and URI from the reference registry on Sepolia, and check a
+      registry's bytecode carries <code>register(string)</code> <b>before</b> a mint spends
+      gas. It correctly refuses Sepolia WETH. No wallet, no gas.
+      <a class="open" href="shots/16-erc8004-live.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/32-x402-settled.png" alt="the x402 settlement checked on chain">
+    <div class="shot tall"><img src="shots/22-x402-mandated-payment.png" width="1448" height="3470" loading="lazy" decoding="async" alt="one payment made, three refused"></div>
+    <figcaption><span class="pill ok">Shipped</span><b>The mandate decides whether to pay.</b>
+      Four paywalls, one payment. A payee the mandate never listed, a price over the API
+      budget, and a mandate that only permits trading are each refused <i>before</i> a
+      signature exists.
+      <a class="open" href="shots/22-x402-mandated-payment.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/32-x402-settled.png" width="1448" height="2068" loading="lazy" decoding="async" alt="the x402 settlement checked on chain"></div>
     <figcaption><span class="pill ok">On chain</span><b>x402, settled.</b>
       0.01 USDC moved on Base Sepolia through the mandate: the resource server verified and settled
       through the public facilitator, which broadcast the transfer — the payer paid no gas. The evidence
       is the <code>Transfer</code> log and both balances at the block, because a lagging public RPC will
-      cheerfully report that nothing moved.</figcaption>
+      cheerfully report that nothing moved.
+      <a class="open" href="shots/32-x402-settled.png">Full size ↗</a></figcaption>
   </figure>
+
   <figure>
-    <img src="shots/26-x402-facilitator.png" alt="an independent facilitator verifying our payment">
+    <div class="shot tall"><img src="shots/26-x402-facilitator.png" width="1448" height="4632" loading="lazy" decoding="async" alt="an independent facilitator verifying our payment"></div>
     <figcaption><span class="pill ok">Shipped</span><b>Checked by someone who is not us.</b>
       An independent x402 facilitator recovers our payer address from the signature and
       simulates <code>transferWithAuthorization</code> against the real token. It gets as
-      far as the balance and stops. Everything but the money.</figcaption>
+      far as the balance and stops. Everything but the money.
+      <a class="open" href="shots/26-x402-facilitator.png">Full size ↗</a></figcaption>
   </figure>
+
+  <figure>
+    <div class="shot"><img src="shots/18-status-list.png" width="1448" height="1086" loading="lazy" decoding="async" alt="W3C Bitstring Status List published"></div>
+    <figcaption><span class="pill ok">Shipped</span><b>Revocation that runs today.</b>
+      A W3C Bitstring Status List of 131,072 entries, published over HTTPS. No chain, no
+      gas. The holder is one bit among 131,072, so checking it reveals nothing about who is
+      transacting.
+      <a class="open" href="shots/18-status-list.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/27-prove-enclave.png" width="1448" height="4318" loading="lazy" decoding="async" alt="three enclave paths proven live with controls"></div>
+    <figcaption><span class="pill ok">Proven live</span><b>The paths that were only unit tests.</b>
+      The sealed broker credential (401 without it, 200 through the enclave), <code>{{profile.*}}</code>
+      substitution (a real field is delivered, a missing one comes back <code>placeholder_unknown</code>),
+      and idempotent replay (the retry is not dispatched; the recorded outcome is returned byte for byte).
+      Each with its control, each a deterministic signal — never a body read back.
+      <a class="open" href="shots/27-prove-enclave.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot"><img src="shots/17-audit-ledger.png" width="1448" height="996" loading="lazy" decoding="async" alt="audit.get-mine read back and reconciled"></div>
+    <figcaption><span class="pill ok">Shipped</span><b>The host's own record, not ours.</b>
+      <code>audit.get-mine</code> read back and reconciled against what the agent claims
+      happened, keeping <i>committed</i> separate from <i>claimed</i> — an event marked
+      success in an uncommitted batch is the contract's story, not a durable fact.
+      (Where the trail actually lives today is bug #29, below.)
+      <a class="open" href="shots/17-audit-ledger.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/23-probe-before-promote.png" width="1448" height="2022" loading="lazy" decoding="async" alt="a build proven under a throwaway tail"></div>
+    <figcaption><span class="pill ok">Shipped</span><b>Probe before promote.</b>
+      Registration is not validation: a component importing a host interface the node does
+      not serve registers fine, then fails on every invoke — and takes the pinned version
+      down with it. So a build is proven under a throwaway tail first.
+      <a class="open" href="shots/23-probe-before-promote.png">Full size ↗</a></figcaption>
+  </figure>
+  </div>
+
+  <div class="group" id="ev-findings">
+  <h3>Platform findings<small>what broke, what Terminal 3 fixed, what is still open</small></h3>
+
+  <figure>
+    <div class="shot"><img src="shots/08-bug-token-balance.png" width="1448" height="456" loading="lazy" decoding="async" alt="token balance RPC error"></div>
+    <figcaption><span class="pill fixed">Bug #9 — fixed</span><b><code>token balance</code> works now.</b>
+      We reported this in August, when every call failed on a params-sealing mismatch.
+      Terminal 3 fixed it server-side; the command returns a real row. (The same
+      server change is what broke SDK 3.5.2 — see bug #19.)
+      <a class="open" href="shots/08-bug-token-balance.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot"><img src="shots/09-bug-host-card.png" width="1448" height="230" loading="lazy" decoding="async" alt="host-card NotScopeWriter error"></div>
+    <figcaption><span class="pill fixed">Bug #11 — likely fixed</span><b>No more <code>NotScopeWriter</code>.</b>
+      The documented <code>agent host-card</code> step used to fail on a scope
+      prerequisite the guide never mentioned. It now gets past that and stops only on
+      credits, so the original defect appears resolved.
+      <a class="open" href="shots/09-bug-host-card.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot"><img src="shots/10-bug-node-version.png" width="1448" height="276" loading="lazy" decoding="async" alt="tee:organisation/contracts version 0.4.1"></div>
+    <figcaption><span class="pill fixed">Bug #12 — fixed</span><b>Org-owned agents work.</b>
+      The CLI needed <code>tee:organisation/contracts</code> ≥ 0.6.0 while testnet ran
+      0.4.1, making that whole walkthrough page unusable. The node is on <b>0.17.0</b>
+      now and <code>agent create --org</code> succeeds end to end.
+      <a class="open" href="shots/10-bug-node-version.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot"><img src="shots/14-bug-trust-anchor.png" width="1448" height="1490" loading="lazy" decoding="async" alt="trustAnchor CONFIG_ERROR next to the working form"></div>
+    <figcaption><span class="pill bug">Bug #20</span><b><code>trustAnchor</code> is required from SDK 5.x.</b>
+      The change is right — it pins the node's attestation — and the error is clear about
+      the field. It just never names <code>fetchTrustedManifest()</code>, the one-line fix
+      exported from the same module, and no changelog says which version introduced it.
+      <a class="open" href="shots/14-bug-trust-anchor.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot"><img src="shots/15-bug-metering.png" width="1448" height="230" loading="lazy" decoding="async" alt="card-publish refused for insufficient credit"></div>
+    <figcaption><span class="pill bug">Bug #21</span><b>Metering is inconsistent and unpublished.</b>
+      At a balance of exactly zero, <code>agent create --org</code> minted a DID, issued an
+      API key and hosted a card — free. Publishing that same card demands
+      <code>10000000000</code>, about 6.7&times; the entire initial grant. No price list,
+      no pre-flight estimate, and an empty usage ledger to audit against.
+      <a class="open" href="shots/15-bug-metering.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/24-node-discovery.png" width="1448" height="3238" loading="lazy" decoding="async" alt="the node's own contract inventory"></div>
+    <figcaption><span class="pill bug">Bug #26</span><b>What the node actually runs.</b>
+      Read with a scoped agent key — no session, no credits. Six core contracts, two of
+      them documented nowhere: <code>tee:vc</code> carries a whole OpenID4VP holder stack,
+      <code>tee:agent-connect</code> carries commerce intents.
+      <a class="open" href="shots/24-node-discovery.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/25-core-contracts-blocked.png" width="1448" height="3598" loading="lazy" decoding="async" alt="both undocumented core contracts, and where they stop"></div>
+    <figcaption><span class="pill bug">Bugs #27 / #28</span><b>And why nobody can use them.</b>
+      Every commerce function fails on a host-assembled profile envelope missing
+      <code>kind</code> — a field the profile <i>writer</i> refuses as unrecognised. And
+      <code>issue-credential</code> wants key metadata that the only documented writer
+      accepts silently and the reader still calls missing.
+      <a class="open" href="shots/25-core-contracts-blocked.png">Full size ↗</a></figcaption>
+  </figure>
+
+  <figure>
+    <div class="shot tall"><img src="shots/31-activity-ledger.png" width="1448" height="4542" loading="lazy" decoding="async" alt="the node's activity ledger, tallied"></div>
+    <figcaption><span class="pill bug">Bug #29</span><b>The audit trail was somewhere else.</b>
+      <code>audit.get-mine</code>, the documented read, is empty after 39 dispatches. <code>activity.log</code>
+      has every one — contract, function, outcome, sequence number, hash — and the whole session with them:
+      the fuel-quota errors, the probes, the mint of the contract itself.
+      <a class="open" href="shots/31-activity-ledger.png">Full size ↗</a></figcaption>
+  </figure>
+  </div>
 </div></section>
 
-<section><div class="wrap">
+<section id="verify"><div class="wrap">
   <h2>Verify it yourself</h2>
   <p>No API key needed — the contract and the agent ID are public:</p>
+  <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
 <pre>npx @terminal3/t3n-sdk contract get z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate --env testnet
-npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre>
-  <p>Or run the whole suite offline, no credits:</p>
+npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre></div>
+  <p style="margin-top:18px">Or run the whole suite offline, no credits:</p>
+  <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
-cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                                          # 277 checks, one command</pre>
+cd t3-gatekeeper-agent/agent &amp;&amp; npm ci &amp;&amp; cd ..
+node verify.mjs                                          <span class="c"># 277 checks, one command</span></pre></div>
+  <p style="margin-top:18px">On chain, without us in the loop:</p>
+  <ul class="endpoints">
+    <li><a href="https://sepolia.etherscan.io/tx/0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb">0x37965ccd…c634bebb</a><em>Sepolia · ERC-8004 mint, agent #201</em></li>
+    <li><a href="https://sepolia.basescan.org/tx/0x52b164d133b4f9873947458c45615287177a8471fc621a6caf34aae8c5c97671">0x52b164d1…5c97671</a><em>Base Sepolia · x402 settlement, 0.01 USDC</em></li>
+  </ul>
 </div></section>
+
+<section id="endpoints"><div class="wrap">
+  <h2>Endpoints this site serves</h2>
+  <p class="note">All static, all CORS-open, all read by a test in the suite.</p>
+  <ul class="endpoints">
+    <li><a href="/.well-known/agent-card.json">/.well-known/agent-card.json</a><em>application/json</em>
+        <span>A2A v1.0 agent card — skills, security schemes, the JSON-RPC interface.</span></li>
+    <li><a href="/.well-known/erc8004-registration.json">/.well-known/erc8004-registration.json</a><em>application/json</em>
+        <span>ERC-8004 <code>registration-v1</code> document; the on-chain URI of agent #201 points here.</span></li>
+    <li><a href="/.well-known/http-message-signatures-directory">/.well-known/http-message-signatures-directory</a><em>http-message-signatures-directory+json</em>
+        <span>Web Bot Auth key directory — the public key every outbound request is signed with.</span></li>
+    <li><a href="/status/revocation.json">/status/revocation.json</a><em>application/json</em>
+        <span>W3C Bitstring Status List, 131,072 entries; credential revocation with no chain.</span></li>
+  </ul>
+</div></section>
+
+</main>
 
 <footer><div class="wrap">
   Built on the Terminal 3 Agent Developer Kit ·
-  <a href="https://github.com/PugarHuda/t3-gatekeeper-agent" style="color:var(--accent);text-decoration:none">source</a>
+  <a href="https://github.com/PugarHuda/t3-gatekeeper-agent">source</a> ·
+  <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/MAINTENANCE.md">operator handover</a> ·
+  <a href="https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md">29 bug reports</a>
 </div></footer>
 
+<script>
+  // Copy the code block next to the button. `pre.textContent` strips the
+  // comment spans' markup but keeps the text, which is what a terminal wants.
+  for (const b of document.querySelectorAll(".copy")) {
+    b.addEventListener("click", async () => {
+      const text = b.parentElement.querySelector("pre").textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        b.textContent = "Copied"; b.dataset.done = "1";
+      } catch {
+        b.textContent = "Select & copy"; // clipboard blocked (http, permissions)
+      }
+      setTimeout(() => { b.textContent = "Copy"; delete b.dataset.done; }, 1600);
+    });
+  }
+</script>
 </body>
 </html>

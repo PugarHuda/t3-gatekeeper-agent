@@ -18,3 +18,8 @@ submission/voiceover/*.wav
 # os
 Thumbs.db
 .DS_Store
+
+# Impeccable mirrors its skill into .github for Copilot; the canonical copy is .claude/skills/impeccable
+.github/agents/
+.github/hooks/
+.github/skills/
