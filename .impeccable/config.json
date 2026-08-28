@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "aphoristic-cadence",
+        "value": "*",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-08-28T08:05:17.199Z",
+        "reason": "author's existing submission captions, preserved verbatim under the polish scope the user chose (copy changes need the author's sign-off)"
+      }
+    ]
+  }
+}
