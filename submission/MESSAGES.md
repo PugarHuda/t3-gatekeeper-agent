@@ -26,7 +26,7 @@ is the most common way to lose a submission.
 ## 2. Superteam Earn — submission fields
 
 **Link:** the Google Doc from step 1.
-**Tweet link:** from step 3 (optional bonus, but the form has a field for it).
+**Tweet link:** https://x.com/BangDropID/status/2092653732848976141 (posted 28 Aug).
 
 **Short description**, if the form asks for one:
 
@@ -61,7 +61,7 @@ Evidence: https://gatekeeper-evidence.vercel.app
 
 ---
 
-## 3. X post — the bonus, tagging @terminal3io
+## 3. X post — DONE: https://x.com/BangDropID/status/2092653732848976141
 
 Three variants are in `X_POST.md` (single premium post, 280-char, thread). If
 you only post one, post Option A with `screenshots/out/32-x402-settled.png` or
