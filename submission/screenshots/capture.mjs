@@ -164,10 +164,10 @@ const page_html = (title, body) => `<!doctype html><meta charset="utf-8"><style>
 // chunks (`name.p1.png`, `name.p2.png`, …) that the exporters use instead of
 // the tall single image. The site keeps the tall one: browsers scroll.
 // CSS px per document page. 760px wide at 2x is 1520px; a document scales
-// that to ~6.5in, i.e. ~0.31pt per px, so 1100px of height is ~8.5in — inside
+// that to ~6.5in, i.e. ~0.31pt per px, so 980px of height is ~7.6in — inside
 // a Letter page's 9in of usable height with no shrink on either axis, and
 // 15px text lands at ~9.5pt.
-const PAGE_PX = 1100;
+const PAGE_PX = 980;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 760, height: 800 }, deviceScaleFactor: 2 });
 
