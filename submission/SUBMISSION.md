@@ -281,6 +281,8 @@ per-client functions that exist and prints what is absent, instead of letting
 "missing revert data" stand in for a score. Agent #201 has none yet, and zero
 is what it reports.
 
+📷 **Screenshot 30 — `30-erc8004-minted.png`** — the whole loop read back from chain: token → URI → conformant document → registrations[201] → reputation.
+
 The preflight is the part worth having. `register()` against the wrong address
 either reverts and wastes the fee, or succeeds against some unrelated ERC-721
 and mints a token that is not an agent identity, with nothing to notice. It
@@ -307,6 +309,8 @@ its successes rather than under them, reconciles the agent's claimed dispatches
 against it as a necessary condition rather than a verdict, and reports the
 documented read beside it, empty.
 
+📷 **Screenshot 31 — `31-activity-ledger.png`** — the node's activity ledger, tallied, beside the empty documented audit read.
+
 📷 **Screenshot 17 — `17-audit-ledger.png`**
 
 ### 4.6 The broker credential never touches the agent
@@ -330,6 +334,8 @@ editing a KV entry instead of editing Rust.
 A mandate that names a credential the map does not hold is an **error, not a
 fallback**. Quietly dropping the header would turn a provisioning mistake into an
 anonymous payment instruction at a broker. Three tests hold that rule down.
+
+📷 **Screenshot 27 — `27-prove-enclave.png`** — the sealed credential (401 without, 200 through the enclave), `{{profile.*}}` substitution, and idempotent replay, each proven live with a control.
 
 ---
 
@@ -369,7 +375,7 @@ adoption path: an MCP host anywhere points at a URL. Driven by the official MCP
 client over HTTP and by hand-written JSON-RPC from Playwright, and refused
 without a signature (§4.10).
 
-*Shot 21.* Also `npm run demo:mcp`, which is the same thing in ten seconds.
+📷 **Screenshot 21 — `21-mcp-server.png`** — the gate over MCP: a real client, a real subprocess, eight tools, no account. Also `npm run demo:mcp`, which is the same thing in ten seconds.
 
 ### 4.8 x402 — the mandate decides whether to pay
 
@@ -426,8 +432,9 @@ transaction, and both balances at explicit block tags on either side of it
 (20.0 → 19.99 and 0.0 → 0.01). A receipt is a claim; a log is a fact.
 `-- --tx <hash>` re-checks a settlement without paying again (*shot 32*).
 
-28 Node tests and 6 Playwright tests, all over real HTTP against a real 402.
-*Shots 20 and 22*, and `npm run demo:x402`.
+28 Node tests and 6 Playwright tests, all over real HTTP against a real 402. Also `npm run demo:x402`.
+
+📷 **Screenshot 22 — `22-x402-mandated-payment.png`** · 📷 **Screenshot 26 — `26-x402-facilitator.png`** · 📷 **Screenshot 32 — `32-x402-settled.png`** — one payment made and three refused before anything was signed; an independent facilitator recovering our payer; the settlement re-checked on chain.
 
 ### 4.9 Checked by people who are not us
 
@@ -448,6 +455,8 @@ node for the first time, each with a control case (*shot 27*). All three held.
 They were written during the credit outage, exactly as the status-list code
 was, and that code turned out to be broken the first time it ran. These did
 not, but we no longer have to say "should".
+
+📷 **Screenshot 28 — `28-a2a-official-client.png`** · 📷 **Screenshot 29 — `29-web-bot-auth-interop.png`** — the official A2A client driving the server; Web Bot Auth verified both ways against Cloudflare's reference implementation.
 
 ### 4.10 The door has a lock
 
@@ -559,6 +568,8 @@ accepts a credential the agent minted itself, and an unset revocation registry
 lets a revoked investor through. Both are opt-in because the demo has no real KYC
 issuer, and a production operator must set both.
 
+📷 **Screenshot 23 — `23-probe-before-promote.png`** · 📷 **Screenshot 24 — `24-node-discovery.png`** — a build proven under a throwaway tail before production points at it; what the node actually runs, read with a scoped agent key.
+
 ---
 
 ## 7. Trying the refreshed docs
@@ -647,6 +658,8 @@ the referenced onboarding repo is still empty, last pushed 6 June; #5, #10,
   initial grant**. There is no price list, no pre-flight estimate, and because
   `getUsage().entries` is empty (#17) no way to see afterwards what was charged.
 
+📷 **Screenshot 25 — `25-core-contracts-blocked.png`** — bugs #27/#28: the two undocumented core contracts, and exactly where a tenant caller is stopped.
+
 📷 **Screenshot 15 — `15-bug-metering.png`**
 
 ### 8.1 And four in my own contract
@@ -682,7 +695,7 @@ console driven by Playwright that runs the contract's **real Rust `decide()`** v
 a host build — the rules are never reimplemented in JavaScript, because a JS copy
 would drift from the contract and prove nothing.
 
-📷 **Screenshot 11 — `11-qa-console-approved.png`** · 📷 **Screenshot 12 — `12-qa-console-rejected.png`** · 📷 **Screenshot 13 — `13-qa-console-self-issued.png`**
+📷 **Screenshot 11 — `11-qa-console-approved.png`** · 📷 **Screenshot 12 — `12-qa-console-rejected.png`** · 📷 **Screenshot 13 — `13-qa-console-self-issued.png`** · 📷 **Screenshot 20 — `20-qa-console-x402-paid.png`**
 
 | Path | Case | Asserted |
 | --- | --- | --- |
