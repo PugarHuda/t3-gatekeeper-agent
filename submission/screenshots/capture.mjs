@@ -207,11 +207,11 @@ for (const shot of shots) {
       const limit = start + PAGE_PX;
       const cut = tops.filter((t) => t > start + 100 && t <= limit).pop() ?? limit;
       pages++;
-      await page.screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`), clip: { x: box.x, y: start, width: box.width, height: cut - start } });
+      await page.screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`), fullPage: true, clip: { x: box.x, y: start, width: box.width, height: cut - start } });
       start = cut;
     }
     pages++;
-    await page.screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`), clip: { x: box.x, y: start, width: box.width, height: bottom - start } });
+    await page.screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`), fullPage: true, clip: { x: box.x, y: start, width: box.width, height: bottom - start } });
   }
   console.log(`${lines.length} lines, ${Math.round(box.height)}px -> ${shot.name}.png${pages ? ` + ${pages} page chunks` : ""}`);
 }
