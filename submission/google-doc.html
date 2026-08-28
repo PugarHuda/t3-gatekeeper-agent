@@ -85,7 +85,6 @@ RESULT: live testnet auth WORKS ✅</pre>
 <p>contract's outbound HTTP is authorised by the <strong>caller</strong>, scoped to contract, functions and destination hosts. With the grant the enclave's POST completes (HTTP 200); without it the same call returns a typed <code>host/http.egress_denied</code>.</p>
 <p class="cap"><strong>Screenshot 05 — <code>05-full-flow.png</code></strong> — six scenarios in one run: an approved</p>
 <p><img src="https://gatekeeper-evidence.vercel.app/shots/05-full-flow.p1.png" alt="05-full-flow.p1.png"></p>
-<p><img src="https://gatekeeper-evidence.vercel.app/shots/05-full-flow.p2.png" alt="05-full-flow.p2.png"></p>
 <p>buy that really dispatches, an over-mandate buy rejected, a disallowed asset and kind rejected, an approved counterparty, an unknown counterparty rejected, and a future-dated mandate rejected — each with the enclave's own reason strings.</p>
 <h3>4.1 Closing the gap the enclave could not close before</h3>
 <p>The honest weakness in the previous submission was this: the enclave checked the credential's issuer against <code>allowed_issuers</code>, but the issuer was a field the caller set, sitting next to a claim of "yes, I verified a credential" that was bound to nothing at all. An agent could verify a credential for a $500 purchase and then submit a $500,000 one.</p>

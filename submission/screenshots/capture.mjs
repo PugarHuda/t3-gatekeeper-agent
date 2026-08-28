@@ -142,7 +142,7 @@ function colourise(text) {
 
 const page_html = (title, body) => `<!doctype html><meta charset="utf-8"><style>
   :root { color-scheme: dark; }
-  body { margin:0; background:#0b0f14; font:13px/1.55 "Cascadia Code","Consolas",monospace; }
+  body { margin:0; background:#0b0f14; font:15px/1.5 "Cascadia Code","Consolas",monospace; }
   .win { margin:18px; border:1px solid #1e2b3a; border-radius:9px; overflow:hidden; background:#0e141b; }
   .bar { display:flex; align-items:center; gap:8px; padding:9px 13px; background:#141c26; border-bottom:1px solid #1e2b3a; }
   .dot { width:11px; height:11px; border-radius:50%; }
@@ -163,9 +163,13 @@ const page_html = (title, body) => `<!doctype html><meta charset="utf-8"><style>
 // scaled, and outputs longer than a page are ALSO rendered as page-sized
 // chunks (`name.p1.png`, `name.p2.png`, …) that the exporters use instead of
 // the tall single image. The site keeps the tall one: browsers scroll.
-const PAGE_LINES = 40;
+// CSS px per document page. 760px wide at 2x is 1520px; a document scales
+// that to ~6.5in, i.e. ~0.31pt per px, so 1100px of height is ~8.5in — inside
+// a Letter page's 9in of usable height with no shrink on either axis, and
+// 15px text lands at ~9.5pt.
+const PAGE_PX = 1100;
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 820, height: 800 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({ viewport: { width: 760, height: 800 }, deviceScaleFactor: 2 });
 
 for (const shot of shots) {
   process.stdout.write(`[capture] ${shot.name} … `);
@@ -188,17 +192,28 @@ for (const shot of shots) {
   // image we had just written.
   const chunkRe = new RegExp(`^${shot.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.p\\d+\\.png$`);
   for (const f of readdirSync(OUT)) if (chunkRe.test(f)) unlinkSync(path.join(OUT, f));
+  // Chunk by RENDERED height, not by line count: at this width long lines
+  // wrap, and a 40-line chunk came out 4,700px tall — which a document then
+  // shrinks to fit the page, which is the problem we are here to fix. Cuts
+  // land on line boundaries (each output line is a block-level span).
+  const box = await page.locator(".win").boundingBox();
   let pages = 0;
-  if (lines.length > PAGE_LINES) {
-    for (let i = 0; i < lines.length; i += PAGE_LINES) {
+  if (box.height > PAGE_PX) {
+    const tops = await page.evaluate(() => [...document.querySelectorAll("pre span")].map((s) => s.getBoundingClientRect().top));
+    const bottom = box.y + box.height;
+    let start = box.y;
+    while (bottom - start > PAGE_PX + 40) {
+      // The last line that starts inside the page budget is where we cut.
+      const limit = start + PAGE_PX;
+      const cut = tops.filter((t) => t > start + 100 && t <= limit).pop() ?? limit;
       pages++;
-      const part = lines.slice(i, i + PAGE_LINES).join("\n");
-      const label = `${shot.title}  (${pages}/${Math.ceil(lines.length / PAGE_LINES)})`;
-      await page.setContent(page_html(label, colourise(part)));
-      await page.locator(".win").screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`) });
+      await page.screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`), clip: { x: box.x, y: start, width: box.width, height: cut - start } });
+      start = cut;
     }
+    pages++;
+    await page.screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`), clip: { x: box.x, y: start, width: box.width, height: bottom - start } });
   }
-  console.log(`${lines.length} lines -> ${shot.name}.png${pages ? ` + ${pages} page chunks` : ""}`);
+  console.log(`${lines.length} lines, ${Math.round(box.height)}px -> ${shot.name}.png${pages ? ` + ${pages} page chunks` : ""}`);
 }
 
 await browser.close();
