@@ -134,7 +134,7 @@ approves nothing.
 | Build | `cargo build --lib --target wasm32-wasip2 --release` → 215 KB component (bug #5 covers the Windows blocker and the fix) |
 | Register | `TenantClient.contracts.register()` → **v0.10.0 = contract_id 749**, promoted only after `npm run probe` proved the build under a throwaway tail (v0.7.0 = 479 and v0.6.0 = 175 before it) |
 | Invoke | `contracts.execute("gate", …)` → approved/rejected, decided inside the TEE |
-| Test | 47 Rust + 206 Node + 41 Playwright + 3 axe, all green — `node verify.mjs` counts them itself |
+| Test | 47 Rust + 208 Node + 41 Playwright + 3 axe, all green — `node verify.mjs` counts them itself |
 
 📷 **Screenshot 03 — `03-contract-deployed.png`** — live on the network, checkable without my key.
 
@@ -541,7 +541,7 @@ node verify.mjs
 ```
 
 Rust unit tests → wasm component build → Node tests → Playwright end-to-end over
-the *real* Rust decision function, then axe-core over both pages. 298 checks, no API key, no network, no credits.
+the *real* Rust decision function, then axe-core over both pages. 300 checks, no API key, no network, no credits.
 It selects the GNU toolchain automatically on Windows, which is otherwise a
 documented footgun a newcomer hits on their first build.
 
@@ -716,9 +716,9 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**`node verify.mjs` reports its own total — 298 offline checks** at the time of
-writing (47 Rust, 206 Node, 41 Playwright end-to-end, 3 axe-core), plus the live-site and
-submission-artifact suites (19 live). The number comes from the runners rather than from
+**`node verify.mjs` reports its own total — 300 offline checks** at the time of
+writing (47 Rust, 208 Node, 41 Playwright end-to-end, 3 axe-core), plus the live-site and
+submission-artifact suites (23 live, including signed calls to the hosted doors). The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong
 within a day of being written. The live-site set
 includes a Web Bot Auth key round trip over the public internet — sign locally,
@@ -739,7 +739,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 04 | `04-agent-registered.png` | Agent ID registered — and bug #10, the address as a decimal array |
 | 05 | `05-full-flow.png` | the whole agent on 0.10.0: VC gate → TEE mandate → audit → in-TEE dispatch (**HTTP 200**) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` — the caller authorising enclave egress |
-| 07 | `07-tests.png` | `node verify.mjs` — 298 checks, no key, no credits |
+| 07 | `07-tests.png` | `node verify.mjs` — 300 checks, no key, no credits |
 | 08 | `08-bug-token-balance.png` | bug #9 **fixed** |
 | 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter` |
 | 10 | `10-bug-node-version.png` | bug #12 **fixed** — node on 0.17.0 |
@@ -790,7 +790,7 @@ I would rather state this than imply a live run I did not do.
 | --- | --- |
 | **On the network now** | **v0.10.0, `contract_id 749`**, registered 2026-08-27 |
 | **Proven live** | the KV mandate read, the credential/action binding, idempotent dispatch, in-enclave outbound HTTP (**200**), and `http-with-placeholders` — which until this week had only ever been compiled in |
-| **Also live** | the evidence site, the A2A agent card, the ERC-8004 registration file, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (19/19) |
+| **Also live** | the evidence site, the A2A agent card, the ERC-8004 registration file, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (23/23) |
 | **On chain** | ERC-8004 agent **#201**, Sepolia, tx `0x37965ccd…` — `npm run erc8004` reads it back through both registries. And an x402 payment **settled**: 0.01 USDC on Base Sepolia through the mandate and the public facilitator, tx `0x52b164d133…`, both balances checked at the block |
 | **Still not live** | nothing in this catalogue that a funded wallet could fix. What remains is the platform's: `vp.verify` (bug #7), `tee:agent-connect` (#27), `tee:vc` issuance (#28) |
 
@@ -831,7 +831,7 @@ No key, no credits, no network — the whole test suite:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                  # 298 checks
+node verify.mjs                  # 300 checks
 ```
 
 With your own key:

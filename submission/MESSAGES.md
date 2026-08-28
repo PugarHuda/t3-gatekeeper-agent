@@ -41,13 +41,15 @@ agent cannot write to, and the decision and the outbound order are one enclave
 call, so a rejected trade cannot dial out.
 
 Distributable three ways: an MCP server (stdio and Streamable HTTP), an A2A
-v1.0 endpoint on the official SDK, and an ERC-8004 identity (agent #201,
-Sepolia). Every HTTP call must carry a web-bot-auth signature resolved from the
-caller's own published key. x402 payments go through the same mandate — one
+v1.0 endpoint on the official SDK — both hosted live at
+gatekeeper-evidence.vercel.app/api/a2a and /api/mcp, deciding with the very
+wasm component registered on the node — and an ERC-8004 identity (agent #201,
+Sepolia) whose registration names that endpoint. Every HTTP call must carry a
+web-bot-auth signature resolved from the caller's own published key. x402 payments go through the same mandate — one
 was settled on Base Sepolia through the public facilitator and checked against
 the chain.
 
-298 offline checks in one command with no API key; 32 screenshots, all from
+300 offline checks in one command with no API key; 32 screenshots, all from
 real command output, republished at gatekeeper-evidence.vercel.app; 29 bug
 reports re-verified against the refreshed docs, four already fixed by
 Terminal 3, and three that turned out to be corrections to our own earlier

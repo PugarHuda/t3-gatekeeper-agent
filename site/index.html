@@ -110,6 +110,7 @@
   .code + .code { margin-top:10px; }
   pre { margin:0; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
         padding:14px 72px 14px 16px; overflow-x:auto; font:13.5px/1.6 var(--mono); color:var(--ink); tab-size:4; }
+  pre:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   pre .c { color:var(--dim); }
   pre .k { color:var(--accent); }
   code { font-family:var(--mono); color:var(--accent); font-size:.92em; }
@@ -212,13 +213,13 @@
       <p>Eight tools, stdio or Streamable HTTP. <code>gate_evaluate</code> answers from the contract's own compiled logic — the registered wasm component, hosted in JavaScript — so it needs no Rust toolchain, no Terminal 3 account, and nothing online.</p>
       </div>
       <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
-<pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
+<pre tabindex="0">git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent &amp;&amp; npm ci
 npm run mcp          <span class="c"># stdio server; npm run demo:mcp drives it</span>
 <span class="c"># optional: the Rust host build adds credential-binding + idempotency checks</span>
 <span class="c">#   cd ../gate-contract &amp;&amp; cargo build --bin gate_cli --release</span></pre></div>
       <div class="code"><button class="copy" type="button" aria-label="Copy host configuration">Copy</button>
-<pre><span class="c">// any MCP host: Claude Code, Claude Desktop, Cursor …</span>
+<pre tabindex="0"><span class="c">// any MCP host: Claude Code, Claude Desktop, Cursor …</span>
 { "mcpServers": { "gatekeeper": {
     "command": "node",
     "args": ["&lt;repo&gt;/agent/src/mcp-server.mjs"] } } }</pre></div>
@@ -229,11 +230,11 @@ npm run mcp          <span class="c"># stdio server; npm run demo:mcp drives it<
       <p>JSON-RPC on the official <code>@a2a-js/sdk</code>, hosted at <a href="/api/a2a"><code>/api/a2a</code></a> (MCP over HTTP at <a href="/api/mcp"><code>/api/mcp</code></a>). Discover the card, <code>SendMessage</code>, read the task back. Every request must carry a Web Bot Auth signature, resolved from <em>your</em> published key directory — unsigned calls get <code>401</code> and a <code>WWW-Authenticate</code> that says so.</p>
       </div>
       <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
-<pre>curl -s https://gatekeeper-evidence.vercel.app/.well-known/agent-card.json
+<pre tabindex="0">curl -s https://gatekeeper-evidence.vercel.app/.well-known/agent-card.json
 <span class="c"># → supportedInterfaces[0].url = https://gatekeeper-evidence.vercel.app/api/a2a</span>
 cd agent &amp;&amp; npm run a2a      <span class="c"># the same server, locally, :41241 (A2A_PORT)</span></pre></div>
       <div class="code"><button class="copy" type="button" aria-label="Copy request">Copy</button>
-<pre>POST /api/a2a   <span class="c">A2A-Version: 1.0 · Signature, Signature-Input, Signature-Agent</span>
+<pre tabindex="0">POST /api/a2a   <span class="c">A2A-Version: 1.0 · Signature, Signature-Input, Signature-Agent</span>
 { "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
   "params": { "message": { "role": "user", "parts": [{ "data": {
     "action": { "kind": "rwa.buy", "asset": "USDC", "amount_cents": 100000,
@@ -249,11 +250,11 @@ cd agent &amp;&amp; npm run a2a      <span class="c"># the same server, locally,
       <p>ERC-8004 agent #201 on the reference IdentityRegistry. The token's URI resolves to the <a href="/.well-known/erc8004-registration.json">registration file on this site</a>, which names the token back. No wallet needed to read it.</p>
       </div>
       <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
-<pre>cd agent
+<pre tabindex="0">cd agent
 npm run erc8004              <span class="c"># owner, URI, registration doc, reputation</span>
 npm run discover             <span class="c"># what the node runs (scoped agent key)</span></pre></div>
       <div class="code"><button class="copy" type="button" aria-label="Copy command">Copy</button>
-<pre>node verify.mjs              <span class="c"># 298 checks, no API key, no credits</span></pre></div>
+<pre tabindex="0">node verify.mjs              <span class="c"># 300 checks, no API key, no credits</span></pre></div>
     </div>
   </div>
 </div></section>
@@ -305,7 +306,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   <dl class="ledger">
     <div><dt>Contract</dt><dd><b>gate@0.10.0</b> — Rust → wasm32-wasip2, live on T3N testnet as contract_id 749</dd></div>
     <div><dt>Mandate rules</dt><dd><b>11</b> enforced in the enclave: cap, assets, kinds, counterparties, per-payee limits, issuer trust list, validity window, credential binding, idempotency</dd></div>
-    <div><dt>Checks</dt><dd><b>298</b> offline in one command — 47 Rust, 206 Node, 41 Playwright, 3 axe-core — plus 19 live against the node</dd></div>
+    <div><dt>Checks</dt><dd><b>300</b> offline in one command — 47 Rust, 208 Node, 41 Playwright, 3 axe-core — plus 23 live against the node and the hosted doors</dd></div>
     <div><dt>Distribution</dt><dd>MCP (stdio + Streamable HTTP) · A2A v1.0 on the official SDK — both <b>hosted</b> at <code>/api/mcp</code> and <code>/api/a2a</code> · ERC-8004 agent #201</dd></div>
     <div><dt>Payments</dt><dd>x402 through the mandate — <b>0.01 USDC settled</b> on Base Sepolia via the public facilitator</dd></div>
     <div><dt>Interop</dt><dd>Web Bot Auth (RFC 9421) verified both ways against Cloudflare's reference implementation</dd></div>
@@ -384,8 +385,8 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
 
   <figure>
     <div class="shot"><img src="shots/07-tests.png" width="1448" height="1400" loading="lazy" decoding="async" alt="node verify.mjs output: Rust, wasm build, Node and Playwright suites all passing"></div>
-    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 298 checks in one command</b>:
-      Rust unit tests, a wasm component build, the Node suite (206), Playwright (41) over the
+    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 300 checks in one command</b>:
+      Rust unit tests, a wasm component build, the Node suite (208), Playwright (41) over the
       real Rust <code>decide()</code>, and axe-core over both pages (3). No API key, no network, no credits.
       <a class="open" href="shots/07-tests.png">Full size ↗</a></figcaption>
   </figure>
@@ -637,13 +638,13 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   <h2>Verify it yourself</h2>
   <p>No API key needed — the contract and the agent ID are public:</p>
   <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
-<pre>npx @terminal3/t3n-sdk contract get z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate --env testnet
+<pre tabindex="0">npx @terminal3/t3n-sdk contract get z:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f:gate --env testnet
 npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f --env testnet</pre></div>
   <p style="margin-top:18px">Or run the whole suite offline, no credits:</p>
   <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
-<pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
+<pre tabindex="0">git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent &amp;&amp; npm ci &amp;&amp; cd ..
-node verify.mjs                                          <span class="c"># 298 checks, one command</span></pre></div>
+node verify.mjs                                          <span class="c"># 300 checks, one command</span></pre></div>
   <p style="margin-top:18px">On chain, without us in the loop:</p>
   <ul class="endpoints">
     <li><a href="https://sepolia.etherscan.io/tx/0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb">0x37965ccd…c634bebb</a><em>Sepolia · ERC-8004 mint, agent #201</em></li>
