@@ -43,7 +43,7 @@ const SHOTS = [
   { name: "06-egress-grant", title: "agent-auth-update — the caller authorises what the enclave may reach",
     cmd: "npm run grant:egress", cwd: AGENT, credits: true,
     env: { ACTION_ENDPOINT: "https://postman-echo.com/post" } },
-  { name: "07-tests", title: "node verify.mjs — one command, 223 checks, no API key, no credits spent",
+  { name: "07-tests", title: "node verify.mjs — one command, 253 checks, no API key, no credits spent",
     cmd: "node verify.mjs", cwd: REPO,
     // 167 lines of per-test output is not a readable screenshot; keep the
     // section headers and the tallies. The full text is in 07-tests.txt.
@@ -78,6 +78,14 @@ const SHOTS = [
     cmd: "node core-contracts-probe.mjs", cwd: QA, credits: true },
   { name: "26-x402-facilitator", title: "x402 verified by someone else: an independent facilitator recovers our payer and simulates the transfer on chain",
     cmd: "npm run x402:verify", cwd: AGENT },
+  { name: "27-prove-enclave", title: "Three enclave paths proven live, each with a control: the sealed credential, {{profile.*}} substitution, idempotent replay",
+    cmd: "npm run prove:enclave", cwd: AGENT, credits: true },
+  { name: "28-a2a-official-client", title: "A2A v1.0 — the official @a2a-js/sdk client discovers the card, sends messages, reads tasks back",
+    cmd: "node --test test/a2a-server.test.mjs", cwd: AGENT,
+    keep: /^\s*(✔|✖)|^ℹ (tests|pass|fail)/ },
+  { name: "29-web-bot-auth-interop", title: "Web Bot Auth verified both ways against Cloudflare's reference implementation",
+    cmd: "node --test test/web-bot-auth-interop.test.mjs", cwd: AGENT,
+    keep: /^\s*(✔|✖)|^ℹ (tests|pass|fail)/ },
   { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
     cmd: "npm run probe", cwd: AGENT, credits: true },
 ];

@@ -1,0 +1,13 @@
+  ✔ a GET we sign verifies under the reference implementation (46.8871ms)
+  ✔ a POST with a body verifies, digest included (4.7711ms)
+  ✔ the reference verifier rejects our signature once it has expired (3.2049ms)
+  ✔ the reference verifier rejects a signature made by a different key (2.3963ms)
+  ✔ the reference verifier rejects a swapped body (2.4513ms)
+✔ our signatures, Cloudflare's verifier (61.7799ms)
+  ✔ a request signed by the reference implementation verifies here (5.0967ms)
+  ✔ and refuses it once the covered header changes (1.8842ms)
+  ✔ and refuses a signature with no expiry at all (0.5909ms)
+✔ Cloudflare's signatures, our verifier (8.124ms)
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0

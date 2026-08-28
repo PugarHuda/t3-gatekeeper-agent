@@ -1,0 +1,19 @@
+  ✔ the card the server serves is the card the SDK resolved (0.6ms)
+  ✔ it advertises the same skills as the published static card (0.7259ms)
+  ✔ and it passes the same validation we apply to other agents' cards (0.2557ms)
+✔ discovery, through the SDK (44.4637ms)
+  ✔ an in-mandate action completes the task with decision approved (42.8863ms)
+  ✔ an over-cap action COMPLETES with decision rejected — no is an answer, not an error (13.9161ms)
+  ✔ the verdict is the compiled contract's, not a reimplementation (20.9864ms)
+  ✔ a request with no mandate ceiling FAILS the task and says why (3.2245ms)
+  ✔ a message carrying no request at all fails with instructions (3.0918ms)
+  ✔ a completed task can be read back by id (13.5722ms)
+✔ evaluate-gated-action, over A2A (98.6458ms)
+  ✔ produces the commitment the enclave recomputes, and the gate accepts it (13.5712ms)
+  ✔ refuses to bind a credential the caller did not verify (3.2257ms)
+✔ bind-credential, over A2A (17.0817ms)
+  ✔ reads a data part, JSON in a text part, or wire-shaped parts (0.3044ms)
+✔ request parsing (0.3975ms)
+ℹ tests 12
+ℹ pass 12
+ℹ fail 0

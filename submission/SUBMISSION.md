@@ -39,6 +39,9 @@ maintenance after the challenge ends*:
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
 | **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
 | **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
+| **A2A v1.0 server on the official SDK** | The card has said "A2A" since June; now there is an endpoint behind it. Tested by the official client AND by hand-written JSON-RPC with no SDK |
+| **Web Bot Auth verified against Cloudflare** | Our signatures pass the reference verifier and theirs pass ours. We had been emitting signatures the reference verifier refuses |
+| **Three enclave paths proven live** | The sealed credential, `{{profile.*}}` substitution and idempotent replay had only ever been unit tests — the same situation the status list was in when it broke |
 | **Node discovery + a scoped handover key** | `npm run discover` reads the node's own inventory with an agent key instead of the tenant's Ethereum key — which is also the key you should hand to whoever hosts this. It found two core contracts the docs never mention |
 | **Probe before promote** | `npm run probe` registers to a throwaway tail and invokes it, so a build that would brick the production tail is caught for the price of one registration |
 | **`node verify.mjs`** — one command | Prove the repo is healthy with no key, no network, no credits. It prints its own total |
@@ -54,7 +57,7 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 26, every one from real command output |
+| Screenshots | §9 — 29, every one from real command output |
 | Bugs faced | §8 — 28 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
@@ -387,6 +390,26 @@ and the script says exactly where it goes (*shot 26*).
 28 Node tests and 6 Playwright tests, all over real HTTP against a real 402.
 *Shots 20 and 22*, and `npm run demo:x402`.
 
+### 4.9 Checked by people who are not us
+
+A recurring lesson of this round: a test that verifies our output with our own
+verifier proves the two halves agree, and nothing about the world. Three
+integrations were re-checked against someone else's implementation this week,
+and two of them were wrong.
+
+| Integration | Checked against | Result |
+| --- | --- | --- |
+| x402 | the public facilitator at `x402.org` | accepted — it recovers our payer and simulates the transfer; only the balance stops it |
+| Web Bot Auth | Cloudflare's `web-bot-auth` (the reference) | **rejected** — we emitted no `expires`. Fixed; now passes both ways |
+| A2A | the official `@a2a-js/sdk` client | **rejected** by our own validator — it only knew v0.3 cards. Fixed; the server passes both the SDK client and hand-written JSON-RPC |
+
+And three claims that had only ever been unit tests — the enclave-held
+credential, `{{profile.*}}` substitution, idempotent replay — were run on the
+node for the first time, each with a control case (*shot 27*). All three held.
+They were written during the credit outage, exactly as the status-list code
+was, and that code turned out to be broken the first time it ran. These did
+not, but we no longer have to say "should".
+
 ## 5. After the challenge: I would rather hand this over
 
 **I am happy for Terminal 3 to take this over and host it**, and I would keep
@@ -439,7 +462,7 @@ node verify.mjs
 ```
 
 Rust unit tests → wasm component build → Node tests → Playwright end-to-end over
-the *real* Rust decision function. 223 checks, no API key, no network, no credits.
+the *real* Rust decision function. 253 checks, no API key, no network, no credits.
 It selects the GNU toolchain automatically on Windows, which is otherwise a
 documented footgun a newcomer hits on their first build.
 
@@ -610,7 +633,7 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**`node verify.mjs` reports its own total — 223 offline checks** at the time of
+**`node verify.mjs` reports its own total — 253 offline checks** at the time of
 writing (47 Rust, 96 Node, 18 Playwright end-to-end), plus the live-site and
 submission-artifact suites. The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong
@@ -633,7 +656,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 04 | `04-agent-registered.png` | Agent ID registered — and bug #10, the address as a decimal array |
 | 05 | `05-full-flow.png` | the whole agent on 0.10.0: VC gate → TEE mandate → audit → in-TEE dispatch (**HTTP 200**) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` — the caller authorising enclave egress |
-| 07 | `07-tests.png` | `node verify.mjs` — 223 checks, no key, no credits |
+| 07 | `07-tests.png` | `node verify.mjs` — 253 checks, no key, no credits |
 | 08 | `08-bug-token-balance.png` | bug #9 **fixed** |
 | 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter` |
 | 10 | `10-bug-node-version.png` | bug #12 **fixed** — node on 0.17.0 |
@@ -653,6 +676,9 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 24 | `24-node-discovery.png` | what the node actually runs, read with a scoped agent key — including two core contracts nobody documents |
 | 25 | `25-core-contracts-blocked.png` | bugs #27/#28 — the attempt to use those two, and exactly where a tenant caller is stopped |
 | 26 | `26-x402-facilitator.png` | an independent x402 facilitator recovering our payer and simulating the transfer on chain — everything but the money |
+| 27 | `27-prove-enclave.png` | the sealed credential, placeholder substitution and idempotent replay, each proven live with a control |
+| 28 | `28-a2a-official-client.png` | the official A2A client discovering the card, sending messages, reading tasks back |
+| 29 | `29-web-bot-auth-interop.png` | Web Bot Auth verified both ways against Cloudflare's reference implementation |
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current
@@ -718,7 +744,7 @@ No key, no credits, no network — the whole test suite:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                  # 223 checks
+node verify.mjs                  # 253 checks
 ```
 
 With your own key:

@@ -39,7 +39,7 @@ I do not have is listed as such, not quietly claimed.
 
 | 19 | **Signature freshness window** — a Web Bot Auth signature expires (default 5 min, skew-tolerant); `created` is inside the signature base so it cannot be back-dated | `agent/src/web-bot-auth.mjs` | 7 Node tests |
 
-**Test totals: run `node verify.mjs` — it prints its own total (223 offline
+**Test totals: run `node verify.mjs` — it prints its own total (253 offline
 checks at the time of writing), plus the live-site and artifact suites.**
 ## 2. Depth, honestly
 

@@ -1,0 +1,39 @@
+
+> t3-gatekeeper-agent@0.1.0 prove:enclave
+> node src/prove-enclave.mjs
+
+provisioning
+  profile written (first_name=Gatekeeper)
+  credential sealed into z:<tid>:secrets[broker_api_key] (never printed again)
+  mandate seeded with credential_key=broker_api_key
+  egress granted for httpbin.org, postman-echo.com
+
+1. credential held in the enclave, injected on dispatch
+  PASS  without the credential path, the destination refuses: HTTP 401
+        {"body_len":0,"code":401,"ok":true}
+  PASS  through execute_action, the same destination accepts: HTTP 200
+        decision=approved dispatched=true response={"body_len":76,"code":200,"ok":true}
+        the bearer token was read from z:<tid>:secrets inside the enclave;
+        this process sealed it and never sent it — the request input carried no header.
+
+2. {{profile.*}} substituted by the host, not by this process
+  PASS  a body with a real profile field is routed via http-with-placeholders and delivered
+        dispatch_via=http-with-placeholders response={"body_len":488,"code":200,"ok":true}
+  PASS  a field the profile lacks is refused by the host with a typed error, not sent as text
+        response={"error":"placeholder_unknown: no_such_field_xyz","ok":false}
+        the enclave returns only the status — never the body. On this path the body
+        carries the investor's data, and returning it would hand that to the agent.
+
+3. idempotent dispatch — the same key twice
+  PASS  first call under the key is dispatched
+        dispatched=true response={"body_len":420,"code":200,"ok":true}
+  PASS  the retry is NOT dispatched — the enclave replays the recorded outcome
+        dispatched=false replayed=true idempotency_key=order-7a020a6f-befb-438a-8fab-964b66fdbd35
+  PASS  and the outcome it replays is the first call's, byte for byte
+        first={"body_len":420,"code":200,"ok":true} retry={"body_len":420,"code":200,"ok":true}
+        the record lives in z:<tid>:dispatched, readable and writable by the contract only —
+        an agent cannot make a duplicate look like a replay, or a replay look new.
+
+mandate restored to the setup default
+
+All three enclave paths proven on testnet. None of them was a unit test until now.

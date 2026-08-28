@@ -27,7 +27,7 @@ Auditing my own contract for this, I found 3 ways the gate could be bypassed —
 including one where the agent supplied the very limits it was judged against.
 All fixed.
 
-Rust → WASM on @Terminal3io, 223 tests, 28 bugs reported.
+Rust → WASM on @Terminal3io, 253 tests, 28 bugs reported.
 
 https://gatekeeper-evidence.vercel.app
 ```
@@ -45,7 +45,7 @@ An AI agent that can spend your money, without being trusted with it.
 Fund learns one fact — "buyer is accredited" — as a ZK proof. Mandate is enforced
 inside a TEE, so the agent can't raise its own limit.
 
-Rust→WASM on @Terminal3io · 223 tests · 28 bugs found
+Rust→WASM on @Terminal3io · 253 tests · 28 bugs found
 
 https://gatekeeper-evidence.vercel.app
 ```

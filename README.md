@@ -172,8 +172,8 @@ Individually, if you want just one:
 
 ```bash
 cd gate-contract && cargo test                    # 47
-cd agent        && npm test                       # 151
-cd qa-console   && node --test e2e.test.mjs       # 24
+cd agent        && npm test                       # 173
+cd qa-console   && node --test e2e.test.mjs       # 32
 ```
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the

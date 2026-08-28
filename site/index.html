@@ -319,6 +319,28 @@
       accepts silently and the reader still calls missing.</figcaption>
   </figure>
   <figure>
+    <img src="shots/27-prove-enclave.png" alt="three enclave paths proven live with controls">
+    <figcaption><span class="pill ok">Proven live</span><b>The paths that were only unit tests.</b>
+      The sealed broker credential (401 without it, 200 through the enclave), <code>{{profile.*}}</code>
+      substitution (a real field is delivered, a missing one comes back <code>placeholder_unknown</code>),
+      and idempotent replay (the retry is not dispatched; the recorded outcome is returned byte for byte).
+      Each with its control, each a deterministic signal — never a body read back.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/28-a2a-official-client.png" alt="the official A2A client driving the server">
+    <figcaption><span class="pill ok">Shipped</span><b>A2A v1.0, on the official SDK.</b>
+      A JSON-RPC endpoint serving the gate as A2A tasks. The official <code>@a2a-js/sdk</code> client
+      discovers the card, sends messages and reads tasks back; a rejected action <i>completes</i>
+      the task with decision rejected. Playwright sends the same envelopes by hand, with no SDK.</figcaption>
+  </figure>
+  <figure>
+    <img src="shots/29-web-bot-auth-interop.png" alt="Cloudflare's reference implementation verifying our signatures">
+    <figcaption><span class="pill ok">Verified both ways</span><b>Web Bot Auth against the reference implementation.</b>
+      Our signatures pass Cloudflare's verifier with the key resolved from our published JWKS, and theirs
+      pass ours. Before this our signatures carried no <code>expires</code>, and the verifier that defines
+      the format refuses those outright.</figcaption>
+  </figure>
+  <figure>
     <img src="shots/26-x402-facilitator.png" alt="an independent facilitator verifying our payment">
     <figcaption><span class="pill ok">Shipped</span><b>Checked by someone who is not us.</b>
       An independent x402 facilitator recovers our payer address from the signature and
@@ -335,7 +357,7 @@ npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35
   <p>Or run the whole suite offline, no credits:</p>
 <pre>git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                                          # 223 checks, one command</pre>
+node verify.mjs                                          # 253 checks, one command</pre>
 </div></section>
 
 <footer><div class="wrap">
