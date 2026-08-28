@@ -355,7 +355,9 @@ claude mcp add gatekeeper -- node /abs/path/to/agent/src/mcp-server.mjs
 ```
 
 and gets eight tools. The one that matters most is `gate_evaluate`: it answers
-from `gate_cli`, the host build of the *same Rust source* the enclave runs. So a
+from the contract's own compiled logic — `gate_cli`, the host build of the *same
+Rust source* the enclave runs, or the registered wasm component itself, hosted in
+JavaScript — and names which one answered. So a
 host can ask "is this action inside the mandate?" before every action —
 **offline, free, with no Terminal 3 account and no credits** — and get the
 contract's real answer rather than a JavaScript approximation of it that would
@@ -520,8 +522,9 @@ so the code does not know whose tenant it is running in.
    yours is new.
 5. **Web Bot Auth key** — generate a fresh one, publish the JWKS, update the
    agent card. Until then outbound signatures verify against nobody.
-6. **Evidence site** — `site/` is static; `npx vercel deploy --prod`. Not
-   load-bearing except for the JWKS in step 5.
+6. **Evidence site + hosted doors** — `npx vercel deploy --prod` from the repo
+   root: `site/` is the static output, `api/` the A2A and MCP functions. Not
+   load-bearing except for the JWKS in step 5 and the card that names `/api/a2a`.
 
 Run `node verify.mjs` before and after. If it passes, the logic is intact and
 anything still wrong is environmental — and §5 of MAINTENANCE.md lists those
@@ -548,9 +551,9 @@ documented footgun a newcomer hits on their first build.
 📷 **Screenshot 07 — `07-tests.png`**
 
 **CI runs that same script**, so CI and a developer's machine cannot drift into
-disagreeing about what "the checks" are. The Playwright stage skips itself in CI
-— `qa-console/node_modules` is a local junction that does not exist on a fresh
-checkout — and it prints SKIP rather than quietly passing.
+disagreeing about what "the checks" are. The Playwright stage skips itself on a
+checkout that has not run `npm ci` in `qa-console/` (Playwright is a real,
+pinned dependency there now), and it prints SKIP rather than quietly passing.
 
 **The contract version is single-sourced.** It used to be typed in three files
 that had to agree: `Cargo.toml`, `lib.rs`, and the agent's `lib.mjs`. Shipping
