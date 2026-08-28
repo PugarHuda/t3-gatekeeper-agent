@@ -24,7 +24,8 @@
     "discover": "node src/discover.mjs",
     "x402:verify": "node src/x402-verify.mjs",
     "prove:enclave": "node src/prove-enclave.mjs",
-    "a2a": "node src/a2a-server.mjs"
+    "a2a": "node src/a2a-server.mjs",
+    "x402:settle": "node src/x402-settle.mjs"
   },
   "dependencies": {
     "@a2a-js/sdk": "^1.1.0",

@@ -1,0 +1,18 @@
+x402 settlement — re-checking 0x52b164d133b4f9873947458c45615287177a8471fc621a6caf34aae8c5c97671 on chain (no payment made)
+
+checking the chain
+  PASS  the facilitator's transaction is mined
+        block 46058792
+  PASS  it was sent to the USDC contract
+        0x036CbD53842c5426634e7929541eC2318f3dCF7e
+  PASS  and the payer paid no gas — the facilitator broadcast it
+        from 0xd407e409E34E0b9afb99EcCeb609bDbcD5e7f1bf
+  PASS  the receipt carries a USDC Transfer from the payer to the payee for exactly 0.01
+        0x33442c29d628fE9A5632F93725dfc0c0Fb34DBa3 → 0xB2C95Cc1249dC1f33ceD098c78c86c483eA5806f  0.01 USDC
+  PASS  the payer is exactly 0.01 USDC lighter across that block
+        20.0 → 19.99
+  PASS  the payee is exactly 0.01 USDC heavier across that block
+        0.0 → 0.01
+  https://sepolia.basescan.org/tx/0x52b164d133b4f9873947458c45615287177a8471fc621a6caf34aae8c5c97671
+
+Money moved, through the mandate, settled by a third party, confirmed on chain.

@@ -90,6 +90,8 @@ const SHOTS = [
     cmd: "npm run erc8004", cwd: AGENT },
   { name: "31-activity-ledger", title: "bug #29 — the node's activity.log records every call; the documented audit.get-mine is empty beside it",
     cmd: "npm run audit", cwd: AGENT },
+  { name: "32-x402-settled", title: "x402 settled on Base Sepolia — the Transfer log and block-tagged balances, not the receipt, are the evidence",
+    cmd: "node src/x402-settle.mjs --tx 0x52b164d133b4f9873947458c45615287177a8471fc621a6caf34aae8c5c97671", cwd: AGENT },
   { name: "23-probe-before-promote", title: "Probe first: the build is registered to a throwaway tail and invoked before production points at it",
     cmd: "npm run probe", cwd: AGENT, credits: true },
 ];

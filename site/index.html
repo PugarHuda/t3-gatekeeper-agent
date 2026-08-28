@@ -356,6 +356,14 @@
       the fuel-quota errors, the probes, the mint of the contract itself.</figcaption>
   </figure>
   <figure>
+    <img src="shots/32-x402-settled.png" alt="the x402 settlement checked on chain">
+    <figcaption><span class="pill ok">On chain</span><b>x402, settled.</b>
+      0.01 USDC moved on Base Sepolia through the mandate: the resource server verified and settled
+      through the public facilitator, which broadcast the transfer — the payer paid no gas. The evidence
+      is the <code>Transfer</code> log and both balances at the block, because a lagging public RPC will
+      cheerfully report that nothing moved.</figcaption>
+  </figure>
+  <figure>
     <img src="shots/26-x402-facilitator.png" alt="an independent facilitator verifying our payment">
     <figcaption><span class="pill ok">Shipped</span><b>Checked by someone who is not us.</b>
       An independent x402 facilitator recovers our payer address from the signature and

@@ -125,6 +125,7 @@ re-registration, a node upgrade, or before a demo:
 ```bash
 npm run prove:enclave   # secrets → Authorization header; {{profile.*}}; idempotent replay  (~8 executes)
 npm run x402:verify     # EIP-712 domain vs the deployed token; an independent facilitator's /verify
+npm run x402:settle     # pays 0.01 USDC for real through the facilitator; `-- --tx <hash>` re-checks one
 npm run discover        # what the node runs, read with the agent key
 npm run audit           # the node's activity ledger, tallied; audit.get-mine beside it
 npm run erc8004         # our on-chain identity, read back through both registries

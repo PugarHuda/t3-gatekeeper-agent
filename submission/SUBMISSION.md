@@ -39,6 +39,7 @@ maintenance after the challenge ends*:
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
 | **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
 | **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
+| **x402 settled, on chain** | 0.01 USDC moved through the mandate, verified and broadcast by a third-party facilitator, confirmed from the Transfer log and block-tagged balances — not from the receipt |
 | **ERC-8004 identity minted** | Agent #201 on Sepolia, `agentURI` → a conformant registration file, read back live from both registries. It stopped being "ready to register" |
 | **The audit trail, found** | `npm run audit` had been reading `audit.get-mine` — empty through 39 dispatches — and explaining the emptiness. The record was in `activity.log` all along (bug #29) |
 | **The door has a lock** | A2A and MCP-over-HTTP on one origin, and every call must carry a web-bot-auth signature resolved from the caller's own published key. Unsigned, wrong-key, replayed and body-swapped requests are each refused by name |
@@ -60,7 +61,7 @@ maintenance after the challenge ends*:
 | Complete the Walkthrough (write/build/register/invoke/test) | §3 · shots 03, 07 |
 | Build an enterprise agent, useful and maintainable | §4, §6 |
 | Say whether you will keep running it, and how handover works | **§5** |
-| Screenshots | §9 — 31, every one from real command output |
+| Screenshots | §9 — 32, every one from real command output |
 | Bugs faced | §8 — 29 reports, [full ledger](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/submission/BUGS.md) |
 
 Every screenshot is produced by `submission/screenshots/capture.mjs`, which runs
@@ -684,6 +685,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 29 | `29-web-bot-auth-interop.png` | Web Bot Auth verified both ways against Cloudflare's reference implementation |
 | 30 | `30-erc8004-minted.png` | ERC-8004 agent #201 read back through both registries — token, URI, document, registrations |
 | 31 | `31-activity-ledger.png` | bug #29 — the node's activity ledger, tallied, beside the empty documented audit read |
+| 32 | `32-x402-settled.png` | the x402 settlement re-checked on chain: Transfer log, block-tagged balances, facilitator as sender |
 
 Shots 05 and 06 were **re-captured live on 2026-08-27** against gate@0.10.0,
 once the account was topped up — so the working flow in shot 05 is the current
@@ -710,8 +712,8 @@ I would rather state this than imply a live run I did not do.
 | **On the network now** | **v0.10.0, `contract_id 749`**, registered 2026-08-27 |
 | **Proven live** | the KV mandate read, the credential/action binding, idempotent dispatch, in-enclave outbound HTTP (**200**), and `http-with-placeholders` — which until this week had only ever been compiled in |
 | **Also live** | the evidence site, the A2A agent card, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (17/17) |
-| **On chain** | ERC-8004 agent **#201**, Sepolia, tx `0x37965ccd…` — `npm run erc8004` reads it back through both registries |
-| **Still not live** | x402 settlement (needs USDC in the payment wallet — the signatures are already accepted by a public facilitator) |
+| **On chain** | ERC-8004 agent **#201**, Sepolia, tx `0x37965ccd…` — `npm run erc8004` reads it back through both registries. And an x402 payment **settled**: 0.01 USDC on Base Sepolia through the mandate and the public facilitator, tx `0x52b164d133…`, both balances checked at the block |
+| **Still not live** | nothing in this catalogue that a funded wallet could fix. What remains is the platform's: `vp.verify` (bug #7), `tee:agent-connect` (#27), `tee:vc` issuance (#28) |
 
 An earlier draft of this section said v0.9.0 was built but unregistered because
 the balance was zero. A top-up landed on 2026-08-27, so that is no longer true
