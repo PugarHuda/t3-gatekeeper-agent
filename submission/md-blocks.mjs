@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 // Minimal markdown tokenizer, shared by the HTML and .docx exporters.
 //
 // One parser, two renderers — the alternative was a second copy of the block
@@ -108,4 +110,24 @@ export function blocks(md) {
     out.push({ type: "p", text: buf.join(" ") });
   }
   return out;
+}
+
+/**
+ * The files an exporter should embed for one screenshot.
+ *
+ * `capture.mjs` renders outputs longer than a page as `name.p1.png`,
+ * `name.p2.png`, … beside the tall `name.png`. A document embeds the chunks —
+ * a tall image gets scaled to the page and becomes unreadable — while a web
+ * page uses the tall one, because browsers scroll. Falls back to the single
+ * file when there are no chunks.
+ */
+export function screenshotPages(dir, file) {
+  const base = file.replace(/\.png$/, "");
+  const pages = [];
+  for (let n = 1; ; n++) {
+    const candidate = `${base}.p${n}.png`;
+    if (!existsSync(join(dir, candidate))) break;
+    pages.push(candidate);
+  }
+  return pages.length ? pages : [file];
 }

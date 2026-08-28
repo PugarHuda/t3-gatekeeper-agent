@@ -9,7 +9,7 @@
 //         node capture.mjs 03         (only shots whose name starts with "03")
 import { execSync } from "node:child_process";
 import { chromium } from "playwright";
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -101,9 +101,14 @@ const SHOTS = [
 // the evidence worse, not more current.
 const args = process.argv.slice(2);
 const live = args.includes("--live");
+// `--rerender` re-draws every PNG from the .txt already captured — no command
+// is executed, no credits are spent. For when the RENDERING changes, not the
+// evidence.
+const rerender = args.includes("--rerender");
 const only = args.find((a) => !a.startsWith("--"));
 const shots = (only ? SHOTS.filter((s) => s.name.startsWith(only)) : SHOTS)
-  .filter((s) => live || !s.credits);
+  // Re-rendering runs nothing, so the credit-spending shots are included.
+  .filter((s) => live || rerender || !s.credits);
 if (!live && SHOTS.some((s) => s.credits)) {
   console.log("Skipping the credit-spending shots (05, 06). Pass --live to refresh them.\n");
 }
@@ -151,18 +156,49 @@ const page_html = (title, body) => `<!doctype html><meta charset="utf-8"><style>
   <i class="dot" style="background:#28c840"></i><span class="t">${esc(title)}</span></div>
   <pre>${body}</pre></div>`;
 
+// The page a screenshot has to survive is a Google Doc: ~6.5in wide, ~9in tall,
+// and anything larger is scaled down to fit BOTH. At 1180px the first render
+// shrank 4x on width alone, and a 58-line shot shrank again on height, so the
+// text in the submission was unreadable. 820px keeps 13px text at ~10pt once
+// scaled, and outputs longer than a page are ALSO rendered as page-sized
+// chunks (`name.p1.png`, `name.p2.png`, …) that the exporters use instead of
+// the tall single image. The site keeps the tall one: browsers scroll.
+const PAGE_LINES = 40;
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1180, height: 800 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({ viewport: { width: 820, height: 800 }, deviceScaleFactor: 2 });
 
 for (const shot of shots) {
   process.stdout.write(`[capture] ${shot.name} … `);
-  // Redact the API key in case a tool ever echoes it back.
-  let raw = run(shot).replaceAll(KEY, "0x<redacted>").trimEnd();
-  if (shot.keep) raw = raw.split(/\r?\n/).filter((l) => shot.keep.test(l)).join("\n");
-  writeFileSync(path.join(OUT, `${shot.name}.txt`), raw);
+  let raw;
+  if (rerender) {
+    raw = readFileSync(path.join(OUT, `${shot.name}.txt`), "utf8");
+  } else {
+    // Redact the API key in case a tool ever echoes it back.
+    raw = run(shot).replaceAll(KEY, "0x<redacted>").trimEnd();
+    if (shot.keep) raw = raw.split(/\r?\n/).filter((l) => shot.keep.test(l)).join("\n");
+    writeFileSync(path.join(OUT, `${shot.name}.txt`), raw);
+  }
   await page.setContent(page_html(shot.title, colourise(raw)));
   await page.locator(".win").screenshot({ path: path.join(OUT, `${shot.name}.png`) });
-  console.log(`${raw.split("\n").length} lines -> ${shot.name}.png`);
+
+  // Page-sized chunks, only when the whole thing would not fit one page.
+  const lines = raw.split("\n");
+  // Stale chunks from a longer previous capture. `.p<digits>.png` exactly —
+  // `${name}.png` also starts with `${name}.p`, and matching that deleted the
+  // image we had just written.
+  const chunkRe = new RegExp(`^${shot.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.p\\d+\\.png$`);
+  for (const f of readdirSync(OUT)) if (chunkRe.test(f)) unlinkSync(path.join(OUT, f));
+  let pages = 0;
+  if (lines.length > PAGE_LINES) {
+    for (let i = 0; i < lines.length; i += PAGE_LINES) {
+      pages++;
+      const part = lines.slice(i, i + PAGE_LINES).join("\n");
+      const label = `${shot.title}  (${pages}/${Math.ceil(lines.length / PAGE_LINES)})`;
+      await page.setContent(page_html(label, colourise(part)));
+      await page.locator(".win").screenshot({ path: path.join(OUT, `${shot.name}.p${pages}.png`) });
+    }
+  }
+  console.log(`${lines.length} lines -> ${shot.name}.png${pages ? ` + ${pages} page chunks` : ""}`);
 }
 
 await browser.close();

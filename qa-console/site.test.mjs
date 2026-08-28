@@ -155,8 +155,10 @@ describe("the evidence page references every screenshot it ships", () => {
     const { readFile, readdir } = await import("node:fs/promises");
     const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
     const referenced = new Set([...html.matchAll(/shots\/([^"']+)/g)].map((m) => m[1]));
+    // `.pN.png` are page-sized chunks for the document exports; the page shows
+    // the tall original, so they are deployed but deliberately unreferenced.
     const present = (await readdir(new URL("../site/shots", import.meta.url)))
-      .filter((f) => f.endsWith(".png"));
+      .filter((f) => f.endsWith(".png") && !/\.p\d+\.png$/.test(f));
 
     const orphaned = present.filter((f) => !referenced.has(f)).sort();
     assert.deepEqual(

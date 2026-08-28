@@ -13,7 +13,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { crc32 } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { blocks, inlineRuns } from "./md-blocks.mjs";
+import {blocks, inlineRuns, screenshotPages } from "./md-blocks.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(HERE, "screenshots", "out");
@@ -164,7 +164,7 @@ function build() {
       case "figure": {
         body.push(para(runsXml(inlineRuns(b.caption), { size: 18, color: "444444" }),
           { spacing: 80 }));
-        for (const file of b.files) {
+        for (const file of b.files.flatMap((f) => screenshotPages(SHOTS, f))) {
           let data;
           try { data = readFileSync(path.join(SHOTS, file)); }
           catch { console.warn(`  ! missing screenshot ${file} — skipped`); continue; }
