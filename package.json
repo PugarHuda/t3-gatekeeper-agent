@@ -1,0 +1,27 @@
+{
+  "name": "t3-gatekeeper-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deploy root for gatekeeper-evidence.vercel.app: the static evidence site plus the A2A and MCP endpoints as functions. Dependencies mirror agent/ (same lockfile) so the hosted gate runs exactly what `npm run a2a` runs.",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@a2a-js/sdk": "^1.1.0",
+    "@bytecodealliance/preview2-shim": "^0.23.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@terminal3/bbs_vc": "^0.2.36",
+    "@terminal3/t3n-sdk": "^5.1.0",
+    "@terminal3/vc_core": "^0.0.37",
+    "ethers": "^6.16.0",
+    "express": "^5.2.1",
+    "web-bot-auth": "^0.1.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@bytecodealliance/jco": "^1.32.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
+}

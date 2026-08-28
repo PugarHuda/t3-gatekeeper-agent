@@ -1,24 +1,43 @@
 {
-  "$comment": "Agent Card for the Gatekeeper Agent — aligned with the A2A AgentCard and ERC-8004 agent-card shapes so it can be resolved by A2A clients, ERC-8004 registries, and Web Bot Auth verifiers (all protocols the Terminal 3 ADK targets).",
-  "protocolVersion": "0.3.0",
   "name": "Gatekeeper Agent",
   "description": "Executes permissioned financial actions on behalf of a user without holding their credentials or data: a BBS+ verifiable-credential eligibility gate plus a hardware-enforced TEE mandate, with per-action audit.",
   "version": "0.10.0",
-  "url": "https://github.com/PugarHuda/t3-gatekeeper-agent",
-  "did": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
+  "documentationUrl": "https://github.com/PugarHuda/t3-gatekeeper-agent",
   "provider": {
     "organization": "PugarHuda",
     "url": "https://github.com/PugarHuda"
   },
+  "supportedInterfaces": [
+    {
+      "url": "https://gatekeeper-evidence.vercel.app/api/a2a",
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "1.0",
+      "tenant": ""
+    }
+  ],
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
-    "stateTransitionHistory": true,
-    "extensions": [
-      "mcp-stdio",
-      "x402-exact-evm"
-    ]
+    "extensions": []
   },
+  "securitySchemes": {
+    "web-bot-auth": {
+      "httpAuthSecurityScheme": {
+        "scheme": "HTTPSig",
+        "description": "RFC 9421 HTTP Message Signatures, web-bot-auth profile; key resolved from Signature-Agent's /.well-known/http-message-signatures-directory",
+        "bearerFormat": ""
+      }
+    }
+  },
+  "securityRequirements": [
+    {
+      "schemes": {
+        "web-bot-auth": {
+          "list": []
+        }
+      }
+    }
+  ],
   "defaultInputModes": [
     "application/json"
   ],
@@ -38,15 +57,16 @@
         "audit",
         "permissioned-finance"
       ],
+      "examples": [
+        "Prove I'm an accredited investor without revealing my net worth, then buy up to $5,000 of USDC RWA from an approved counterparty."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Prove I'm an accredited investor without revealing my net worth, then buy up to $5,000 of USDC RWA from an approved counterparty."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "velocity-limited-spend",
@@ -59,15 +79,16 @@
         "stateful",
         "kv-store"
       ],
+      "examples": [
+        "Let the agent spend up to $5,000 per day total, no matter how many transactions it splits that across."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Let the agent spend up to $5,000 per day total, no matter how many transactions it splits that across."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "a2a-capability-exchange",
@@ -79,15 +100,16 @@
         "selective-disclosure",
         "interoperability"
       ],
+      "examples": [
+        "Prove I can execute payments to a counterparty agent without revealing my tier, limit, or region."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Prove I can execute payments to a counterparty agent without revealing my tier, limit, or region."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "web-bot-auth-signing",
@@ -99,15 +121,16 @@
         "http-message-signatures",
         "agentic-commerce"
       ],
+      "examples": [
+        "Sign my transfer request so the bank can verify it was issued by this authorized agent."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Sign my transfer request so the bank can verify it was issued by this authorized agent."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "mcp-mandate-gate",
@@ -120,15 +143,16 @@
         "mandate",
         "interoperability"
       ],
+      "examples": [
+        "Add the gatekeeper MCP server and ask it whether a $4,000 purchase is inside my mandate before doing it."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Add the gatekeeper MCP server and ask it whether a $4,000 purchase is inside my mandate before doing it."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "x402-mandated-payment",
@@ -142,15 +166,16 @@
         "agentic-commerce",
         "mandate"
       ],
+      "examples": [
+        "Buy this paid API call, but only up to $5 total and only from providers on my allow-list."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Buy this paid API call, but only up to $5 total and only from providers on my allow-list."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "credential-action-binding",
@@ -162,15 +187,16 @@
         "replay-resistance",
         "mandate"
       ],
+      "examples": [
+        "Prove my accreditation for this exact $1,000 order, and make that proof useless for any other order."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Prove my accreditation for this exact $1,000 order, and make that proof useless for any other order."
-      ]
+      "securityRequirements": []
     },
     {
       "id": "credential-revocation-check",
@@ -182,70 +208,17 @@
         "verifiable-credentials",
         "privacy"
       ],
+      "examples": [
+        "Block the action if this investor's accreditation was withdrawn this morning."
+      ],
       "inputModes": [
         "application/json"
       ],
       "outputModes": [
         "application/json"
       ],
-      "examples": [
-        "Block the action if this investor's accreditation was withdrawn this morning."
-      ]
+      "securityRequirements": []
     }
   ],
-  "registrations": [
-    {
-      "protocol": "did:t3n",
-      "identifier": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
-      "status": "active"
-    },
-    {
-      "protocol": "ERC-8004",
-      "note": "Trustless Agents identity, minted on the reference IdentityRegistry on Sepolia. agentURI resolves to the ERC-8004 registration-v1 file the site serves. `npm run erc8004` reads it back live.",
-      "status": "active",
-      "identifier": "eip155:11155111:0x7177a6867296406881E20d6647232314736Dd09A#201",
-      "agentId": 201,
-      "agentRegistry": "eip155:11155111:0x7177a6867296406881E20d6647232314736Dd09A",
-      "owner": "0xB2C95Cc1249dC1f33ceD098c78c86c483eA5806f",
-      "tx": "0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb",
-      "agentURI": "https://gatekeeper-evidence.vercel.app/.well-known/erc8004-registration.json"
-    },
-    {
-      "protocol": "A2A",
-      "note": "This document doubles as the A2A AgentCard. A JSON-RPC endpoint on the official @a2a-js/sdk (protocol v1.0) serves evaluate-gated-action and bind-credential as A2A tasks: `npm run a2a`. Calls must carry a web-bot-auth signature from a published key directory; the served v1.0 card declares the HTTPSig scheme.",
-      "status": "active"
-    },
-    {
-      "protocol": "Web Bot Auth",
-      "note": "RFC 9421 HTTP Message Signatures with the web-bot-auth profile (expires, nonce) — agent/src/web-bot-auth.mjs. Verified both ways against Cloudflare's reference implementation. Key directory at /.well-known/http-message-signatures-directory.",
-      "status": "active"
-    },
-    {
-      "protocol": "MCP",
-      "note": "Served over stdio by `npm run mcp` and over Streamable HTTP at /mcp by `npm run a2a` (stateless; web-bot-auth signature required); eight tools and two resources.",
-      "status": "active"
-    },
-    {
-      "protocol": "x402",
-      "note": "v2 HTTP transport, `exact` scheme on EVM via EIP-3009. Signing and verification run; settlement requires a facilitator and a funded wallet and is refused without one.",
-      "status": "active-unsettled"
-    }
-  ],
-  "trust": {
-    "execution": {
-      "type": "Intel TDX TEE",
-      "attestation": "verifyTdxQuote; REPORT_DATA bound to the ML-KEM session key"
-    },
-    "credentials": {
-      "type": "W3C Verifiable Credentials",
-      "cryptosuite": "bbs-2023",
-      "selectiveDisclosure": true
-    }
-  },
-  "securitySchemes": {
-    "t3n-session": {
-      "type": "mutualTLS",
-      "description": "Encrypted, attested TEE session opened via T3nClient.handshake()."
-    }
-  }
+  "signatures": []
 }

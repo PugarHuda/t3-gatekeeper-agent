@@ -207,6 +207,22 @@ mcp-publisher publish                             # uploads agent/server.json
 listing the registry would refuse never gets as far as the upload.
 ```
 
+**Deploying the site and the hosted endpoints** happens from the repo root, not
+from `site/`: root `vercel.json` serves `site/` as static output and `api/*.mjs`
+as functions, and `.vercelignore` keeps everything else out of the upload.
+
+```bash
+npx vercel deploy --prod --yes                    # from the repo root
+```
+
+The root `package.json` / `package-lock.json` mirror `agent/`'s exactly so the
+functions resolve the same dependency versions the tests ran against;
+`agent/test/hosted.test.mjs` fails when they drift. After changing dependencies
+in `agent/`, copy both files up. The functions import only `agent/src/hosted.mjs`
+and its static graph, which must stay free of the Terminal 3 SDK / BBS+ tree
+(the same test walks that graph); anything that needs those packages loads them
+with `await import()` inside a handler.
+
 `npm run setup` is idempotent and safe to re-run: it re-points every map's ACL
 at the newly registered contract id, which is necessary because that id changes
 on every registration.

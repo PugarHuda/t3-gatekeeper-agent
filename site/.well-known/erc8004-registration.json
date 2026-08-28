@@ -17,6 +17,11 @@
       "name": "DID",
       "endpoint": "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f",
       "version": "v1"
+    },
+    {
+      "name": "A2A-JSONRPC",
+      "endpoint": "https://gatekeeper-evidence.vercel.app/api/a2a",
+      "version": "1.0"
     }
   ],
   "x402Support": true,

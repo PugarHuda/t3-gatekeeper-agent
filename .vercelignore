@@ -1,0 +1,13 @@
+# only site/ (static) and api/ + agent/ (functions) are needed
+submission/
+t3-qa/
+qa-console/
+gate-contract/*
+!gate-contract/Cargo.toml
+z-tenant-flight/
+.claude/
+.github/
+.impeccable/
+**/node_modules/
+**/.env
+*.md

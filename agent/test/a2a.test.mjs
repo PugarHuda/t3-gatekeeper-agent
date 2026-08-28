@@ -64,14 +64,18 @@ test("the published card is discoverable from just an origin", async () => {
   assert.ok(skillIds(d.card).includes("evaluate-gated-action"));
 });
 
-test("the published card has not drifted from the source card", async () => {
-  // site/.well-known/agent-card.json is a copy. A copy that silently diverges
-  // means peers discover capabilities the agent no longer has.
-  const [src, published] = await Promise.all([
-    readFile(CARD_SRC, "utf8").then(JSON.parse),
-    readFile(CARD_PUBLISHED, "utf8").then(JSON.parse),
-  ]);
-  assert.deepEqual(published, src, "re-copy agent/agent-card.json to site/.well-known/");
+test("the published card is the v1.0 card the hosted endpoint serves", async () => {
+  // site/.well-known/agent-card.json is generated from the source card by the
+  // same buildAgentCard() the server uses, pointing at the hosted endpoint. A
+  // published card that diverges means peers discover an agent that is not
+  // the one answering at that URL.
+  const { buildAgentCard } = await import("../src/a2a-server.mjs");
+  const { PUBLIC_A2A_URL } = await import("../src/hosted.mjs");
+  const published = JSON.parse(await readFile(CARD_PUBLISHED, "utf8"));
+  assert.deepEqual(published, buildAgentCard(PUBLIC_A2A_URL), "run `npm run status-list` to regenerate site/.well-known/");
+  assert.equal(published.supportedInterfaces[0].url, "https://gatekeeper-evidence.vercel.app/api/a2a");
+  assert.equal(published.supportedInterfaces[0].protocolVersion, "1.0");
+  assert.ok(published.securitySchemes["web-bot-auth"], "the lock on the door must be declared");
 });
 
 test("a full card URL is accepted as well as an origin", async () => {
@@ -163,11 +167,13 @@ describe("the published agent card", () => {
     assert.equal((await read("../agent-card.json")).version, CONTRACT_VERSION);
   });
 
-  test("the copy the site serves is byte-identical to the source", async () => {
+  test("the card the site serves offers exactly the skills the source card describes", async () => {
     const { readFile } = await import("node:fs/promises");
-    const source = await readFile(new URL("../agent-card.json", import.meta.url), "utf8");
-    const served = await readFile(new URL("../../site/.well-known/agent-card.json", import.meta.url), "utf8");
-    assert.equal(served, source, "run `npm run status-list` to re-publish the site's copy");
+    const source = JSON.parse(await readFile(new URL("../agent-card.json", import.meta.url), "utf8"));
+    const served = JSON.parse(await readFile(new URL("../../site/.well-known/agent-card.json", import.meta.url), "utf8"));
+    assert.deepEqual(served.skills.map((s) => s.id), source.skills.map((s) => s.id), "run `npm run status-list` to re-publish");
+    assert.equal(served.name, source.name);
+    assert.equal(served.version, source.version);
   });
 
   test("every skill a peer might select is addressable and described", async () => {

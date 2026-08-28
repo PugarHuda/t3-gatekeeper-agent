@@ -31,7 +31,7 @@ import { z } from "zod";
 
 import { decide, gateCliPath, BUILD_HINT, CONTRACT_VERSION } from "./gate-cli.mjs";
 import { decideWith } from "./engine.mjs";
-import { discoverPeer } from "./a2a.mjs";
+import { discoverPeer } from "./a2a-card.mjs";
 import { checkStatus, statusEntry, STATUS_LIST_URL } from "./status-list.mjs";
 import { resolveAgent, preflight, DEFAULT_NETWORK } from "./erc8004.mjs";
 

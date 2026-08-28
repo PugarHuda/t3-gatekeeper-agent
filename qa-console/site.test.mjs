@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import {
   loadAgentKey, signRequest, verifyRequest, keyFromDirectory, generateAgentKey,
 } from "../agent/src/web-bot-auth.mjs";
+import { PUBLIC_A2A_URL } from "../agent/src/hosted.mjs";
 
 const SITE = process.env.SITE_URL ?? "https://gatekeeper-evidence.vercel.app";
 
@@ -212,6 +213,7 @@ describe("the evidence page's links resolve", () => {
     assert.ok(local.length > 40, `only ${local.length} local references found`);
     const missing = [];
     for (const u of new Set(local)) {
+      if (u.startsWith("/api/")) continue; // functions, not files — checked live below
       const rel = u.replace(/^\//, "");
       try { await access(new URL(`../site/${rel}`, import.meta.url)); } catch { missing.push(u); }
     }
@@ -230,7 +232,81 @@ describe("the evidence page's links resolve", () => {
     assert.ok(new Date(expires) > new Date(), "security.txt has expired — bump Expires");
     assert.match(txt, /^Contact: https:\/\/github\.com\/PugarHuda\/t3-gatekeeper-agent/m);
     assert.match(txt, /^Canonical: https:\/\/gatekeeper-evidence\.vercel\.app\/\.well-known\/security\.txt$/m);
-    const headers = JSON.parse(readFileSync(new URL("../site/vercel.json", import.meta.url), "utf8")).headers;
+    const headers = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8")).headers;
     assert.ok(headers.some((h) => h.source === "/.well-known/security.txt"), "vercel must serve it as text/plain");
+  });
+});
+
+// ── the hosted endpoints (live) ─────────────────────────────────────────────
+//
+// /api/a2a and /api/mcp are Vercel functions running the same createApp() as
+// `npm run a2a`, deciding with the registered wasm component. The caller here
+// is the agent itself: it signs with its own published key and names its own
+// origin in Signature-Agent, so the hosted door verifies a signature by
+// fetching a key directory over the public internet — the full loop.
+describe("hosted A2A + MCP endpoints (live)", () => {
+  const KEYID = "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f#wba";
+  const MANDATE = { max_amount_cents: 500000, allowed_assets: ["USDC"], allowed_kinds: ["rwa.buy"], allowed_counterparties: ["did:t3n:meridian-fund"], expires_at_secs: 0 };
+  const ACTION = { kind: "rwa.buy", asset: "USDC", amount_cents: 900000, counterparty: "did:t3n:meridian-fund" };
+  let privateKey;
+  before(() => {
+    const priv = process.env.WBA_PRIVATE_KEY ?? readEnv("WBA_PRIVATE_KEY");
+    if (priv) ({ privateKey } = loadAgentKey({ WBA_PRIVATE_KEY: priv }));
+  });
+  const signed = (url, body) => ({
+    "content-type": "application/json",
+    ...signRequest({ method: "POST", url, body }, { privateKey, keyid: KEYID }),
+    "Signature-Agent": `"${SITE}"`,
+  });
+
+  test("the published card points at the hosted endpoint and declares the lock", async () => {
+    const card = await (await fetch(`${SITE}/.well-known/agent-card.json`)).json();
+    assert.equal(card.supportedInterfaces[0].url, PUBLIC_A2A_URL);
+    assert.equal(card.supportedInterfaces[0].protocolVersion, "1.0");
+    assert.equal(card.securitySchemes["web-bot-auth"].httpAuthSecurityScheme.scheme, "HTTPSig");
+    assert.ok(PUBLIC_A2A_URL.startsWith(SITE), "card must name this site's endpoint");
+  });
+
+  test("unsigned calls are refused at both doors with 401 and WWW-Authenticate", async () => {
+    for (const path of ["/api/a2a", "/api/mcp"]) {
+      const res = await fetch(SITE + path, { method: "POST", headers: { "content-type": "application/json", "A2A-Version": "1.0" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+      assert.equal(res.status, 401, path);
+      assert.match(res.headers.get("www-authenticate") ?? "", /web-bot-auth/);
+    }
+  });
+
+  test("a signed MCP tools/call gets the contract's verdict, from the component", async (t) => {
+    if (!privateKey) return t.skip("WBA_PRIVATE_KEY not configured locally");
+    const url = `${SITE}/api/mcp`;
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call",
+      params: { name: "gate_evaluate", arguments: { action: ACTION, mandate: MANDATE, now_secs: 1786000000 } } });
+    const res = await fetch(url, { method: "POST", headers: { ...signed(url, body), accept: "application/json, text/event-stream" }, body });
+    const text = await res.text();
+    assert.equal(res.status, 200, text);
+    const out = JSON.parse(text).result;
+    assert.equal(out.isError, undefined);
+    assert.equal(out.structuredContent.decision, "rejected");
+    assert.match(out.structuredContent.reasons[0], /exceeds mandate max 500000/);
+    assert.equal(out.structuredContent.engine, "component", "no Rust toolchain on the host — the wasm component must have answered");
+  });
+
+  test("a signed A2A SendMessage completes a task with the verdict as its artifact", async (t) => {
+    if (!privateKey) return t.skip("WBA_PRIVATE_KEY not configured locally");
+    const url = PUBLIC_A2A_URL;
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "SendMessage", params: {
+      message: { messageId: "m-live-1", role: "ROLE_USER", parts: [{ data: { skill: "evaluate-gated-action", action: { ...ACTION, amount_cents: 100000 }, mandate: MANDATE, now_secs: 1786000000 }, mediaType: "application/json" }] },
+      configuration: {},
+    } });
+    const res = await fetch(url, { method: "POST", headers: { ...signed(url, body), "A2A-Version": "1.0" }, body });
+    const text = await res.text();
+    assert.equal(res.status, 200, text);
+    const { result, error } = JSON.parse(text);
+    assert.equal(error, undefined, JSON.stringify(error));
+    const task = result.task ?? result;
+    assert.equal(task.status.state, "TASK_STATE_COMPLETED", JSON.stringify(task.status).slice(0, 200));
+    const verdict = task.artifacts.flatMap((a) => a.parts).map((p) => p.data).find((d) => d?.decision);
+    assert.equal(verdict.decision, "approved");
+    assert.equal(verdict.engine, "component");
   });
 });

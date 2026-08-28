@@ -1,4 +1,11 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "site",
+  "functions": {
+    "api/*.mjs": {
+      "includeFiles": "{agent/**,gate-contract/Cargo.toml}"
+    }
+  },
   "headers": [
     {
       "source": "/.well-known/http-message-signatures-directory",

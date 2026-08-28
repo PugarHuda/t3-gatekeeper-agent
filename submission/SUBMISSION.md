@@ -38,6 +38,7 @@ maintenance after the challenge ends*:
 | **A2A discovery** | The card is published at the well-known path; a peer needs only the domain |
 | **Audit ledger read back** | The host's record, reconciled against the agent's own account of events |
 | **Served over MCP** | The gate stops being a repo you clone. One line of config and any MCP host has it — and the offline tools need no Terminal 3 account at all |
+| **A2A and MCP, hosted** | `/api/a2a` and `/api/mcp` are live on the evidence site: the same server as `npm run a2a`, deciding with the wasm component, signed requests only. The published card and the ERC-8004 registration point at it — the endpoint the card names is the one that answers |
 | **The registered component, hosted in JavaScript** | The exact wasm `npm run setup` registers is transpiled with jco and run by a JS host — clock, tenant id, in-memory KV, an http import that refuses. `gate_evaluate` needs no Rust toolchain now, and a test holds the component to `gate_cli` verdict by verdict |
 | **Listed for the MCP Registry** | `server.json` in the registry's own schema, validated offline; the npm package has its `bin`, `mcpName` and a `files` whitelist. Two commands on the owner's accounts publish it |
 | **Accessibility measured, not assumed** | axe-core through Playwright over the site and the console, in `verify.mjs`. The first run found a real defect; it is fixed |

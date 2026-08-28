@@ -50,16 +50,18 @@ for (const i of revoked) {
 }
 console.log(`  verified: every revoked index reads back as revoked`);
 
-// The A2A card, copied byte for byte. It has to physically live under site/
-// because that is all Vercel deploys, and two files nobody imports are two files
-// that drift — so it is generated here rather than hand-maintained. A test in
-// agent/test/a2a.test.mjs fails if they ever differ.
-const cardSrc = fileURLToPath(new URL("../agent-card.json", import.meta.url));
+// The published A2A card is the v1.0 card the server itself serves, pointing
+// at the hosted endpoint — generated from agent/agent-card.json by the same
+// buildAgentCard() `npm run a2a` uses, so what a peer discovers at
+// /.well-known/agent-card.json is exactly what answers at /api/a2a. A test in
+// agent/test/a2a.test.mjs fails if the published file drifts from that.
+const { buildAgentCard } = await import("./a2a-server.mjs");
+const { PUBLIC_A2A_URL } = await import("./hosted.mjs");
 const cardOut = fileURLToPath(new URL("../../site/.well-known/agent-card.json", import.meta.url));
 mkdirSync(path.dirname(cardOut), { recursive: true });
-const card = readFileSync(cardSrc, "utf8");
-writeFileSync(cardOut, card);
-console.log(`\nWrote ${path.relative(process.cwd(), cardOut)}  (v${JSON.parse(card).version})`);
+const card = buildAgentCard(PUBLIC_A2A_URL);
+writeFileSync(cardOut, JSON.stringify(card, null, 2) + "\n");
+console.log(`\nWrote ${path.relative(process.cwd(), cardOut)}  (v${card.version}, A2A ${card.supportedInterfaces[0].protocolVersion} at ${PUBLIC_A2A_URL})`);
 
 // The ERC-8004 registration file — what the on-chain agentURI resolves to.
 // `registrations` is filled from agent/erc8004-minted.json once a mint has
@@ -68,7 +70,7 @@ let minted = null;
 try {
   minted = JSON.parse(readFileSync(new URL("../erc8004-minted.json", import.meta.url), "utf8"));
 } catch { /* not minted yet */ }
-const reg = buildRegistrationFile({ minted, a2aEndpoint: process.env.A2A_BASE_URL || null });
+const reg = buildRegistrationFile({ minted, a2aEndpoint: process.env.A2A_BASE_URL || PUBLIC_A2A_URL });
 const check = validateRegistrationFile(reg);
 if (!check.valid) throw new Error(`registration file is not conformant: ${check.problems.join("; ")}`);
 const regOut = fileURLToPath(new URL("../../site/.well-known/erc8004-registration.json", import.meta.url));
@@ -76,4 +78,4 @@ writeFileSync(regOut, JSON.stringify(reg, null, 2) + "\n");
 console.log(`\nWrote ${path.relative(process.cwd(), regOut)}  (${REGISTRATION_URL})`);
 console.log(`  registrations: ${reg.registrations.length ? JSON.stringify(reg.registrations) : "(not minted yet)"}`);
 
-console.log(`\nDeploy with: cd site && npx vercel deploy --prod --yes`);
+console.log(`\nDeploy with: npx vercel deploy --prod --yes   (repo root — site/ is the output, api/ the functions)`);

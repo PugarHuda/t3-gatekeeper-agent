@@ -153,6 +153,11 @@ advertises (see [submission/ADOPTIONS.md](submission/ADOPTIONS.md)):
   holds the component to `gate_cli` verdict by verdict, and another fails when
   the checked-in glue is not made from the component on disk
   (`npm run gate:transpile` after every contract change).
+- **A2A + MCP, hosted** — `https://gatekeeper-evidence.vercel.app/api/a2a`
+  and `/api/mcp` are Vercel functions running the same `createApp()` as
+  `npm run a2a`, deciding with the wasm component. The published agent card
+  names that URL, the ERC-8004 registration lists it, and unsigned calls get a
+  `401` with `WWW-Authenticate`. Live tests sign with the agent's own key.
 - **MCP Registry listing** — `agent/server.json` in the registry's schema,
   validated offline; the package has its `bin` (`t3-gatekeeper-mcp`) and
   `mcpName`. Publishing is the owner's two commands (MAINTENANCE.md §4).
