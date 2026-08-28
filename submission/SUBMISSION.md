@@ -10,7 +10,7 @@
 | Evidence site | https://gatekeeper-evidence.vercel.app |
 | Network | T3N testnet (`https://cn-api.sg.testnet.t3n.terminal3.io`) |
 | SDK | `@terminal3/t3n-sdk` **5.1.0** (migrated from 3.5.2 for this round) |
-| Verified on | 27 August 2026 |
+| Verified on | 28 August 2026 |
 | **Post-challenge** | **Happy to hand it over to Terminal 3 — see §5** |
 
 ---
@@ -77,9 +77,15 @@ new API key derives its own Ethereum address but authenticates to the same DID.
 
 - DID: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 - Derived address for the current key: `0x548a66377d7f34902ce08e5b060b8d6d1a24fe14`
-- **Balance: 0, `credit_exhausted: true`** — see §10. One contract registration
-  consumed the entire grant, which is bug #16 and is the reason two things in
-  this submission are marked "built, not yet live".
+- Balance at the time of writing: ~3.4e10 credits, after a top-up on 27 August.
+  Before it the account sat at 0 with `credit_exhausted: true` for three weeks —
+  one contract registration had consumed the entire initial grant (bug #16). The
+  costs are now measured rather than guessed: 30,034,055 per contract call,
+  1,370,147,045 per registration (§8).
+- A second, scoped credential exists for whoever hosts this: an **agent key**
+  (`t3n_key_…`), provisioned with `agent create`, which the discovery reads
+  accept and which cannot spend credits or register contracts. That, not the
+  Ethereum key above, is what a handover transfers (§5).
 
 📷 **Screenshot 02 — `02-cli-whoami.png`** · 📷 **Screenshot 04 — `04-agent-registered.png`** — the network resolving our DID, and the agent card registered on-network.
 
@@ -120,11 +126,11 @@ approves nothing.
 
 | Step | Result |
 | --- | --- |
-| Write | `gate-contract/src/gate.rs` — 32 Rust unit tests |
+| Write | `gate-contract/src/gate.rs` — 47 Rust unit tests |
 | Build | `cargo build --lib --target wasm32-wasip2 --release` → 215 KB component (bug #5 covers the Windows blocker and the fix) |
-| Register | `TenantClient.contracts.register()` → v0.6.0 = id 175, v0.7.0 = id 479 |
+| Register | `TenantClient.contracts.register()` → **v0.10.0 = contract_id 749**, promoted only after `npm run probe` proved the build under a throwaway tail (v0.7.0 = 479 and v0.6.0 = 175 before it) |
 | Invoke | `contracts.execute("gate", …)` → approved/rejected, decided inside the TEE |
-| Test | 32 Rust + 40 Node + 13 Playwright, all green |
+| Test | 47 Rust + 191 Node + 38 Playwright, all green — `node verify.mjs` counts them itself |
 
 📷 **Screenshot 03 — `03-contract-deployed.png`** — live on the network, checkable without my key.
 
@@ -169,10 +175,11 @@ The chain, all on the ADK:
 ```
 [1]  IDENTITY    handshake + authenticate               → did:t3n
 [2]  VC GATE     BBS+ credential verify                 → eligible, no PII revealed
-[2b] REVOCATION  on-chain kill-switch (revoke_vc)       → blocks a revoked holder
+[2b] REVOCATION  W3C Bitstring Status List over HTTPS  → blocks a revoked holder
 [3]  MANDATE     execute_action, mandate read from KV   → TEE decision + reasons
 [4]  AUDIT       structured row per action              → approved AND rejected
-[5]  DISPATCH    Web Bot Auth signature + in-TEE POST   → HTTP 200 from the enclave
+[5]  DISPATCH    Web Bot Auth signature + in-TEE POST   → HTTP 200 from the enclave,
+                 broker credential injected inside it
 ```
 
 📷 **Screenshot 06 — `06-egress-grant.png`** — `agent-auth-update` accepted. A
@@ -250,12 +257,29 @@ the blocked case beside the passing one.
 
 ### 4.4 ERC-8004, actually connected
 
-Previously this was a script with the right ABI that had never been pointed at a
-registry. The reference deployment is live on Sepolia at
-`0x7177a686…`, and the read side works today with **no wallet and no gas**:
-resolve any agent's owner and URI, and check whether an address owns one (ours
-does not — a mint needs funding, and the script still refuses rather than
-faking it).
+Previously this was a script with the right ABI that had never been pointed at
+a registry. Now: **agent #201** on the reference IdentityRegistry on Sepolia
+(`0x7177a686…`), tx `0x37965ccd…`, block 11581941. `npm run erc8004` reads the
+whole loop back with no wallet and no gas — registry → token → owner and URI →
+the document the URI resolves to → its `registrations[201]` naming the token
+back → the Reputation Registry for the same id.
+
+The mint nearly went wrong first, and the way it nearly went wrong is the useful
+part. The script had defaulted `agentURI` to our A2A card. ERC-8004 fixes a
+different document for that URI — `type: …#registration-v1`, `services`,
+`image`, `active` — and a mint pointing at the card would have registered an
+identity every conformant resolver rejects, with the URI written on chain. The
+registration file is now generated from the card (one source for what the agent
+is called), served with the right content type, validated by the rules a
+resolver applies, and the register script fetches and validates the live URI
+**before it will send**.
+
+The Reputation Registry deployment, read by selector, turns out to **predate
+the EIP's final interface**: no `getSummary`, `readAllFeedback` or final
+`giveFeedback` in the bytecode. The read computes the aggregate from the
+per-client functions that exist and prints what is absent, instead of letting
+"missing revert data" stand in for a score. Agent #201 has none yet, and zero
+is what it reports.
 
 The preflight is the part worth having. `register()` against the wrong address
 either reverts and wastes the fee, or succeeds against some unrelated ERC-721
@@ -268,15 +292,20 @@ chain, including against Sepolia WETH, which it correctly refuses.
 
 ### 4.5 The audit trail is no longer just our word for it
 
-The agent prints a structured row per action — which is the *agent's* account of
-events, exactly the thing this project argues you should not have to take on
-faith. `audit.get-mine` returns the host's record of the same dispatches, and it
-works at a zero balance.
+The agent prints a structured row per action — which is the *agent's* account
+of events, exactly the thing this project argues you should not have to take on
+faith. The node keeps its own record, and finding it became a bug report.
 
-The field that makes it worth reading is `committed`. An event can carry
-`outcome: "success"` inside a batch that never committed — the call said it
-worked and then rolled back. The reconciliation keeps those apart and
-corroborates a dispatch only against committed events.
+`npm run audit` read `audit.get-mine` — the documented audit read — for a
+month, and printed an explanation for why it was empty. It is still empty,
+after 39 real dispatches. The record is in `activity.log`: every call this DID
+made, with contract, function, outcome, a sequence number and a hash the node
+assigned — the fuel-quota errors, the probes against the undocumented core
+contracts, the registration of the contract itself. That is bug #29. `npm run
+audit` now tallies the ledger that exists, keeps `execute_action` errors beside
+its successes rather than under them, reconciles the agent's claimed dispatches
+against it as a necessary condition rather than a verdict, and reports the
+documented read beside it, empty.
 
 📷 **Screenshot 17 — `17-audit-ledger.png`**
 
@@ -334,6 +363,12 @@ whether the server does (19 tests). One of them runs the same input through both
 paths and asserts the results are identical — so if anyone ever reimplements the
 rules in JS to make the server faster, it fails.
 
+The same tools are served over **Streamable HTTP** at `/mcp` by `npm run a2a`
+— stateless, one server per request as the SDK documents — which is the remote
+adoption path: an MCP host anywhere points at a URL. Driven by the official MCP
+client over HTTP and by hand-written JSON-RPC from Playwright, and refused
+without a signature (§4.10).
+
 *Shot 21.* Also `npm run demo:mcp`, which is the same thing in ten seconds.
 
 ### 4.8 x402 — the mandate decides whether to pay
@@ -369,27 +404,27 @@ against the *server's own* requirement, never the one echoed back in the payload
 because that field is attacker-controlled; a test signs a one-cent authorisation,
 relabels it as the ten-dollar one, and watches it get refused.
 
-What is not real, said plainly: **settlement**. Broadcasting needs a funded
-wallet. `settle()` posts the spec's `/settle` body when `X402_FACILITATOR_URL`
-is set and **refuses** when it is not, because a receipt this process invented
-would be believed by whatever read it.
+And it settled. `npm run x402:settle` stands up a paywall wired the way x402
+is meant to be — the **resource server** verifies and settles through the
+public facilitator at `x402.org`, the agent only signs — and moved **0.01 USDC
+on Base Sepolia** from the payment wallet to the ERC-8004 owner wallet, through
+the mandate. Facilitator transaction `0x52b164d1…`, block 46058792, broadcast
+by the facilitator: the payer paid no gas.
 
-Short of that, it is verified by someone who is not us. `npm run x402:verify`
-reads `DOMAIN_SEPARATOR()` off the deployed Base Sepolia USDC contract — ours is
-byte-identical — and then posts a real payload to the public facilitator at
-`x402.org/facilitator`, which recovers our payer address on its own and
-**simulates `transferWithAuthorization` against the token**. It gets as far as
-the balance and stops:
+Before that, `npm run x402:verify` had established the signature was right
+without spending anything: `DOMAIN_SEPARATOR()` read off the deployed USDC
+contract is byte-identical to the domain we sign under, and the facilitator's
+`/verify` recovered our payer address on its own and simulated the transfer
+(*shot 26*).
 
-```
-isValid: false   invalid_exact_evm_insufficient_balance
-payer:   0xc752d544…   (the address we signed with)
-"transferWithAuthorization" reverted: ERC20: transfer amount exceeds balance
-```
-
-Signature, domain, nonce, validity window and encoding all passed, in a third
-party's implementation, against the real token. The only thing missing is money,
-and the script says exactly where it goes (*shot 26*).
+The first settlement run reported that nothing had moved. It read both balances
+at "latest" from a public RPC behind a load balancer, which answered from a
+node a few blocks behind the one that mined the transfer — while the `Transfer`
+event sat in the receipt. The script now takes its evidence from the chain
+rather than from the receipt or from "latest": the `Transfer` log in the
+transaction, and both balances at explicit block tags on either side of it
+(20.0 → 19.99 and 0.0 → 0.01). A receipt is a claim; a log is a fact.
+`-- --tx <hash>` re-checks a settlement without paying again (*shot 32*).
 
 28 Node tests and 6 Playwright tests, all over real HTTP against a real 402.
 *Shots 20 and 22*, and `npm run demo:x402`.
@@ -414,6 +449,30 @@ They were written during the credit outage, exactly as the status-list code
 was, and that code turned out to be broken the first time it ran. These did
 not, but we no longer have to say "should".
 
+### 4.10 The door has a lock
+
+The A2A endpoint shipped with `UserBuilder.noAuthentication`: anything that
+could reach the port could ask the gate for decisions. For a free local
+decision that is merely impolite; for anything that reaches the enclave it is
+the hole — and this agent already speaks the standard for exactly this on the
+way *out*.
+
+Web Bot Auth is now required on the way *in*, for A2A and for MCP-over-HTTP on
+the same origin. A caller signs (RFC 9421, web-bot-auth profile) and names the
+origin of its key directory in `Signature-Agent`; the server fetches that
+origin's `/.well-known/http-message-signatures-directory`, resolves `keyid`,
+verifies method, authority, path, body digest and expiry, and remembers the
+nonce until the signature's own expiry so a captured request cannot be
+replayed. The caller's identity is its origin plus keyid — nothing shared in
+advance. The card declares the scheme (`HTTPSig`) so a peer learns to sign
+before its first call is refused. Unsigned, wrong-key, unknown-origin, replayed
+and body-swapped requests are each refused by name, with `WWW-Authenticate`.
+
+Tested three ways: the official A2A client with a signing fetch, the official
+MCP client over HTTP with the same fetch, and Playwright sending hand-signed
+JSON-RPC to both with no SDK on the calling side. The caller's directory in
+every test is a real HTTP server.
+
 ## 5. After the challenge: I would rather hand this over
 
 **I am happy for Terminal 3 to take this over and host it**, and I would keep
@@ -435,7 +494,10 @@ so the code does not know whose tenant it is running in.
 [MAINTENANCE.md §6](https://github.com/PugarHuda/t3-gatekeeper-agent/blob/master/MAINTENANCE.md)):
 
 1. **Tenant account** — you claim your own key and DID. It appears in
-   `agent/.env` and `agent/agent-card.json`; nothing else references it.
+   `agent/.env` and `agent/agent-card.json`; nothing else references it. Do
+   **not** hand the tenant's Ethereum key to a host: provision an agent key
+   with `agent create` (scoped, revocable, cannot spend credits) and give it
+   that — `npm run discover` runs on it.
 2. **Contract** — re-register under your tenant with `npm run setup`. My
    deployment keeps running under mine; there is no shared state.
 3. **Mandate** — edit `MANDATE` in `agent/src/lib.mjs` or write the KV entry
@@ -638,8 +700,8 @@ would drift from the contract and prove nothing.
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
 **`node verify.mjs` reports its own total — 277 offline checks** at the time of
-writing (47 Rust, 96 Node, 18 Playwright end-to-end), plus the live-site and
-submission-artifact suites. The number comes from the runners rather than from
+writing (47 Rust, 191 Node, 38 Playwright end-to-end), plus the live-site and
+submission-artifact suites (19 live). The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong
 within a day of being written. The live-site set
 includes a Web Bot Auth key round trip over the public internet — sign locally,
@@ -695,9 +757,9 @@ as revoked comes back **REVOKED and blocked**, next to a healthy one that does
 not. Until the status list was actually served, that check could only report
 "not checked", which is what it correctly did.
 
-Everything above is live at https://gatekeeper-evidence.vercel.app — all 23
-shots, the A2A agent card, the Web Bot Auth key directory and the revocation
-status list. `capture.mjs` syncs the PNGs into `site/shots/` itself, and
+Everything above is live at https://gatekeeper-evidence.vercel.app — all 32
+shots, the A2A agent card, the ERC-8004 registration file, the Web Bot Auth key
+directory and the revocation status list. `capture.mjs` syncs the PNGs into `site/shots/` itself, and
 `npm run status-list` republishes the agent card, so neither is a manual step to
 forget.
 
@@ -711,7 +773,7 @@ I would rather state this than imply a live run I did not do.
 | --- | --- |
 | **On the network now** | **v0.10.0, `contract_id 749`**, registered 2026-08-27 |
 | **Proven live** | the KV mandate read, the credential/action binding, idempotent dispatch, in-enclave outbound HTTP (**200**), and `http-with-placeholders` — which until this week had only ever been compiled in |
-| **Also live** | the evidence site, the A2A agent card, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (17/17) |
+| **Also live** | the evidence site, the A2A agent card, the ERC-8004 registration file, the Web Bot Auth key directory and the W3C revocation status list — every live assertion in the suite passes (19/19) |
 | **On chain** | ERC-8004 agent **#201**, Sepolia, tx `0x37965ccd…` — `npm run erc8004` reads it back through both registries. And an x402 payment **settled**: 0.01 USDC on Base Sepolia through the mandate and the public facilitator, tx `0x52b164d133…`, both balances checked at the block |
 | **Still not live** | nothing in this catalogue that a funded wallet could fix. What remains is the platform's: `vp.verify` (bug #7), `tee:agent-connect` (#27), `tee:vc` issuance (#28) |
 
@@ -760,7 +822,8 @@ With your own key:
 ```bash
 cp agent/.env.example agent/.env          # T3N_API_KEY + DID
 cd gate-contract && cargo build --lib --target wasm32-wasip2 --release && cd ../agent
-npm run setup                             # register + create and seed the 3 KV maps
+npm run probe                             # prove the build under a throwaway tail first
+npm run setup                             # register + create and seed the 4 KV maps
 npm run grant:egress                      # authorise the enclave's outbound host
 npm run demo                              # the full chain
 ```
