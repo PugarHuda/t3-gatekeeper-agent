@@ -1,7 +1,7 @@
 # Paste-ready messages
 
 Everything below is written to be sent as-is, in the order listed. Nothing here
-is sent automatically. Numbers are as of 2026-08-28, head `573d236`, and every
+is sent automatically. Numbers are as of 2026-08-28, head `0d87437`, and every
 one of them is printed by a command in the repo rather than typed from memory.
 
 ---
@@ -9,15 +9,15 @@ one of them is printed by a command in the repo rather than typed from memory.
 ## 1. Share the Google Doc — 1 minute, do this first
 
 The doc already exists in your Drive, generated from `SUBMISSION.md` with all
-32 screenshots embedded (the current ones — evidence site and QA console after
-the UI polish):
+32 screenshots embedded (current: hosted A2A/MCP doors, the wasm component host,
+the MCP Registry listing, axe, 300 checks):
 
-**v3 — submit this one:**
-https://docs.google.com/document/d/1iin4kQLOXbtSsd9hvvPM_VeBPiUo9eENhZDee2FROos/edit
+**v4 — submit this one:**
+https://docs.google.com/document/d/1vePUoZeXRC-_Dj3C2v_Uq2Gq47bSPu7Yki3XiFdakD0/edit
 
 Share → *Anyone with the link* → Viewer → copy link. Open it in a private
 window before submitting: a doc only you can open is the most common way to
-lose a submission. (v1 and v2 are renamed "OLD … do not submit".)
+lose a submission. (v1–v3 are renamed "OLD … do not submit".)
 
 Fallbacks, both tested by `qa-console/doc.test.mjs` / `docx.test.mjs`:
 `submission/submission.docx` (Drive → upload → Open with Google Docs) or
