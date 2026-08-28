@@ -40,9 +40,13 @@ describe("evidence site", () => {
 
   test("every screenshot actually renders", async () => {
     // naturalWidth is 0 for an <img> whose file 404s — the failure mode that
-    // silently turns an evidence page into a page of empty boxes.
-    const broken = await page.$$eval("img", (imgs) =>
-      imgs.filter((i) => !i.complete || i.naturalWidth === 0).map((i) => i.getAttribute("src")));
+    // silently turns an evidence page into a page of empty boxes. The page
+    // lazy-loads its 10 MB of screenshots, so first make every image fetch
+    // (eager + decode) instead of trusting whatever was above the fold.
+    const broken = await page.$$eval("img", async (imgs) => {
+      await Promise.all(imgs.map((i) => { i.loading = "eager"; return i.decode().catch(() => {}); }));
+      return imgs.filter((i) => !i.complete || i.naturalWidth === 0).map((i) => i.getAttribute("src"));
+    });
     assert.deepEqual(broken, [], `broken images: ${broken.join(", ")}`);
     const count = await page.locator("img").count();
     assert.ok(count >= 10, `expected the full evidence set, found ${count}`);
@@ -154,7 +158,7 @@ describe("the evidence page references every screenshot it ships", () => {
   test("no shot is synced to the site and then left off the page", async () => {
     const { readFile, readdir } = await import("node:fs/promises");
     const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
-    const referenced = new Set([...html.matchAll(/shots\/([^"']+)/g)].map((m) => m[1]));
+    const referenced = new Set([...html.matchAll(/["']shots\/([^"']+)["']/g)].map((m) => m[1]));
     // `.pN.png` are page-sized chunks for the document exports; the page shows
     // the tall original, so they are deployed but deliberately unreferenced.
     const present = (await readdir(new URL("../site/shots", import.meta.url)))
@@ -170,7 +174,7 @@ describe("the evidence page references every screenshot it ships", () => {
   test("the page does not reference a screenshot that was never captured", async () => {
     const { readFile, readdir } = await import("node:fs/promises");
     const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
-    const referenced = [...html.matchAll(/shots\/([^"']+)/g)].map((m) => m[1]);
+    const referenced = [...html.matchAll(/["']shots\/([^"']+)["']/g)].map((m) => m[1]);
     const present = new Set(await readdir(new URL("../site/shots", import.meta.url)));
 
     // A reference to a file that does not exist is a broken image on the live
