@@ -65,6 +65,14 @@ const mandateShape = {
   require_idempotency_key: z.boolean().optional(),
 };
 
+/**
+ * Build a fresh server with every tool and resource registered.
+ *
+ * A factory rather than a singleton because the Streamable HTTP transport in
+ * its stateless form pairs one server with one transport per request; stdio
+ * builds one and keeps it. Both call this.
+ */
+export function createMcpServer() {
 const server = new McpServer(
   { name: "gatekeeper", version: CONTRACT_VERSION },
   {
@@ -403,15 +411,17 @@ server.registerResource(
   },
 );
 
+return server;
+}
+
 // ── transport ───────────────────────────────────────────────────────────────
-// Only when run as a program. Importing this module (the tests do) gives you the
-// server object without hijacking the process's stdio.
-export { server };
+// Only when run as a program. Importing this module gives you the factory
+// without hijacking the process's stdio.
 
 if (process.argv[1]?.endsWith("mcp-server.mjs")) {
   if (!gateCliPath()) {
     process.stderr.write(`gatekeeper mcp: gate_cli is not built — gate_evaluate will fail.\n  ${BUILD_HINT}\n`);
   }
-  await server.connect(new StdioServerTransport());
+  await createMcpServer().connect(new StdioServerTransport());
   process.stderr.write(`gatekeeper mcp: ready on stdio (contract ${CONTRACT_VERSION})\n`);
 }

@@ -212,7 +212,7 @@
     },
     {
       "protocol": "A2A",
-      "note": "This document doubles as the A2A AgentCard. A JSON-RPC endpoint on the official @a2a-js/sdk (protocol v1.0) serves evaluate-gated-action and bind-credential as A2A tasks: `npm run a2a` (agent/src/a2a-server.mjs).",
+      "note": "This document doubles as the A2A AgentCard. A JSON-RPC endpoint on the official @a2a-js/sdk (protocol v1.0) serves evaluate-gated-action and bind-credential as A2A tasks: `npm run a2a`. Calls must carry a web-bot-auth signature from a published key directory; the served v1.0 card declares the HTTPSig scheme.",
       "status": "active"
     },
     {
@@ -222,7 +222,7 @@
     },
     {
       "protocol": "MCP",
-      "note": "Served over stdio by `npm run mcp` (agent/src/mcp-server.mjs); eight tools and two resources.",
+      "note": "Served over stdio by `npm run mcp` and over Streamable HTTP at /mcp by `npm run a2a` (stateless; web-bot-auth signature required); eight tools and two resources.",
       "status": "active"
     },
     {

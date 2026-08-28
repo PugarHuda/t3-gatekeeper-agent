@@ -29,8 +29,15 @@ import { A2A_PROTOCOL_VERSION, AGENT_CARD_PATH, Role, TaskState } from "@a2a-js/
 import { AgentEvent, DefaultRequestHandler, InMemoryTaskStore } from "@a2a-js/sdk/server";
 import { agentCardHandler, jsonRpcHandler, UserBuilder } from "@a2a-js/sdk/server/express";
 
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+
 import { decide, gateCliPath, BUILD_HINT, CONTRACT_VERSION } from "./gate-cli.mjs";
 import { bindCredential } from "./credential-binding.mjs";
+import { createMcpServer } from "./mcp-server.mjs";
+import { requireWebBotAuth } from "./a2a-auth.mjs";
+
+/** Where MCP is served on the same origin. */
+export const MCP_PATH = "/mcp";
 
 const SOURCE_CARD = JSON.parse(readFileSync(new URL("../agent-card.json", import.meta.url), "utf8"));
 
@@ -56,8 +63,23 @@ export function buildAgentCard(baseUrl) {
       tenant: "",
     }],
     capabilities: { streaming: false, pushNotifications: false, extensions: [] },
-    securitySchemes: {},
-    securityRequirements: [],
+    // Requests must carry a web-bot-auth signature (RFC 9421) from an agent
+    // with a published key directory. Declared so a peer's client can see what
+    // it needs before its first call is refused.
+    // Wire shape (proto-JSON), not the SDK's in-memory `$case` form: the card
+    // handler serialises what it is given verbatim, and a client parses the
+    // wire form back into `scheme.$case`. Handing it the in-memory form put
+    // "$case" on the wire and came back to the client as an empty object.
+    securitySchemes: {
+      "web-bot-auth": {
+        httpAuthSecurityScheme: {
+          scheme: "HTTPSig",
+          description: "RFC 9421 HTTP Message Signatures, web-bot-auth profile; key resolved from Signature-Agent's /.well-known/http-message-signatures-directory",
+          bearerFormat: "",
+        },
+      },
+    },
+    securityRequirements: [{ schemes: { "web-bot-auth": { list: [] } } }],
     defaultInputModes: ["application/json"],
     defaultOutputModes: ["application/json"],
     // Same skill ids, names and tags as the published card — a peer that
@@ -192,14 +214,60 @@ export class GatekeeperExecutor {
 
 // ── the app ──────────────────────────────────────────────────────────────────
 
-/** Build the express app. `baseUrl` is what the card advertises. */
-export function createApp(baseUrl) {
+/**
+ * Build the express app: the A2A card and JSON-RPC endpoint, and MCP over
+ * Streamable HTTP at /mcp, on one origin.
+ *
+ * `requireSignature` (default on) puts web-bot-auth in front of everything
+ * except the card — the card is how a peer learns it must sign. Turn it off
+ * only for a deployment that authenticates some other way; there is no
+ * "trusted network" default.
+ */
+export function createApp(baseUrl, { requireSignature = true, auth = {} } = {}) {
   const requestHandler = new DefaultRequestHandler(
     buildAgentCard(baseUrl), new InMemoryTaskStore(), new GatekeeperExecutor(),
   );
   const app = express();
+  app.set("trust proxy", true);
+
+  // The card is public: it is how a caller discovers that it has to sign.
   app.use(`/${AGENT_CARD_PATH}`, agentCardHandler({ agentCardProvider: requestHandler }));
-  app.use(jsonRpcHandler({ requestHandler, userBuilder: UserBuilder.noAuthentication }));
+
+  // Keep the raw bytes — Content-Digest is over them, not the parsed object.
+  app.use(express.json({ limit: "1mb", verify: (req, _res, buf) => { req.rawBody = buf.toString("utf8"); } }));
+  // A body that is not JSON is a JSON-RPC parse error, not an HTML 400 from
+  // the body parser. It carries no valid request, so answering before the
+  // signature check reveals nothing a caller did not already send.
+  app.use((err, _req, res, next) => {
+    if (err?.type === "entity.parse.failed") {
+      return res.status(400).json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error: body is not valid JSON" } });
+    }
+    next(err);
+  });
+  if (requireSignature) {
+    app.use(requireWebBotAuth({ ...auth, skip: (req) => req.method === "GET" && req.path === `/${AGENT_CARD_PATH}` }));
+  }
+
+  // MCP, stateless: one server + one transport per request, as the SDK
+  // documents for the sessionless form. A GET or DELETE has nothing to do
+  // without a session and says so with 405, per the transport spec.
+  app.post(MCP_PATH, async (req, res) => {
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    res.on("close", () => transport.close());
+    await createMcpServer().connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  });
+  app.all(MCP_PATH, (_req, res) => {
+    res.status(405).set("Allow", "POST").json({ jsonrpc: "2.0", error: { code: -32000, message: "stateless MCP: POST only" }, id: null });
+  });
+
+  // A2A JSON-RPC at the root. The user is whoever signed.
+  app.use(jsonRpcHandler({
+    requestHandler,
+    userBuilder: async (req) => req.agent
+      ? { isAuthenticated: true, userName: `${req.agent.origin}#${req.agent.keyid}` }
+      : UserBuilder.noAuthentication(),
+  }));
   return app;
 }
 
@@ -212,13 +280,13 @@ export function createApp(baseUrl) {
  * or a tunnel needs. Keep the two apart: a caller that forwards traffic to
  * "the server's URL" and is handed the advertised one forwards to itself.
  */
-export function start(port = 0, { host = "127.0.0.1", advertise } = {}) {
+export function start(port = 0, { host = "127.0.0.1", advertise, ...appOptions } = {}) {
   return new Promise((resolve, reject) => {
     // The card must advertise a URL, so the app is built AFTER the port is known.
     const server = express().listen(port, host, () => {
       const listenUrl = `http://${host}:${server.address().port}/`;
       const baseUrl = advertise ?? listenUrl;
-      const app = createApp(baseUrl);
+      const app = createApp(baseUrl, appOptions);
       server.removeAllListeners("request");
       server.on("request", app);
       resolve({ server, listenUrl, baseUrl, close: () => new Promise((r) => server.close(r)) });
@@ -234,6 +302,7 @@ if (process.argv[1]?.endsWith("a2a-server.mjs")) {
   const port = Number(process.env.A2A_PORT || 41241);
   const { baseUrl } = await start(port, { host: "0.0.0.0", advertise: process.env.A2A_BASE_URL });
   console.log(`gatekeeper a2a: contract ${CONTRACT_VERSION}, protocol ${A2A_PROTOCOL_VERSION}`);
-  console.log(`  card      ${baseUrl}${AGENT_CARD_PATH}`);
-  console.log(`  json-rpc  ${baseUrl}`);
+  console.log(`  card      ${baseUrl}${AGENT_CARD_PATH}   (public)`);
+  console.log(`  a2a       ${baseUrl}   json-rpc, web-bot-auth signature required`);
+  console.log(`  mcp       ${baseUrl}${MCP_PATH.slice(1)}   streamable http, stateless, same signature required`);
 }

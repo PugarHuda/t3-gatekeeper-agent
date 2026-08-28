@@ -1,9 +1,12 @@
-// The A2A server, driven by the official client over real HTTP.
+// The A2A server, driven by the official client over real HTTP — signed.
 //
 // Nothing here calls the executor. A test that did would prove the executor
-// works and say nothing about whether a peer — which only has our URL and the
-// A2A SDK — can discover the card, pick a transport, send a message, and read
-// a task back. That is the whole claim, so that is what is exercised.
+// works and say nothing about whether a peer — which only has our URL, the A2A
+// SDK, and a key it publishes — can discover the card, learn it must sign,
+// send a signed message, and read a task back. That is the whole claim.
+//
+// The caller's key lives in a directory served by a real HTTP server; the A2A
+// server resolves it from `Signature-Agent` the way it would for a stranger.
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -14,16 +17,24 @@ import { ClientFactory, ClientFactoryOptions, JsonRpcTransportFactory } from "@a
 import { start, buildAgentCard, requestFromMessage } from "../src/a2a-server.mjs";
 import { decide, gateCliPath } from "../src/gate-cli.mjs";
 import { validateAgentCard } from "../src/a2a.mjs";
+import { signRequest } from "../src/web-bot-auth.mjs";
+import { testCaller } from "./helpers/directory-server.mjs";
 
-let srv, client;
+let srv, client, caller;
 
 before(async () => {
   srv = await start(0);
-  // A peer's view: a URL, the SDK, nothing shared in advance.
-  const factory = new ClientFactory({ ...ClientFactoryOptions.default, transports: [new JsonRpcTransportFactory()] });
+  caller = await testCaller();
+  // A peer's view: a URL, the SDK, and its own signing key. The card is
+  // fetched unsigned (it is how one learns to sign); every JSON-RPC call after
+  // that goes through the signing fetch.
+  const factory = new ClientFactory({
+    ...ClientFactoryOptions.default,
+    transports: [new JsonRpcTransportFactory({ fetchImpl: caller.fetch })],
+  });
   client = await factory.createFromUrl(srv.baseUrl);
 });
-after(() => srv?.close());
+after(async () => { await srv?.close(); await caller?.close(); });
 
 const need = () => (gateCliPath() ? false : "gate_cli is not built");
 
@@ -32,24 +43,19 @@ const MANDATE = {
   allowed_counterparties: ["did:t3n:meridian-fund"], expires_at_secs: 0,
 };
 
+const message = (parts) => ({
+  messageId: randomUUID(), contextId: "", taskId: "", role: Role.ROLE_USER,
+  parts, metadata: undefined, extensions: [], referenceTaskIds: [],
+});
+const dataPart = (value) => ({ content: { $case: "data", value }, metadata: undefined, filename: "", mediaType: "application/json" });
+
 /** Send one request as a data part, the way an agent-to-agent caller would. */
 async function ask(request) {
-  const res = await client.sendMessage({
-    tenant: "",
-    message: {
-      messageId: randomUUID(), contextId: "", taskId: "", role: Role.ROLE_USER,
-      parts: [{ content: { $case: "data", value: request }, metadata: undefined, filename: "", mediaType: "application/json" }],
-      metadata: undefined, extensions: [], referenceTaskIds: [],
-    },
-    configuration: undefined,
-    metadata: undefined,
-  });
-  // v1.0 returns the Task (or Message) itself, unwrapped. A Task has a
-  // status; a Message does not.
+  const res = await client.sendMessage({ tenant: "", message: message([dataPart(request)]), configuration: undefined, metadata: undefined });
+  // v1.0 returns the Task (or Message) itself, unwrapped. A Task has a status.
   assert.ok(res?.id && res?.status, `expected a task, got ${JSON.stringify(res).slice(0, 120)}`);
   const task = res;
-  const artifact = task.artifacts?.[0];
-  const verdict = artifact?.parts?.find((p) => p.content?.$case === "data")?.content?.value ?? null;
+  const verdict = task.artifacts?.[0]?.parts?.find((p) => p.content?.$case === "data")?.content?.value ?? null;
   const note = task.status?.message?.parts?.find((p) => p.content?.$case === "text")?.content?.value ?? "";
   return { task, verdict, note };
 }
@@ -62,16 +68,22 @@ describe("discovery, through the SDK", () => {
     assert.equal(card.supportedInterfaces[0].url, srv.baseUrl);
   });
 
+  test("the card says a signature is required, before the first call is refused", async () => {
+    const card = await client.getAgentCard();
+    assert.ok(card.securitySchemes["web-bot-auth"], "no web-bot-auth security scheme on the card");
+    assert.equal(card.securitySchemes["web-bot-auth"].scheme.$case, "httpAuthSecurityScheme");
+    assert.equal(card.securitySchemes["web-bot-auth"].scheme.value.scheme, "HTTPSig");
+    assert.ok(card.securityRequirements.some((r) => r.schemes["web-bot-auth"]));
+  });
+
   test("it advertises the same skills as the published static card", async () => {
     const served = (await client.getAgentCard()).skills.map((s) => s.id).sort();
     const published = buildAgentCard("http://x/").skills.map((s) => s.id).sort();
     assert.deepEqual(served, published);
-    assert.ok(served.includes("evaluate-gated-action"));
   });
 
   test("and it passes the same validation we apply to other agents' cards", async () => {
-    const report = validateAgentCard(await client.getAgentCard());
-    assert.deepEqual(report.problems, []);
+    assert.deepEqual(validateAgentCard(await client.getAgentCard()).problems, []);
   });
 });
 
@@ -113,24 +125,18 @@ describe("evaluate-gated-action, over A2A", () => {
   test("a request with no mandate ceiling FAILS the task and says why", async () => {
     const { task, verdict, note } = await ask({ action: { kind: "rwa.buy", amount_cents: 1 }, mandate: {} });
     assert.equal(task.status.state, TaskState.TASK_STATE_FAILED);
-    assert.equal(verdict, null, "no verdict may be produced from a mandate with no ceiling");
+    assert.equal(verdict, null);
     assert.match(note, /max_amount_cents/);
   });
 
   test("a message carrying no request at all fails with instructions", async () => {
-    const res = await client.sendMessage({
+    const task = await client.sendMessage({
       tenant: "",
-      message: {
-        messageId: randomUUID(), contextId: "", taskId: "", role: Role.ROLE_USER,
-        parts: [{ content: { $case: "text", value: "hello?" }, metadata: undefined, filename: "", mediaType: "text/plain" }],
-        metadata: undefined, extensions: [], referenceTaskIds: [],
-      },
+      message: message([{ content: { $case: "text", value: "hello?" }, metadata: undefined, filename: "", mediaType: "text/plain" }]),
       configuration: undefined, metadata: undefined,
     });
-    const task = res;
     assert.equal(task.status.state, TaskState.TASK_STATE_FAILED);
-    const note = task.status.message.parts[0].content.value;
-    assert.match(note, /action, mandate/);
+    assert.match(task.status.message.parts[0].content.value, /action, mandate/);
   });
 
   test("a completed task can be read back by id", { skip: need() }, async () => {
@@ -161,6 +167,62 @@ describe("bind-credential, over A2A", () => {
     });
     assert.equal(task.status.state, TaskState.TASK_STATE_FAILED);
     assert.match(note, /not verified/);
+  });
+});
+
+describe("who may call — web-bot-auth at the door", () => {
+  const body = JSON.stringify({
+    jsonrpc: "2.0", id: 1, method: "GetTask", params: { id: "nope" },
+  });
+  const post = (headers) => fetch(srv.baseUrl, {
+    method: "POST", body,
+    headers: { "content-type": "application/json", "A2A-Version": "1.0", ...headers },
+  });
+
+  test("an unsigned call is refused with 401 and told what is required", async () => {
+    const res = await post({});
+    assert.equal(res.status, 401);
+    assert.match(res.headers.get("www-authenticate"), /HTTPSig.*web-bot-auth/);
+    assert.match((await res.json()).reason, /not signed/);
+  });
+
+  test("a signed call from a key that is NOT in the named directory is refused", async () => {
+    const { generateAgentKey } = await import("../src/web-bot-auth.mjs");
+    const stranger = generateAgentKey();
+    const headers = signRequest({ method: "POST", url: srv.baseUrl, body }, { privateKey: stranger.privateKey, keyid: caller.keyid });
+    const res = await post({ ...headers, "Signature-Agent": `"${caller.origin}"` });
+    assert.equal(res.status, 401);
+    assert.match((await res.json()).reason, /does not verify/);
+  });
+
+  test("a signature naming an origin with no directory is refused", async () => {
+    const headers = signRequest({ method: "POST", url: srv.baseUrl, body }, { privateKey: caller.privateKey, keyid: caller.keyid });
+    const res = await post({ ...headers, "Signature-Agent": '"https://127.0.0.1:1"' });
+    assert.equal(res.status, 401);
+    assert.match((await res.json()).reason, /could not resolve/);
+  });
+
+  test("the same signed request sent twice is refused the second time — replay", async () => {
+    const headers = { ...signRequest({ method: "POST", url: srv.baseUrl, body }, { privateKey: caller.privateKey, keyid: caller.keyid }), "Signature-Agent": `"${caller.origin}"` };
+    const first = await post(headers);
+    assert.notEqual(first.status, 401, `first send should pass auth: ${await first.text()}`);
+    const second = await post(headers);
+    assert.equal(second.status, 401);
+    assert.match((await second.json()).reason, /replay/);
+  });
+
+  test("a signed request whose body was swapped in flight is refused", async () => {
+    const headers = { ...signRequest({ method: "POST", url: srv.baseUrl, body }, { privateKey: caller.privateKey, keyid: caller.keyid }), "Signature-Agent": `"${caller.origin}"` };
+    const res = await fetch(srv.baseUrl, {
+      method: "POST", headers: { "content-type": "application/json", "A2A-Version": "1.0", ...headers },
+      body: body.replace('"nope"', '"other"'),
+    });
+    assert.equal(res.status, 401);
+  });
+
+  test("the card stays public — it is how a caller learns to sign", async () => {
+    const res = await fetch(`${srv.baseUrl}.well-known/agent-card.json`);
+    assert.equal(res.status, 200);
   });
 });
 

@@ -41,6 +41,7 @@ maintenance after the challenge ends*:
 | **x402 payments, mandate-gated** | An HTTP 402 becomes an action the mandate judges. A price or a payee outside it is refused *before* a signature exists |
 | **ERC-8004 identity minted** | Agent #201 on Sepolia, `agentURI` → a conformant registration file, read back live from both registries. It stopped being "ready to register" |
 | **The audit trail, found** | `npm run audit` had been reading `audit.get-mine` — empty through 39 dispatches — and explaining the emptiness. The record was in `activity.log` all along (bug #29) |
+| **The door has a lock** | A2A and MCP-over-HTTP on one origin, and every call must carry a web-bot-auth signature resolved from the caller's own published key. Unsigned, wrong-key, replayed and body-swapped requests are each refused by name |
 | **A2A v1.0 server on the official SDK** | The card has said "A2A" since June; now there is an endpoint behind it. Tested by the official client AND by hand-written JSON-RPC with no SDK |
 | **Web Bot Auth verified against Cloudflare** | Our signatures pass the reference verifier and theirs pass ours. We had been emitting signatures the reference verifier refuses |
 | **Three enclave paths proven live** | The sealed credential, `{{profile.*}}` substitution and idempotent replay had only ever been unit tests — the same situation the status list was in when it broke |
@@ -464,7 +465,7 @@ node verify.mjs
 ```
 
 Rust unit tests → wasm component build → Node tests → Playwright end-to-end over
-the *real* Rust decision function. 253 checks, no API key, no network, no credits.
+the *real* Rust decision function. 277 checks, no API key, no network, no credits.
 It selects the GNU toolchain automatically on Windows, which is otherwise a
 documented footgun a newcomer hits on their first build.
 
@@ -635,7 +636,7 @@ would drift from the contract and prove nothing.
 | Abuse | negative amount | must not approve — no unsigned wrap past the cap |
 | Credential | mandate names a secret the map lacks | **errors — does not send unauthenticated** |
 
-**`node verify.mjs` reports its own total — 253 offline checks** at the time of
+**`node verify.mjs` reports its own total — 277 offline checks** at the time of
 writing (47 Rust, 96 Node, 18 Playwright end-to-end), plus the live-site and
 submission-artifact suites. The number comes from the runners rather than from
 this sentence, because every hand-written count in this repo has been wrong
@@ -658,7 +659,7 @@ from, and republished with captions at https://gatekeeper-evidence.vercel.app.
 | 04 | `04-agent-registered.png` | Agent ID registered — and bug #10, the address as a decimal array |
 | 05 | `05-full-flow.png` | the whole agent on 0.10.0: VC gate → TEE mandate → audit → in-TEE dispatch (**HTTP 200**) |
 | 06 | `06-egress-grant.png` | `agent-auth-update` — the caller authorising enclave egress |
-| 07 | `07-tests.png` | `node verify.mjs` — 253 checks, no key, no credits |
+| 07 | `07-tests.png` | `node verify.mjs` — 277 checks, no key, no credits |
 | 08 | `08-bug-token-balance.png` | bug #9 **fixed** |
 | 09 | `09-bug-host-card.png` | bug #11 — no longer `NotScopeWriter` |
 | 10 | `10-bug-node-version.png` | bug #12 **fixed** — node on 0.17.0 |
@@ -749,7 +750,7 @@ No key, no credits, no network — the whole test suite:
 ```bash
 git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent && npm ci && cd ..
-node verify.mjs                  # 253 checks
+node verify.mjs                  # 277 checks
 ```
 
 With your own key:

@@ -141,9 +141,19 @@ npm run a2a             # A2A v1.0 JSON-RPC on :41241 (A2A_PORT), card at /.well
 npm run mcp             # MCP over stdio
 ```
 
-Both serve the same compiled `decide()`. The A2A card advertises the URL the
-process listens on; set `A2A_BASE_URL` to the public URL when it is behind a
-proxy, or the card will point peers at the wrong place.
+Both serve the same compiled `decide()`. `npm run a2a` also serves MCP over
+Streamable HTTP at `/mcp` on the same origin. The A2A card advertises the URL
+the process listens on; set `A2A_BASE_URL` to the public URL when it is behind
+a proxy, or the card will point peers at the wrong place.
+
+**Every call to the HTTP server must be signed** (web-bot-auth, RFC 9421). The
+caller names the origin of its key directory in `Signature-Agent`; the server
+fetches `/.well-known/http-message-signatures-directory` there and verifies.
+An unsigned call gets `401` with `WWW-Authenticate: HTTPSig`. To call it from
+this repo's own key, use `signingFetch()` from `agent/src/web-bot-auth-fetch.mjs`
+with `WBA_PRIVATE_KEY` and the evidence site as `directoryOrigin`. There is no
+"trusted network" switch; `createApp(url, { requireSignature: false })` exists
+for a deployment that authenticates some other way and should be used as such.
 
 ### Handing the gate to someone else's agent
 
