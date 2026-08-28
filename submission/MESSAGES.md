@@ -1,25 +1,27 @@
 # Paste-ready messages
 
 Everything below is written to be sent as-is, in the order listed. Nothing here
-is sent automatically. Numbers are as of 2026-08-28, head `7921ff0`, and every
+is sent automatically. Numbers are as of 2026-08-28, head `573d236`, and every
 one of them is printed by a command in the repo rather than typed from memory.
 
 ---
 
-## 1. Publish the Google Doc — 2 minutes, do this first
+## 1. Share the Google Doc — 1 minute, do this first
 
-The submission form needs a public Google Doc link. Both artefacts are already
-generated from `SUBMISSION.md` and tested (`qa-console/doc.test.mjs`,
-`docx.test.mjs`):
+The doc already exists in your Drive, generated from `SUBMISSION.md` with all
+32 screenshots embedded (the current ones — evidence site and QA console after
+the UI polish):
 
-- `submission/submission.docx` (2.9 MB, images embedded) — **use this one.**
-  Drive → New → File upload → right-click → *Open with Google Docs* →
-  Share → *Anyone with the link* → Viewer → copy link.
-- `submission/google-doc.html` — fallback: open in a browser, Ctrl+A, Ctrl+C,
-  paste into a blank Doc, share the same way.
+**v3 — submit this one:**
+https://docs.google.com/document/d/1iin4kQLOXbtSsd9hvvPM_VeBPiUo9eENhZDee2FROos/edit
 
-Open the link in a private window before submitting. A doc only you can open
-is the most common way to lose a submission.
+Share → *Anyone with the link* → Viewer → copy link. Open it in a private
+window before submitting: a doc only you can open is the most common way to
+lose a submission. (v1 and v2 are renamed "OLD … do not submit".)
+
+Fallbacks, both tested by `qa-console/doc.test.mjs` / `docx.test.mjs`:
+`submission/submission.docx` (Drive → upload → Open with Google Docs) or
+`submission/google-doc.html` (open, Ctrl+A, Ctrl+C, paste into a blank Doc).
 
 ---
 
