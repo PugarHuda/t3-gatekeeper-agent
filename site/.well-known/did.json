@@ -1,0 +1,59 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
+  ],
+  "id": "did:web:gatekeeper-evidence.vercel.app",
+  "verificationMethod": [
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#wba",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:gatekeeper-evidence.vercel.app",
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "alg": "EdDSA",
+        "use": "sig",
+        "x": "V_-1AWX3m2lv_l7OpLkcpb6CSE2b2rkxh2oj2F1Oi1Q"
+      }
+    }
+  ],
+  "authentication": [
+    "did:web:gatekeeper-evidence.vercel.app#wba"
+  ],
+  "assertionMethod": [
+    "did:web:gatekeeper-evidence.vercel.app#wba"
+  ],
+  "service": [
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#a2a",
+      "type": "A2A",
+      "serviceEndpoint": "https://gatekeeper-evidence.vercel.app/api/a2a"
+    },
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#agent-card",
+      "type": "AgentCard",
+      "serviceEndpoint": "https://gatekeeper-evidence.vercel.app/.well-known/agent-card.json"
+    },
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#mcp",
+      "type": "MCP",
+      "serviceEndpoint": "https://gatekeeper-evidence.vercel.app/api/mcp"
+    },
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#erc8004",
+      "type": "ERC8004Registration",
+      "serviceEndpoint": "https://gatekeeper-evidence.vercel.app/.well-known/erc8004-registration.json"
+    },
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#wba-keys",
+      "type": "WebBotAuthKeyDirectory",
+      "serviceEndpoint": "https://gatekeeper-evidence.vercel.app/.well-known/http-message-signatures-directory"
+    },
+    {
+      "id": "did:web:gatekeeper-evidence.vercel.app#status-list",
+      "type": "BitstringStatusList",
+      "serviceEndpoint": "https://gatekeeper-evidence.vercel.app/status/revocation.json"
+    }
+  ]
+}

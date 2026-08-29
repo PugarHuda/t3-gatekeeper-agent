@@ -57,11 +57,45 @@ console.log(`  verified: every revoked index reads back as revoked`);
 // agent/test/a2a.test.mjs fails if the published file drifts from that.
 const { buildAgentCard } = await import("./a2a-server.mjs");
 const { PUBLIC_A2A_URL } = await import("./hosted.mjs");
+const { signCard, buildDidDocument, didWebFromOrigin, privateKeyFromEnv } = await import("./card-signature.mjs");
+const { createPublicKey } = await import("node:crypto");
+
+// The card is signed with the agent's Web Bot Auth key (WBA_PRIVATE_KEY in
+// agent/.env), and the same public key is published as a did:web document so
+// a peer can verify the signature by standard DID resolution. No key, no
+// publish: an unsigned card would silently replace a signed one.
+let wbaB64 = process.env.WBA_PRIVATE_KEY;
+if (!wbaB64) {
+  try {
+    wbaB64 = readFileSync(new URL("../.env", import.meta.url), "utf8").match(/^WBA_PRIVATE_KEY=(.*)$/m)?.[1]?.trim();
+  } catch { /* no .env */ }
+}
+if (!wbaB64) throw new Error("WBA_PRIVATE_KEY is not set (agent/.env) - the published card must be signed with the agent's key");
+const signingKey = privateKeyFromEnv(wbaB64);
+const SITE_ORIGIN = new URL(PUBLIC_A2A_URL).origin;
+const DID_WEB = didWebFromOrigin(SITE_ORIGIN);
+const KID = `${DID_WEB}#wba`;
+
 const cardOut = fileURLToPath(new URL("../../site/.well-known/agent-card.json", import.meta.url));
 mkdirSync(path.dirname(cardOut), { recursive: true });
-const card = buildAgentCard(PUBLIC_A2A_URL);
+const card = signCard(buildAgentCard(PUBLIC_A2A_URL), { privateKey: signingKey, kid: KID });
 writeFileSync(cardOut, JSON.stringify(card, null, 2) + "\n");
-console.log(`\nWrote ${path.relative(process.cwd(), cardOut)}  (v${card.version}, A2A ${card.supportedInterfaces[0].protocolVersion} at ${PUBLIC_A2A_URL})`);
+console.log(`\nWrote ${path.relative(process.cwd(), cardOut)}  (v${card.version}, A2A ${card.supportedInterfaces[0].protocolVersion} at ${PUBLIC_A2A_URL}, signed by ${KID})`);
+
+const didDoc = buildDidDocument({
+  origin: SITE_ORIGIN, publicKey: createPublicKey(signingKey),
+  services: [
+    { id: `${DID_WEB}#a2a`, type: "A2A", serviceEndpoint: PUBLIC_A2A_URL },
+    { id: `${DID_WEB}#agent-card`, type: "AgentCard", serviceEndpoint: `${SITE_ORIGIN}/.well-known/agent-card.json` },
+    { id: `${DID_WEB}#mcp`, type: "MCP", serviceEndpoint: `${SITE_ORIGIN}/api/mcp` },
+    { id: `${DID_WEB}#erc8004`, type: "ERC8004Registration", serviceEndpoint: REGISTRATION_URL },
+    { id: `${DID_WEB}#wba-keys`, type: "WebBotAuthKeyDirectory", serviceEndpoint: `${SITE_ORIGIN}/.well-known/http-message-signatures-directory` },
+    { id: `${DID_WEB}#status-list`, type: "BitstringStatusList", serviceEndpoint: STATUS_LIST_URL },
+  ],
+});
+const didOut = fileURLToPath(new URL("../../site/.well-known/did.json", import.meta.url));
+writeFileSync(didOut, JSON.stringify(didDoc, null, 2) + "\n");
+console.log(`Wrote ${path.relative(process.cwd(), didOut)}  (${DID_WEB}, ${didDoc.service.length} services)`);
 
 // The ERC-8004 registration file — what the on-chain agentURI resolves to.
 // `registrations` is filled from agent/erc8004-minted.json once a mint has

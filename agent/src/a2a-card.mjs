@@ -5,6 +5,8 @@
 // chain ends in an ESM-only dependency some Node runtimes cannot `require`,
 // and the card code has no business dragging it in.
 
+import { verifyCard, didWebResolver } from "./card-signature.mjs";
+
 export const AGENT_CARD_PATH = "/.well-known/agent-card.json";
 
 /**
@@ -32,7 +34,10 @@ export async function discoverPeer(originOrUrl, { fetchImpl = fetch, timeoutMs =
   } catch {
     throw new Error(`agent card ${url}: not JSON`);
   }
-  return { url, card, ...validateAgentCard(card) };
+  // A signed card is checked against the key its kid names (did:web). An
+  // unsigned card is reported, not refused: many peers do not sign yet.
+  const signatures = await verifyCard(card, didWebResolver({ fetchImpl }));
+  return { url, card, ...validateAgentCard(card), signatures };
 }
 
 /**

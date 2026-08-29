@@ -195,6 +195,11 @@ cd ../agent && npm run gate:transpile      # refuses if the component is missing
 `agent/test/gate-wasm.test.mjs` compares the sha256 in `agent/gate-wasm/source.json`
 with the component on disk and fails until you do.
 
+**The published card is signed.** `npm run status-list` signs it with
+`WBA_PRIVATE_KEY` (the Web Bot Auth key) and writes `site/.well-known/did.json`
+from the same key; it refuses to run without the key rather than publish an
+unsigned card. Rotate the key and both files change together — republish.
+
 **Publishing the MCP server** (owner's accounts; nothing here does it for you):
 
 ```bash

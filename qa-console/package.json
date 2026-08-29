@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "description": "Browser console + Playwright E2E over the gate contract's real Rust decision logic (happy path, wrong paths, API abuse) — runs offline, spends no testnet credits.",
+  "description": "Browser console + Playwright E2E over the gate contract's real Rust decision logic (happy path, wrong paths, API abuse) \u2014 runs offline, spends no testnet credits.",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test e2e.test.mjs a11y.test.mjs",
+    "test": "node --test e2e.test.mjs a11y.test.mjs site-ui.test.mjs",
     "test:site": "node --test site.test.mjs",
     "shots": "node shots.mjs",
     "test:a11y": "node --test a11y.test.mjs"

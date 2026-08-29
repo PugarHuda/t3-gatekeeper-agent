@@ -71,8 +71,9 @@ test("the published card is the v1.0 card the hosted endpoint serves", async () 
   // the one answering at that URL.
   const { buildAgentCard } = await import("../src/a2a-server.mjs");
   const { PUBLIC_A2A_URL } = await import("../src/hosted.mjs");
-  const published = JSON.parse(await readFile(CARD_PUBLISHED, "utf8"));
-  assert.deepEqual(published, buildAgentCard(PUBLIC_A2A_URL), "run `npm run status-list` to regenerate site/.well-known/");
+  const { signatures, ...published } = JSON.parse(await readFile(CARD_PUBLISHED, "utf8"));
+  assert.deepEqual({ ...published, signatures: [] }, buildAgentCard(PUBLIC_A2A_URL), "run `npm run status-list` to regenerate site/.well-known/");
+  assert.equal(signatures?.length, 1, "the published card must be signed");
   assert.equal(published.supportedInterfaces[0].url, "https://gatekeeper-evidence.vercel.app/api/a2a");
   assert.equal(published.supportedInterfaces[0].protocolVersion, "1.0");
   assert.ok(published.securitySchemes["web-bot-auth"], "the lock on the door must be declared");

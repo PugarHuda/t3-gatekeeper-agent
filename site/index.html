@@ -310,6 +310,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
     <div><dt>Distribution</dt><dd>MCP (stdio + Streamable HTTP) · A2A v1.0 on the official SDK — both <b>hosted</b> at <code>/api/mcp</code> and <code>/api/a2a</code> · ERC-8004 agent #201</dd></div>
     <div><dt>Payments</dt><dd>x402 through the mandate — <b>0.01 USDC settled</b> on Base Sepolia via the public facilitator</dd></div>
     <div><dt>Interop</dt><dd>Web Bot Auth (RFC 9421) verified both ways against Cloudflare's reference implementation</dd></div>
+    <div><dt>Identity</dt><dd><code>did:web:gatekeeper-evidence.vercel.app</code> · signed agent card · ERC-8004 #201 — one Ed25519 key behind all of it</dd></div>
     <div><dt>Findings</dt><dd><b>29</b> bug and doc-gap reports with repro steps; 4 already fixed by Terminal 3</dd></div>
   </dl>
   <p style="margin-top:20px">
@@ -657,7 +658,7 @@ node verify.mjs                                          <span class="c"># 300 c
   <p class="note">Static files and two functions, every one read by a test in the suite.</p>
   <ul class="endpoints">
     <li><a href="/.well-known/agent-card.json">/.well-known/agent-card.json</a><em>application/json</em>
-        <span>A2A v1.0 agent card — skills, security schemes, the JSON-RPC interface.</span></li>
+        <span>A2A v1.0 agent card — skills, security schemes, the JSON-RPC interface; signed (EdDSA JWS) by the agent's key.</span></li>
     <li><a href="/.well-known/erc8004-registration.json">/.well-known/erc8004-registration.json</a><em>application/json</em>
         <span>ERC-8004 <code>registration-v1</code> document; the on-chain URI of agent #201 points here.</span></li>
     <li><a href="/.well-known/http-message-signatures-directory">/.well-known/http-message-signatures-directory</a><em>http-message-signatures-directory+json</em>
@@ -666,6 +667,8 @@ node verify.mjs                                          <span class="c"># 300 c
         <span>The agent, hosted: <code>SendMessage</code> / <code>GetTask</code>, signed requests only, decisions from the registered wasm component.</span></li>
     <li><a href="/api/mcp">/api/mcp</a><em>MCP · Streamable HTTP</em>
         <span>The same eight tools over MCP, stateless, behind the same signature check.</span></li>
+    <li><a href="/.well-known/did.json">/.well-known/did.json</a><em>application/did+json</em>
+        <span><code>did:web:gatekeeper-evidence.vercel.app</code> — the agent's key as a verification method, and its services. The card's signature resolves here.</span></li>
     <li><a href="/.well-known/security.txt">/.well-known/security.txt</a><em>text/plain</em>
         <span>RFC 9116 — where to report a security issue, and until when this file is valid.</span></li>
     <li><a href="/status/revocation.json">/status/revocation.json</a><em>application/json</em>

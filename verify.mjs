@@ -37,8 +37,8 @@ const steps = [
     cwd: "agent",
   },
   {
-    name: "QA console end-to-end + accessibility (Playwright, drives the real Rust decide(); axe-core)",
-    cmd: ["node", "--test", "e2e.test.mjs", "a11y.test.mjs"],
+    name: "QA console + evidence page (Playwright: real Rust decide(), axe-core, page interaction)",
+    cmd: ["node", "--test", "e2e.test.mjs", "a11y.test.mjs", "site-ui.test.mjs"],
     cwd: "qa-console",
     // Needs the host build of gate_cli, which the Rust step above does not produce.
     pre: [...cargo, "build", "--bin", "gate_cli", "--release", ...hostArgs],

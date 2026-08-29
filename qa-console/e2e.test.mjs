@@ -329,6 +329,30 @@ describe("A2A v1.0 — hand-written JSON-RPC, no SDK on the client side", () => 
     assert.match(result.task.status.message.parts[0].text, /max_amount_cents/);
   });
 
+  test("SendStreamingMessage answers as server-sent events, in order, ending on completed", async () => {
+    const body = JSON.stringify({ jsonrpc: "2.0", id: nextId++, method: "SendStreamingMessage", params: {
+      message: { messageId: `m-${nextId}`, role: "ROLE_USER", parts: [{ data: { action: { kind: "rwa.buy", asset: "USDC", amount_cents: 100000 }, mandate: MANDATE }, mediaType: "application/json" }] },
+      configuration: {},
+    } });
+    const res = await page.request.post(a2a.listenUrl, {
+      data: body,
+      headers: { "content-type": "application/json", accept: "text/event-stream", ...signed(a2a.listenUrl, body), "A2A-Version": "1.0" },
+    });
+    assert.equal(res.status(), 200);
+    assert.match(res.headers()["content-type"], /text\/event-stream/);
+    // Each SSE event is one JSON-RPC response whose result is a StreamResponse.
+    const events = (await res.text()).split("\n\n").filter((c) => c.includes("data:"))
+      .map((c) => JSON.parse(c.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("")));
+    const results = events.map((e) => e.result);
+    assert.ok(results.length >= 4, `expected task, working, artifact, completed — got ${results.length} events`);
+    assert.ok(results[0].task, "first event is the task");
+    assert.equal(results[1].statusUpdate.status.state, "TASK_STATE_WORKING");
+    assert.equal(results[2].artifactUpdate.artifact.parts[0].data.decision, "approved");
+    // v1.0 has no `final` flag: a terminal state IS the end of the stream, and
+    // nothing may follow it.
+    assert.equal(results.at(-1).statusUpdate.status.state, "TASK_STATE_COMPLETED");
+  });
+
   test("GetTask reads a completed task back by id", async () => {
     const sent = (await (await sendMessage({ action: { kind: "rwa.buy", asset: "USDC", amount_cents: 1 }, mandate: MANDATE })).json()).result.task;
     const res = await rpc("GetTask", { id: sent.id });

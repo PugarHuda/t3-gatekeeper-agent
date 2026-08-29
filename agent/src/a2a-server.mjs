@@ -63,7 +63,9 @@ export function buildAgentCard(baseUrl) {
       protocolVersion: A2A_PROTOCOL_VERSION,
       tenant: "",
     }],
-    capabilities: { streaming: false, pushNotifications: false, extensions: [] },
+    // Streaming: the executor already publishes task, status and artifact
+    // events in order; SendStreamingMessage delivers them as SSE as they happen.
+    capabilities: { streaming: true, pushNotifications: false, extensions: [] },
     // Requests must carry a web-bot-auth signature (RFC 9421) from an agent
     // with a published key directory. Declared so a peer's client can see what
     // it needs before its first call is refused.
@@ -138,6 +140,8 @@ const agentMessage = (contextId, taskId, parts) => ({
 export class GatekeeperExecutor {
   async execute(ctx, bus) {
     const { taskId, contextId } = ctx;
+    // A terminal state is the end of a stream (v1.0 has no separate `final`
+    // flag): COMPLETED or FAILED is published last, and nothing follows it.
     const status = (state, parts) => ({
       taskId, contextId, metadata: undefined,
       status: { state, message: parts ? agentMessage(contextId, taskId, parts) : undefined, timestamp: new Date().toISOString() },

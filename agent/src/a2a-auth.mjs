@@ -83,6 +83,7 @@ function sigParams(input) {
     keyid: (m[1].match(/keyid="([^"]+)"/) || [])[1],
     nonce: (m[1].match(/nonce="([^"]+)"/) || [])[1],
     expires: Number((m[1].match(/expires=(\d+)/) || [])[1]),
+    created: Number((m[1].match(/created=(\d+)/) || [])[1]),
   };
 }
 
@@ -94,7 +95,7 @@ function sigParams(input) {
  * because Content-Digest is over the bytes, not the parsed object. On success
  * `req.agent = { origin, keyid }` for whatever runs next.
  */
-export function requireWebBotAuth({ resolve = directoryResolver(), nonces = nonceLedger(), skip = () => false } = {}) {
+export function requireWebBotAuth({ resolve = directoryResolver(), nonces = nonceLedger(), skip = () => false, maxAgeSeconds = 300 } = {}) {
   return async function webBotAuth(req, res, next) {
     if (skip(req)) return next();
     const refuse = (status, reason) => {
@@ -136,6 +137,13 @@ export function requireWebBotAuth({ resolve = directoryResolver(), nonces = nonc
       { expectedKeyid: params.keyid },
     );
     if (!ok) return refuse(401, "signature does not verify (method, authority, path, body digest, or expiry)");
+    // The signer picks `expires`; the server bounds the window from its side
+    // too. This matters most where the nonce ledger is per process (a
+    // serverless host): a replay against another instance is only possible
+    // inside this many seconds of the original `created`.
+    if (!Number.isFinite(params.created) || Math.floor(Date.now() / 1000) - params.created > maxAgeSeconds) {
+      return refuse(401, `signature is older than this server accepts (${maxAgeSeconds}s from created)`);
+    }
     if (!nonces.admit(params.nonce, params.expires)) return refuse(401, "nonce already used — replay refused");
 
     req.agent = { origin, keyid: params.keyid };

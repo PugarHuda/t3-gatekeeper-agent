@@ -16,7 +16,7 @@
     }
   ],
   "capabilities": {
-    "streaming": false,
+    "streaming": true,
     "pushNotifications": false,
     "extensions": []
   },
@@ -220,5 +220,10 @@
       "securityRequirements": []
     }
   ],
-  "signatures": []
+  "signatures": [
+    {
+      "protected": "eyJhbGciOiJFZERTQSIsImtpZCI6ImRpZDp3ZWI6Z2F0ZWtlZXBlci1ldmlkZW5jZS52ZXJjZWwuYXBwI3diYSIsInR5cCI6ImEyYS1hZ2VudC1jYXJkK2p3cyJ9",
+      "signature": "RY9H-pE-HGNvlfyS2kcePa2ZVhlCOokOoNg6MIJg9w8fb61r2r78eS4DAaqCZxpTJrXXvEeg_Fg3VqqJSID6Dg"
+    }
+  ]
 }

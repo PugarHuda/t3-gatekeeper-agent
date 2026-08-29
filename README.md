@@ -153,6 +153,13 @@ advertises (see [submission/ADOPTIONS.md](submission/ADOPTIONS.md)):
   holds the component to `gate_cli` verdict by verdict, and another fails when
   the checked-in glue is not made from the component on disk
   (`npm run gate:transpile` after every contract change).
+- **Signed agent card + did:web** — the published card carries an EdDSA JWS
+  (RFC 8785 canonical form) by the agent's key; `/.well-known/did.json` is
+  `did:web:gatekeeper-evidence.vercel.app` with that key as a `JsonWebKey2020`
+  verification method and the agent's services. `discoverPeer()` verifies the
+  signature by DID resolution.
+- **A2A streaming** — `SendStreamingMessage` is real: SSE task → working →
+  artifact → completed, tested with the official client, by hand, and live.
 - **A2A + MCP, hosted** — `https://gatekeeper-evidence.vercel.app/api/a2a`
   and `/api/mcp` are Vercel functions running the same `createApp()` as
   `npm run a2a`, deciding with the wasm component. The published agent card

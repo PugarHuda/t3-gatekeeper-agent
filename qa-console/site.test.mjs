@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 import {
   loadAgentKey, signRequest, verifyRequest, keyFromDirectory, generateAgentKey,
 } from "../agent/src/web-bot-auth.mjs";
-import { PUBLIC_A2A_URL } from "../agent/src/hosted.mjs";
+import { PUBLIC_A2A_URL, HOSTED_MAX_AGE_SECONDS } from "../agent/src/hosted.mjs";
+import { verifyCard, didWebResolver } from "../agent/src/card-signature.mjs";
 
 const SITE = process.env.SITE_URL ?? "https://gatekeeper-evidence.vercel.app";
 
@@ -308,5 +309,74 @@ describe("hosted A2A + MCP endpoints (live)", () => {
     const verdict = task.artifacts.flatMap((a) => a.parts).map((p) => p.data).find((d) => d?.decision);
     assert.equal(verdict.decision, "approved");
     assert.equal(verdict.engine, "component");
+  });
+});
+
+// ── identity: did:web + the signed card (live) ──────────────────────────────
+describe("did:web and the signed card (live)", () => {
+  test("did.json is served as a DID document, CORS-open, and names the agent's services", async () => {
+    const res = await fetch(`${SITE}/.well-known/did.json`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") ?? "", /application\/did\+json/);
+    assert.equal(res.headers.get("access-control-allow-origin"), "*");
+    const doc = await res.json();
+    assert.equal(doc.id, "did:web:gatekeeper-evidence.vercel.app");
+    assert.equal(doc.verificationMethod[0].type, "JsonWebKey2020");
+    assert.ok(doc.service.some((s) => s.type === "A2A" && s.serviceEndpoint === PUBLIC_A2A_URL));
+  });
+
+  test("the published card's signature verifies by resolving its kid over did:web — nothing shared in advance", async () => {
+    const card = await (await fetch(`${SITE}/.well-known/agent-card.json`)).json();
+    assert.equal(card.signatures.length, 1);
+    const kid = JSON.parse(Buffer.from(card.signatures[0].protected, "base64url").toString()).kid;
+    assert.equal(kid, "did:web:gatekeeper-evidence.vercel.app#wba");
+    assert.deepEqual(await verifyCard(card, didWebResolver()), { verified: 1, problems: [] });
+    // And a tampered copy does not.
+    const forged = { ...card, supportedInterfaces: [{ ...card.supportedInterfaces[0], url: "https://evil.example/a2a" }] };
+    assert.equal((await verifyCard(forged, didWebResolver())).verified, 0);
+  });
+});
+
+describe("hosted A2A streaming and signature age (live)", () => {
+  const KEYID = "did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f#wba";
+  const MANDATE = { max_amount_cents: 500000, allowed_assets: ["USDC"], allowed_kinds: ["rwa.buy"], allowed_counterparties: ["did:t3n:meridian-fund"], expires_at_secs: 0 };
+  let privateKey;
+  before(() => {
+    const priv = process.env.WBA_PRIVATE_KEY ?? readEnv("WBA_PRIVATE_KEY");
+    if (priv) ({ privateKey } = loadAgentKey({ WBA_PRIVATE_KEY: priv }));
+  });
+
+  test("SendStreamingMessage streams task → working → artifact → completed from the hosted door", async (t) => {
+    if (!privateKey) return t.skip("WBA_PRIVATE_KEY not configured locally");
+    const url = PUBLIC_A2A_URL;
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 7, method: "SendStreamingMessage", params: {
+      message: { messageId: "m-live-stream", role: "ROLE_USER", parts: [{ data: { action: { kind: "rwa.buy", asset: "USDC", amount_cents: 100000, counterparty: "did:t3n:meridian-fund" }, mandate: MANDATE, now_secs: 1786000000 }, mediaType: "application/json" }] },
+      configuration: {},
+    } });
+    const res = await fetch(url, { method: "POST", body, headers: {
+      "content-type": "application/json", accept: "text/event-stream", "A2A-Version": "1.0",
+      ...signRequest({ method: "POST", url, body }, { privateKey, keyid: KEYID }), "Signature-Agent": `"${SITE}"`,
+    } });
+    const text = await res.text();
+    assert.equal(res.status, 200, text.slice(0, 200));
+    assert.match(res.headers.get("content-type") ?? "", /text\/event-stream/);
+    const results = text.split("\n\n").filter((c) => c.includes("data:"))
+      .map((c) => JSON.parse(c.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("")).result);
+    assert.ok(results[0]?.task, "first event is the task");
+    assert.equal(results.find((r) => r.artifactUpdate)?.artifactUpdate.artifact.parts[0].data.engine, "component");
+    assert.equal(results.at(-1).statusUpdate.status.state, "TASK_STATE_COMPLETED");
+  });
+
+  test(`a signature older than ${HOSTED_MAX_AGE_SECONDS}s is refused by the hosted door even though the signer allowed 300s`, async (t) => {
+    if (!privateKey) return t.skip("WBA_PRIVATE_KEY not configured locally");
+    const url = `${SITE}/api/mcp`;
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    const created = Math.floor(Date.now() / 1000) - (HOSTED_MAX_AGE_SECONDS + 30);
+    const res = await fetch(url, { method: "POST", body, headers: {
+      "content-type": "application/json", accept: "application/json, text/event-stream",
+      ...signRequest({ method: "POST", url, body }, { privateKey, keyid: KEYID, created, ttlSeconds: 300 }), "Signature-Agent": `"${SITE}"`,
+    } });
+    assert.equal(res.status, 401);
+    assert.match((await res.json()).reason, /older than this server accepts/);
   });
 });

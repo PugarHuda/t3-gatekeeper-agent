@@ -236,3 +236,71 @@ describe("request parsing", () => {
     assert.equal(requestFromMessage(null), null);
   });
 });
+
+describe("streaming — SendMessageStream over SSE, official client", () => {
+  const stream = async (request) => {
+    const events = [];
+    for await (const ev of client.sendMessageStream({
+      tenant: "", message: message([dataPart(request)]), configuration: undefined, metadata: undefined,
+    })) events.push(ev);
+    return events;
+  };
+  const kinds = (events) => events.map((e) => e.payload?.$case);
+  const states = (events) => events
+    .filter((e) => e.payload?.$case === "statusUpdate" || e.payload?.$case === "task")
+    .map((e) => e.payload.value.status?.state);
+
+  test("the served card says streaming", async () => {
+    const card = await (await fetch(`${srv.listenUrl}.well-known/agent-card.json`)).json();
+    assert.equal(card.capabilities.streaming, true);
+  });
+
+  test("the events arrive in order — task, working, artifact, completed — and the stream then ends", { skip: need() }, async () => {
+    const events = await stream({ action: { kind: "rwa.buy", asset: "USDC", amount_cents: 100_000, counterparty: "did:t3n:meridian-fund" }, mandate: MANDATE });
+    assert.deepEqual(kinds(events), ["task", "statusUpdate", "artifactUpdate", "statusUpdate"], JSON.stringify(kinds(events)));
+    assert.deepEqual(states(events), [TaskState.TASK_STATE_SUBMITTED, TaskState.TASK_STATE_WORKING, TaskState.TASK_STATE_COMPLETED]);
+    const artifact = events[2].payload.value.artifact;
+    const verdict = artifact.parts.find((p) => p.content?.$case === "data")?.content?.value;
+    assert.equal(verdict.decision, "approved");
+    // v1.0 has no `final` flag; the terminal state is last, and the generator
+    // returned (we are past the for-await), so the stream really closed.
+    assert.equal(events.at(-1).payload.$case, "statusUpdate");
+  });
+
+  test("a rejected action streams to completed with the reason, not to failed", { skip: need() }, async () => {
+    const events = await stream({ action: { kind: "rwa.buy", asset: "USDC", amount_cents: 900_000, counterparty: "did:t3n:meridian-fund" }, mandate: MANDATE });
+    assert.equal(states(events).at(-1), TaskState.TASK_STATE_COMPLETED);
+    assert.ok(!states(events).includes(TaskState.TASK_STATE_FAILED));
+    const verdict = events.find((e) => e.payload?.$case === "artifactUpdate").payload.value.artifact.parts[0].content.value;
+    assert.equal(verdict.decision, "rejected");
+    assert.match(verdict.reasons[0], /exceeds mandate max 500000/);
+  });
+});
+
+describe("signature age — the server bounds the window too", () => {
+  test("a signature created 150 s ago is refused by a server that accepts 120 s, and accepted by the default", async () => {
+    const { createApp } = await import("../src/a2a-server.mjs");
+    const express = (await import("express")).default;
+    const tight = express().use(createApp("http://tight.local", { auth: { maxAgeSeconds: 120 } }));
+    const loose = express().use(createApp("http://loose.local"));
+    const listen = (app) => new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
+    const [ts, ls] = await Promise.all([listen(tight), listen(loose)]);
+    try {
+      const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "GetTask", params: { id: "none" } });
+      const created = Math.floor(Date.now() / 1000) - 150;
+      const call = async (server) => {
+        const url = `http://127.0.0.1:${server.address().port}/`;
+        const headers = { "content-type": "application/json", "A2A-Version": "1.0",
+          ...signRequest({ method: "POST", url, body }, { privateKey: caller.privateKey, keyid: caller.keyid, created, ttlSeconds: 300 }),
+          "Signature-Agent": `"${caller.origin}"` };
+        return fetch(url, { method: "POST", headers, body });
+      };
+      const refused = await call(ts);
+      assert.equal(refused.status, 401);
+      assert.match((await refused.json()).reason, /older than this server accepts \(120s/);
+      const accepted = await call(ls);
+      assert.equal(accepted.status, 200, "still inside the signer's own 300 s");
+      assert.match(JSON.stringify(await accepted.json()), /TASK_NOT_FOUND|Task not found/);
+    } finally { ts.close(); ls.close(); }
+  });
+});

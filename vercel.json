@@ -87,6 +87,23 @@
           "value": "public, max-age=3600"
         }
       ]
+    },
+    {
+      "source": "/.well-known/did.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/did+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
     }
   ]
 }
