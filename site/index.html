@@ -254,7 +254,7 @@ cd agent &amp;&amp; npm run a2a      <span class="c"># the same server, locally,
 npm run erc8004              <span class="c"># owner, URI, registration doc, reputation</span>
 npm run discover             <span class="c"># what the node runs (scoped agent key)</span></pre></div>
       <div class="code"><button class="copy" type="button" aria-label="Copy command">Copy</button>
-<pre tabindex="0">node verify.mjs              <span class="c"># 300 checks, no API key, no credits</span></pre></div>
+<pre tabindex="0">node verify.mjs              <span class="c"># 321 checks, no API key, no credits</span></pre></div>
     </div>
   </div>
 </div></section>
@@ -306,7 +306,7 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
   <dl class="ledger">
     <div><dt>Contract</dt><dd><b>gate@0.10.0</b> — Rust → wasm32-wasip2, live on T3N testnet as contract_id 749</dd></div>
     <div><dt>Mandate rules</dt><dd><b>11</b> enforced in the enclave: cap, assets, kinds, counterparties, per-payee limits, issuer trust list, validity window, credential binding, idempotency</dd></div>
-    <div><dt>Checks</dt><dd><b>300</b> offline in one command — 47 Rust, 208 Node, 41 Playwright, 3 axe-core — plus 23 live against the node and the hosted doors</dd></div>
+    <div><dt>Checks</dt><dd><b>321</b> offline in one command — 47 Rust, 223 Node, 50 Playwright (incl. 3 axe-core) — plus 27 live against the node and the hosted doors</dd></div>
     <div><dt>Distribution</dt><dd>MCP (stdio + Streamable HTTP) · A2A v1.0 on the official SDK — both <b>hosted</b> at <code>/api/mcp</code> and <code>/api/a2a</code> · ERC-8004 agent #201</dd></div>
     <div><dt>Payments</dt><dd>x402 through the mandate — <b>0.01 USDC settled</b> on Base Sepolia via the public facilitator</dd></div>
     <div><dt>Interop</dt><dd>Web Bot Auth (RFC 9421) verified both ways against Cloudflare's reference implementation</dd></div>
@@ -386,8 +386,8 @@ npm run discover             <span class="c"># what the node runs (scoped agent 
 
   <figure>
     <div class="shot"><img src="shots/07-tests.png" width="1448" height="1400" loading="lazy" decoding="async" alt="node verify.mjs output: Rust, wasm build, Node and Playwright suites all passing"></div>
-    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 300 checks in one command</b>:
-      Rust unit tests, a wasm component build, the Node suite (208), Playwright (41) over the
+    <figcaption><span class="pill ok">Tests</span><b><code>node verify.mjs</code> — 321 checks in one command</b>:
+      Rust unit tests, a wasm component build, the Node suite (223), Playwright (50) over the
       real Rust <code>decide()</code>, and axe-core over both pages (3). No API key, no network, no credits.
       <a class="open" href="shots/07-tests.png">Full size ↗</a></figcaption>
   </figure>
@@ -645,7 +645,7 @@ npx @terminal3/t3n-sdk agent registry did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35
   <div class="code"><button class="copy" type="button" aria-label="Copy commands">Copy</button>
 <pre tabindex="0">git clone https://github.com/PugarHuda/t3-gatekeeper-agent
 cd t3-gatekeeper-agent/agent &amp;&amp; npm ci &amp;&amp; cd ..
-node verify.mjs                                          <span class="c"># 300 checks, one command</span></pre></div>
+node verify.mjs                                          <span class="c"># 321 checks, one command</span></pre></div>
   <p style="margin-top:18px">On chain, without us in the loop:</p>
   <ul class="endpoints">
     <li><a href="https://sepolia.etherscan.io/tx/0x37965ccd3e68dfa848f94cde4f01f07b3aaf61ca25fc48e5d56db861c634bebb">0x37965ccd…c634bebb</a><em>Sepolia · ERC-8004 mint, agent #201</em></li>

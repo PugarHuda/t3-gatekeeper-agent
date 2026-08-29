@@ -10,7 +10,7 @@ one of them is printed by a command in the repo rather than typed from memory.
 
 The doc already exists in your Drive, generated from `SUBMISSION.md` with all
 32 screenshots embedded (current: hosted A2A/MCP doors, the wasm component host,
-the MCP Registry listing, axe, 300 checks):
+the MCP Registry listing, signed card + did:web, A2A streaming, axe, 321 checks):
 
 **v4 — submit this one:**
 https://docs.google.com/document/d/1vePUoZeXRC-_Dj3C2v_Uq2Gq47bSPu7Yki3XiFdakD0/edit
@@ -49,7 +49,7 @@ web-bot-auth signature resolved from the caller's own published key. x402 paymen
 was settled on Base Sepolia through the public facilitator and checked against
 the chain.
 
-300 offline checks in one command with no API key; 32 screenshots, all from
+321 offline checks in one command with no API key; 32 screenshots, all from
 real command output, republished at gatekeeper-evidence.vercel.app; 29 bug
 reports re-verified against the refreshed docs, four already fixed by
 Terminal 3, and three that turned out to be corrections to our own earlier

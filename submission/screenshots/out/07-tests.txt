@@ -1,13 +1,13 @@
 ─── contract unit tests (Rust, host) ────────────────────────────
-test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
-test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.28s
 ─── contract builds as a wasm component ─────────────────────────
 ─── agent unit tests (Node) ─────────────────────────────────────
-ℹ tests 208
-ℹ pass 208
+ℹ tests 223
+ℹ pass 223
 ℹ fail 0
-─── QA console end-to-end + accessibility (Playwright, drives the real Rust decide(); axe-core) 
-ℹ tests 44
-ℹ pass 44
+─── QA console + evidence page (Playwright: real Rust decide(), axe-core, page interaction) 
+ℹ tests 50
+ℹ pass 50
 ℹ fail 0

@@ -182,7 +182,7 @@ if the BBS+ proof still verifies. Config-gated — skipped (fail-open) unless
 
 ```bash
 node verify.mjs        # Rust, wasm build, Node, Playwright. No key needed.
-                       # Prints its own total (300 at the time of writing).
+                       # Prints its own total (321 at the time of writing).
 ```
 
 CI runs the same script, so the two cannot drift apart.
@@ -190,16 +190,16 @@ CI runs the same script, so the two cannot drift apart.
 | Suite | Count | What it covers |
 | --- | --- | --- |
 | Rust (`gate-contract`) | 47 | the mandate rules, every dimension, deny-by-default, the enclave-held credential, binding, idempotency |
-| Node (`agent`) | 208 | BBS+, A2A v1.0 (official client), MCP (stdio + HTTP), Web Bot Auth incl. Cloudflare interop, x402, ERC-8004, status list, audit, the wasm component host, the registry listing |
-| QA console (`qa-console`) | 41 + 3 | Playwright over the **real** Rust `decide()` — happy path, wrong paths, API abuse, x402, signed A2A + MCP by hand, pending/failure states; plus axe-core accessibility |
-| Live site | 23 | the deployed page, its endpoints, and the hosted A2A + MCP doors — unsigned refused, signed answered — incl. a Web Bot Auth key round trip over the public internet |
+| Node (`agent`) | 223 | BBS+, A2A v1.0 (official client), MCP (stdio + HTTP), Web Bot Auth incl. Cloudflare interop, x402, ERC-8004, status list, audit, the wasm component host, the registry listing |
+| QA console (`qa-console`) | 42 + 3 + 5 | Playwright over the **real** Rust `decide()` — happy path, wrong paths, API abuse, x402, signed A2A + MCP by hand, pending/failure states, streaming SSE; plus axe-core accessibility and evidence-page interaction |
+| Live site | 27 | the deployed page, its endpoints, and the hosted A2A + MCP doors — unsigned refused, signed answered — incl. a Web Bot Auth key round trip over the public internet |
 | Doc / docx / video | 16 | the submission artifacts actually render, and the video decodes with audio |
 
 Individually, if you want just one:
 
 ```bash
 cd gate-contract && cargo test                    # 47
-cd agent        && npm test                       # 208
+cd agent        && npm test                       # 223
 cd qa-console   && npm test                       # 41 + 3 (Playwright, axe)
 ```
 
