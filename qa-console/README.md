@@ -14,10 +14,23 @@ cd ../gate-contract && cargo build --bin gate_cli --release
 
 cd ../qa-console
 npm start          # http://localhost:4173 — click through the scenarios
-npm test           # 13 Playwright tests: happy paths, wrong paths, API abuse
-npm run test:site  # 10 tests against the deployed evidence site
+npm test           # 50 Playwright tests — e2e (42) + a11y (3) + site-ui (5)
+npm run test:site  # 27 tests against the deployed site and the hosted doors
 npm run shots      # regenerate the console screenshots
 ```
+
+`npm test` is the suite `../verify.mjs` runs, and it is three files:
+
+| File | Tests | Covers |
+| --- | --- | --- |
+| `e2e.test.mjs` | 42 | console happy paths, wrong paths, API abuse; x402 through the mandate; A2A v1.0 and MCP-over-HTTP by hand-written JSON-RPC; the server-gone error state |
+| `a11y.test.mjs` | 3 | axe-core over the console and the evidence page |
+| `site-ui.test.mjs` | 5 | copy buttons, navigation, keyboard-scrollable screenshot frames, and the page with JavaScript off |
+
+`npm run test:site` needs the network but no API key — it checks the deployed
+site, the Web Bot Auth key directory, A2A discovery, the hosted `/api/a2a` and
+`/api/mcp` doors (signed and unsigned), did:web + the signed agent card, and
+that a signature older than the hosted 120 s window is refused.
 
 Three more suites live here because they guard artifacts rather than code:
 
@@ -26,6 +39,9 @@ node --test doc.test.mjs     # 5  — the Google-Doc export renders, no markdown
 node --test docx.test.mjs    # 6  — submission.docx package integrity
 node --test video.test.mjs   # 5  — the demo video decodes, and has an audio track
 ```
+
+These three are deliberately **not** in `verify.mjs`: they guard the submission
+artefacts, not the product, and `video.test.mjs` needs the rendered mp4.
 
 Playwright comes from `../submission/demo-web/node_modules` via a directory
 junction:

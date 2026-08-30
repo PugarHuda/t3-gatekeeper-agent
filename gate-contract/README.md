@@ -20,6 +20,13 @@ when* — bounds the agent itself cannot override.
 | **sub-limit** | `action.amount_cents <= mandate.counterparty_limits[counterparty]`, applied *in addition* to the global cap |
 | valid-after | `cluster_timestamp >= mandate.valid_after_secs` (`0` = active immediately) |
 | expiry | `cluster_timestamp <= mandate.expires_at_secs` (`0` = no expiry) |
+| **credential** | `mandate.credential_key` names the entry in `z:<tid>:secrets` holding the bearer token for the outbound call. The agent never sees it — the host hands the value to the enclave, which puts it in the `Authorization` header. Empty = send no credential. |
+| **require-credential** | when true, `execute_action` refuses any action without a credential binding that matches it. Off by default; a mandate that names `allowed_issuers` should set it, or the issuer check is only as good as the caller's honesty. |
+| **require-idempotency-key** | when true, an action with no idempotency key is refused. Worth setting on any mandate that moves money: without a key a timeout is ambiguous, and the safe response (retry) is also the dangerous one. |
+
+Eleven rules in total, all in `src/gate.rs`. The last three are why `evaluate`
+alone is not the whole story — they are enforced by `execute_action`, which is
+the function that also makes the outbound call.
 
 Allow-lists are **least-privilege**: an empty list permits nothing (an
 unconfigured mandate must not approve everything), and the wildcard `"*"`
@@ -91,11 +98,20 @@ them in JavaScript.
 
 ## Versions
 
+The version is single-sourced from `Cargo.toml`: Rust reads it through
+`env!("CARGO_PKG_VERSION")` and the agent parses the same file. There is no
+second place to edit, so a contract cannot be registered under a number that is
+not the code inside it.
+
 | Version | State |
 | --- | --- |
-| 0.8.0 | current source — adds `allowed_issuers` + `counterparty_limits`. Built and unit-tested, **not registered** (testnet credits exhausted). |
-| 0.7.0 | `contract_id 479` — live on testnet. Adds `execute_action` + clock-derived spend window. |
-| 0.6.0 | `contract_id 175` — the version the live `HTTP 200` egress evidence was captured against. |
+| **0.10.0** | **current source, live on testnet as `contract_id 749`** (registered 2026-08-27). Adds the sealed credential (`credential_key`), the credential/action binding, idempotent dispatch, and `http-with-placeholders`. Promoted only after `npm run probe` registered it under a throwaway tail and invoked it, which is how we confirmed the node really serves `http-with-placeholders`. |
+| 0.8.0 – 0.9.0 | never registered — the account balance was zero for three weeks (bugs #16, #17). 0.8.0 added `allowed_issuers` + `counterparty_limits`; both ship inside 0.10.0. |
+| 0.7.0 | `contract_id 479`. Added `execute_action` + the clock-derived spend window. |
+| 0.6.0 | `contract_id 175` — the version the first live `HTTP 200` egress evidence was captured against. |
+| 0.5.0 | `contract_id 165` — a clean version registered to make "latest" healthy after 0.4.0 bricked the tail (bug #8). |
+| 0.4.0 | `contract_id 164` — imported `host:interfaces/vp`; registers, then 500s on every call (bug #7). Kept as the repro. |
+| 0.3.0 | `contract_id 160` — added `spend()`, the stateful velocity limit. |
 
 ## Deploy
 

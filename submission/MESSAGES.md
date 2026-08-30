@@ -53,9 +53,9 @@ the chain.
 
 321 offline checks in one command with no API key; 32 screenshots, all from
 real command output, republished at gatekeeper-evidence.vercel.app; 29 bug
-reports re-verified against the refreshed docs, four already fixed by
-Terminal 3, and three that turned out to be corrections to our own earlier
-findings.
+reports re-verified against the refreshed docs, three already fixed outright by
+Terminal 3 and two more part-way, and three that turned out to be corrections to
+our own earlier findings.
 
 Happy to hand it over to Terminal 3 to host and maintain: nothing personal is
 in the running path, a scoped agent key replaces the tenant's Ethereum key,
@@ -81,19 +81,22 @@ inside a TEE, so the agent can't raise its own limit. Today it paid for a
 resource over x402 through that mandate, settled on Base Sepolia by a public
 facilitator, and it holds ERC-8004 identity #201.
 
-Rust→WASM on @Terminal3io · 277 tests · 29 bugs found
+Rust→WASM on @Terminal3io · 321 tests · 29 bugs found
 
 https://gatekeeper-evidence.vercel.app
 ```
 
-Paste the tweet URL into the Superteam form.
+Paste the tweet URL into the Superteam form. (The posted tweet says *277 tests*,
+which was true on 28 Aug; the count is 321 today. Not worth editing a live post
+over — the block above is the current wording for any repost.)
 
 ---
 
 ## 4. Telegram DM to @wardumb — only if credits run low
 
-**Not needed today.** The account holds ~34e9 credits after everything in this
-round; a contract registration costs 1.37e9 and a call 3.0e7. Send this only if
+**Not needed today.** `npm run auth` on 2026-08-30 reads **71,101,637,901**
+credits — a contract registration costs 1.37e9 and a call 3.0e7, so that is
+about 51 registrations or 2,367 calls of headroom. Send this only if
 `npm run auth` shows the balance under ~2e9:
 
 ```
@@ -145,8 +148,15 @@ each with a repro. Three seem worth raising outside the list:
    measured call uses 60% of the cap (#23). Two fifths of the minute cannot be
    reached, and the refusal sometimes arrives as a bare "Internal error".
 
-And thank you for the fixes — token balance, org-owned agents, the sandbox
-alias, and the version-shadowing warning we reported in June are all in.
+And thank you for the fixes: `token balance`, org-owned agents and the
+`sandbox` alias all work now (#9, #12, #14), and the version-shadowing
+warning from June made it onto the Register page (#8). The other half of
+that one is still open — there is no API that returns a contract's numeric
+contract_id, so a caller that needs it for a map ACL has to capture it from
+the registration response and never lose it.
 
 Thanks!
 ```
+
+**Sent 2026-08-30** from hudapugar@gmail.com to devrel@terminal3.io, subject
+as above.

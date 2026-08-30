@@ -1,5 +1,9 @@
 # Gatekeeper Agent — Demo Video Script (~3 min, with voice-over)
 
+> **Archive.** Script for the June demo recording. The video actually shipped is
+> the Remotion render in [`../video/`](../video/), and it too is now behind the
+> repo — see that README. Kept for the scene-by-scene narration.
+
 Show the agent chaining the Terminal 3 SDK end to end, live on testnet — identity,
 BBS+ VC gate, revocation, hardware mandate, audit, and a signed + in-TEE-executed
 dispatch. Record the terminal at ~120 cols. Keep the API key off-screen.

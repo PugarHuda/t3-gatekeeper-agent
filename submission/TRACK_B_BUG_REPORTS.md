@@ -1,5 +1,13 @@
 # Terminal 3 Bounty — Track B: Bug & Documentation-Gap Reports
 
+> **Archive — round 1** (Terminal 3 ADK bounty on DoraHacks, submitted June 2026;
+> placed 8th). Kept as the record of what was submitted then. Contract ids,
+> version numbers and test counts below are as they stood in June and are
+> deliberately **not** updated — editing them would destroy the record without
+> making anything truer. For the current state see
+> [`SUBMISSION.md`](SUBMISSION.md): the live contract is `gate@0.10.0` =
+> `contract_id 749`, and `node verify.mjs` prints 321 offline checks.
+
 Environment for all reproductions unless noted: Windows 11, Node v26.3.0,
 `@terminal3/t3n-sdk@3.5.2`, `@terminal3/vc_core@0.0.37`, `@terminal3/bbs_vc@0.2.36`,
 testnet (`https://cn-api.sg.testnet.t3n.terminal3.io`).

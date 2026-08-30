@@ -96,12 +96,13 @@ Every layer was run against the live testnet, not mocked:
   registered (`contract_id` returned), and `evaluate()` invoked inside the
   Enclave returning approved/rejected decisions with the cluster timestamp and
   tenant DID resolved host-side.
-- **Stateful velocity limit** — `gate-contract` `spend()` (v0.6.0, contract_id
-  175) tracks a cumulative per-window total in the contract's KV map and rejects
+- **Stateful velocity limit** — `gate-contract` `spend()` (first proven on
+  v0.6.0, `contract_id 175`; it ships in the live v0.10.0) tracks a cumulative
+  per-window total in the contract's KV map and rejects
   once the running total would exceed the cap — **enforced across invocations in
   hardware** (`t3-qa/velocity-test.mjs`: 3 spends, the 3rd correctly rejected).
 
-## The enclave is the enforcement point (v0.7.0 — v0.8.0)
+## The enclave is the enforcement point (v0.7.0 onward, all of it live in v0.10.0)
 
 `evaluate` and `dispatch_action` are two host calls, so an agent could simply
 skip the first — the mandate held only while the agent cooperated. And `evaluate`
@@ -112,7 +113,8 @@ call in the *same* invocation — so a rejected action cannot reach the network.
 The velocity window is likewise derived from the cluster clock, not from the
 caller, who could otherwise reset the running total by renaming the window.
 
-**v0.8.0 adds two more mandate dimensions.** `allowed_issuers`: a BBS+ signature
+**v0.8.0 added two more mandate dimensions**, both live inside v0.10.0 today.
+`allowed_issuers`: a BBS+ signature
 proves the *issuer* signed the claim, never that the issuer is anyone the fund
 trusts — and the agent generates its own issuer key, so without this it could
 mint its own "accredited investor" credential. And `counterparty_limits`, a
@@ -189,7 +191,7 @@ CI runs the same script, so the two cannot drift apart.
 
 | Suite | Count | What it covers |
 | --- | --- | --- |
-| Rust (`gate-contract`) | 47 | the mandate rules, every dimension, deny-by-default, the enclave-held credential, binding, idempotency |
+| Rust (`gate-contract`) | 47 + 1 | the mandate rules, every dimension, deny-by-default, the enclave-held credential, binding, idempotency; plus one doc-test |
 | Node (`agent`) | 223 | BBS+, A2A v1.0 (official client), MCP (stdio + HTTP), Web Bot Auth incl. Cloudflare interop, x402, ERC-8004, status list, audit, the wasm component host, the registry listing |
 | QA console (`qa-console`) | 42 + 3 + 5 | Playwright over the **real** Rust `decide()` — happy path, wrong paths, API abuse, x402, signed A2A + MCP by hand, pending/failure states, streaming SSE; plus axe-core accessibility and evidence-page interaction |
 | Live site | 27 | the deployed page, its endpoints, and the hosted A2A + MCP doors — unsigned refused, signed answered — incl. a Web Bot Auth key round trip over the public internet |
@@ -198,9 +200,10 @@ CI runs the same script, so the two cannot drift apart.
 Individually, if you want just one:
 
 ```bash
-cd gate-contract && cargo test                    # 47
+cd gate-contract && cargo test                    # 47 + 1 doc-test
 cd agent        && npm test                       # 223
-cd qa-console   && npm test                       # 41 + 3 (Playwright, axe)
+cd qa-console   && npm test                       # 50 (Playwright, axe, page interaction)
+cd qa-console   && npm run test:site              # 27 — needs the network, not a key
 ```
 
 And an **in-TEE action dispatch**: on approval, step [5] not only signs the
@@ -212,8 +215,10 @@ the *caller*, not the contract: `npm run grant:egress` writes an `agent-auth` gr
 (contract + functions + `allowedHosts`) via `tee:user/contracts::agent-auth-update`.
 Without it the contract still runs and `http.call` returns a typed
 `host/http.egress_denied` — deny-by-default, per destination host.
-An ERC-8004 on-chain identity is also one funded transaction away
-(`npm run register:erc8004`, real EIP-8004 ABI). See
+The ERC-8004 on-chain identity is **minted**: agent **#201** on Sepolia, tx
+`0x37965ccd…`, `agentURI` pointing at the served registration file.
+`npm run erc8004` reads it back through both registries;
+`npm run register:erc8004` is the script that did it. See
 [submission/ADOPTIONS.md](submission/ADOPTIONS.md).
 
 ## Quickstart

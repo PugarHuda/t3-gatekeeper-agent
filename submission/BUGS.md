@@ -47,8 +47,10 @@ DID under test: `did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`
 | 28 | `user-upsert` accepts any `keys` payload silently, and `tee:vc/issue-credential` still calls it missing | **new** | open |
 | 29 | `audit.get-mine` stays empty through 39 dispatches, while `activity.log` records every one of them | **new** | open |
 
-Four fixed, one likely fixed, one partly adopted into the docs. Thank you — the
-ones that got fixed were the ones that most got in a newcomer's way.
+Three fixed outright (#9, #12, #14), one likely fixed (#11), one no longer
+reproducible (#15), and one half-adopted into the docs (#8 — the warning shipped,
+the missing `contract_id` read did not). Thank you — the ones that got fixed were
+the ones that most got in a newcomer's way.
 
 ### The three that were previously *not re-tested*
 

@@ -1,5 +1,13 @@
 # DoraHacks Registration — Organizer Question Answers
 
+> **Archive — round 1** (Terminal 3 ADK bounty on DoraHacks, submitted June 2026;
+> placed 8th). Kept as the record of what was submitted then. Contract ids,
+> version numbers and test counts below are as they stood in June and are
+> deliberately **not** updated — editing them would destroy the record without
+> making anything truer. For the current state see
+> [`SUBMISSION.md`](SUBMISSION.md): the live contract is `gate@0.10.0` =
+> `contract_id 749`, and `node verify.mjs` prints 321 offline checks.
+
 Copy-paste ready. Project: **Gatekeeper Agent** — https://github.com/PugarHuda/t3-gatekeeper-agent
 
 ---

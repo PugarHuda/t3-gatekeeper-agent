@@ -27,7 +27,7 @@ Auditing my own contract for this, I found 3 ways the gate could be bypassed —
 including one where the agent supplied the very limits it was judged against.
 All fixed.
 
-Rust → WASM on @Terminal3io, 277 tests, 29 bugs reported.
+Rust → WASM on @Terminal3io, 321 tests, 29 bugs reported.
 
 https://gatekeeper-evidence.vercel.app
 ```
@@ -45,7 +45,7 @@ An AI agent that can spend your money, without being trusted with it.
 Fund learns one fact — "buyer is accredited" — as a ZK proof. Mandate is enforced
 inside a TEE, so the agent can't raise its own limit.
 
-Rust→WASM on @Terminal3io · 277 tests · 29 bugs found
+Rust→WASM on @Terminal3io · 321 tests · 29 bugs found
 
 https://gatekeeper-evidence.vercel.app
 ```
@@ -155,5 +155,9 @@ Built for the @SuperteamEarn × @Terminal3io bounty.
 - Attach `submission/screenshots/out/05-full-flow.png` (the full run) or
   `13-qa-console-self-issued.png` (the attack being refused) to post 1 — a
   terminal screenshot performs better than a link preview.
-- Don't claim v0.8.0 is live. It is built and tested but not registered; the
-  live contract is v0.7.0. The posts above avoid version claims deliberately.
+- Version claims are safe now: **v0.10.0 is live** as `contract_id 749`. The
+  posts above still avoid naming a version, which needs no maintenance.
+- **The post that actually went out** (28 Aug,
+  https://x.com/BangDropID/status/2092653732848976141) says *277 tests* — true
+  when posted, 321 today. It is not worth editing a live post over; the drafts
+  above carry the current number for any repost.

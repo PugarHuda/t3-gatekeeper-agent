@@ -1,6 +1,6 @@
 # Status & roadmap — what is built, what is shallow, what is worth building
 
-Honest inventory as of **27 August 2026**. The rule for this file: "shipped" means
+Honest inventory as of **30 August 2026**. The rule for this file: "shipped" means
 it runs and is covered by a test or a live run. Anything that needs infrastructure
 I do not have is listed as such, not quietly claimed.
 
@@ -26,21 +26,24 @@ I do not have is listed as such, not quietly claimed.
 | 12 | **A2A capability exchange** with selective disclosure | `agent/src/a2a.mjs` | 2 Node tests |
 | 12b | **A2A discovery** — the card is published at `/.well-known/agent-card.json`; `discoverPeer()` fetches and validates a peer's card over HTTP | `agent/src/a2a.mjs`, `site/.well-known/` | 8 Node tests over a real server |
 | 13 | **Revocation pre-gate** — `revoke_vc` kill-switch before acting | `agent/src/revocation.mjs` | 12 Node tests |
-| 13b | **W3C Bitstring Status List** — revocation published as a 131,072-entry list and checked over HTTPS, no chain required | `agent/src/status-list.mjs`, `site/status/revocation.json` | 19 Node tests |
+| 13b | **W3C Bitstring Status List** — revocation published as a 131,072-entry list and checked over HTTPS, no chain required | `agent/src/status-list.mjs`, `site/status/revocation.json` | 21 Node tests |
 | 14 | **Structured audit row** per action, approved *and* rejected | `agent/src/agent.mjs` | every run |
-| 14b | **Host audit ledger** — `audit.get-mine` read back and reconciled against the agent's rows, distinguishing committed from merely claimed | `agent/src/audit.mjs` | 10 Node tests + live read |
+| 14b | **Host audit ledger** — `audit.get-mine` read back and reconciled against the agent's rows, distinguishing committed from merely claimed | `agent/src/audit.mjs` | 9 Node tests + live read |
 | 15 | **On-network Agent ID** — DID resolves to an ERC-8004 / A2A card | `agent/agent-card.json` | live, screenshot 04 |
 | 15b | **ERC-8004 live reads + mint preflight** — resolve agents and verify the registry's bytecode before spending gas | `agent/src/erc8004.mjs` | live against Sepolia, `npm run erc8004` |
 | 15c | **Credential bound to the action** — commitment recomputed inside the enclave from the action it is about to perform | `gate.rs`, `agent/src/credential-binding.mjs` | 8 Rust + 12 Node (cross-language conformance) |
 | 15d | **Idempotent dispatch** — a retry replays the recorded outcome instead of placing a second order | `gate.rs::execute_action` | 5 Rust + 2 Playwright |
 | 16 | **QA console + Playwright E2E** — happy path, wrong paths, binding and idempotency attacks, abuse cases | `qa-console/` | 18 tests |
 | 17 | **Evidence site** | `site/` | Playwright + live tests, deployed |
-| 18 | **Reproducible screenshots** — commands run for real, output rendered | `submission/screenshots/capture.mjs` | 15 shots |
+| 18 | **Reproducible screenshots** — commands run for real, output rendered | `submission/screenshots/capture.mjs` | 32 shots |
 
 | 19 | **Signature freshness window** — a Web Bot Auth signature expires (default 5 min, skew-tolerant); `created` is inside the signature base so it cannot be back-dated | `agent/src/web-bot-auth.mjs` | 7 Node tests |
 
-**Test totals: run `node verify.mjs` — it prints its own total (277 offline
-checks at the time of writing), plus the live-site and artifact suites.**
+**Test totals: run `node verify.mjs` — it prints its own total (321 offline
+checks at the time of writing: 48 Rust, 223 Node, 50 Playwright). Beside it,
+`cd qa-console && npm run test:site` is 27 live checks (network, no key), and
+`node --test doc.test.mjs docx.test.mjs video.test.mjs` is 16 more over the
+submission artefacts.**
 ## 2. Depth, honestly
 
 The rule for this section: say what is real, and say what is still only a
@@ -97,21 +100,34 @@ and docs say so rather than implying more.
 
 ## 4. Blocked, with the reason
 
+Six rows used to sit here. A top-up landed on **27 August 2026** and the user
+funded two wallets, so most of this section is now history rather than status —
+the honest thing is to say which, not to quietly delete the rows.
+
+**Unblocked since the last revision:**
+
+| Was blocked on | What it took | Where the evidence is |
+| --- | --- | --- |
+| Live `execute_action`, and seeding the KV mandate | testnet credits | `gate@0.10.0` = `contract_id 749`; `npm run demo` approves, dispatches, returns **HTTP 200** |
+| Live placeholder + idempotency paths | the same registration | `npm run prove:enclave` — 7/7, with controls |
+| ERC-8004 mint | 0.05 Sepolia ETH | agent **#201**, tx `0x37965ccd…`, read back by `npm run erc8004` |
+| x402 settlement | 20 testnet USDC | 0.01 USDC on Base Sepolia, tx `0x52b164d133…`, checked from the Transfer log at explicit block tags |
+| Publishing the status list and the A2A card | Vercel's daily deploy cap expiring | live at `gatekeeper-evidence.vercel.app`, and the 27 live checks assert it |
+| Org-owned agent registration (bug #12) | fixed by Terminal 3 | — |
+
+**Still blocked, all of it platform-side and none of it fixable by funding:**
+
 | Item | Blocker | Not my code |
 | --- | --- | --- |
-| Live `execute_action` verification | **Testnet credits exhausted** — one 204 KB contract registration drained the full grant; every call now reports `required=10000000000, available=0` (bugs #16, #17) | ✅ |
-| Seeding the KV mandate | Same credit exhaustion — `map-entry-set` needs the storage deposit | ✅ |
-| In-contract `vp.verify` | Host does not serve the interface; registers then 500s (bug #7) | ✅ |
-| Org-owned agent registration | Node runs `tee:organisation/contracts` 0.4.1, CLI needs ≥0.6.0 (bug #12) | ✅ |
-| ERC-8004 mint | Needs a gas-funded wallet. Reads and preflight work today against the live Sepolia registry | ✅ |
-| Live placeholder + idempotency paths | Both are built into the component; exercising them needs a contract registration, which needs credits | ✅ |
-| Publishing the status list and the A2A card | Written to `site/`, but Vercel's free tier refused further deployments ("more than 100 per day"); they go out on the next deploy | ✅ |
-| Public agent card hosting (T3-side) | `host-card` no longer fails on scope, only on credits (bug #11 appears fixed) | ✅ |
+| In-contract `vp.verify` | Host does not serve the interface; registers, then 500s on every call (bug #7). Repro: `t3-qa/vp-verify-test.mjs` | ✅ |
+| `tee:agent-connect` commerce rails | The profile writer refuses the `kind` field the profile reader requires — two core contracts validating the same document to different schemas (bug #27) | ✅ |
+| `tee:vc` credential issuance | Wants `keys.generic_api` metadata that `user-upsert` accepts silently and the consumer still reports missing (bug #28) | ✅ |
+| Entra Agent ID | Needs an Azure tenant | ✅ |
+| AP2 rails | Needs a network partner to transact with; T3's own `tee:agent-connect` is the closest thing and is blocked above | ✅ |
 
-**Unblocking step:** the bounty offers a top-up — DM `@wardumb` with the DID
-`did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f`. With credits restored, one
-`npm run setup` registers the current contract and seeds its four maps, and the
-enclave-side items above get their live run in a single pass.
+`node t3-qa/core-contracts-probe.mjs` reproduces #27 and #28 and **exits
+non-zero if either blockage lifts**, so a Terminal 3 fix reaches us as a failing
+run rather than as something nobody re-checks.
 
 Everything not on this list runs today with no key, no credits and no wallet:
 `node verify.mjs`.

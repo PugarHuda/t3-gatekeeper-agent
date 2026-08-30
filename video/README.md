@@ -41,10 +41,19 @@ captions there are real rather than auto-transcribed.
 
 ## Accuracy
 
-Every claim in the script is one there is evidence for, and the script
-deliberately does **not** say v0.8.0 is live — it is built and tested but not
-registered. The live contract is v0.7.0. The `HTTP 200` shown in the run scene
-was captured on 7 August.
+Every claim in the script was one there was evidence for **when it was
+rendered**, on 8 August 2026. It deliberately did not say v0.8.0 was live,
+because it was not: the live contract at the time was v0.7.0, and the `HTTP 200`
+in the run scene was captured on 7 August.
+
+> **The render is now behind the repo.** Since 27 August the live contract is
+> **v0.10.0, `contract_id 749`**, and the agent has gained the hosted A2A and
+> MCP doors, a signed card over did:web, an ERC-8004 identity (#201) and a
+> settled x402 payment — none of which the video mentions. Nothing it says has
+> become *false*, but it is no longer the whole picture. The current account is
+> the evidence site and [`submission/SUBMISSION.md`](../submission/SUBMISSION.md).
+> Re-rendering is a `npm run tts && npm run render` away once `src/script.mjs`
+> is updated.
 
 If the contract changes, update `src/script.mjs` and re-render; do not edit the
 MP4.

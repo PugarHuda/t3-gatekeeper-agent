@@ -53,7 +53,7 @@ npm run demo
 | `npm run demo:velocity` | Hardware velocity limit — cumulative per-window spend cap held in the TEE across calls. *(needs `npm run setup` first)* |
 | `npm run grant:egress` | Self-grant the enclave's outbound-HTTP allowlist for `ACTION_ENDPOINT`'s host (`agent-auth-update`). Without it, in-TEE dispatch returns `egress_denied`. |
 | `npm run register:erc8004` | Mint the agent's ERC-8004 on-chain identity (`IdentityRegistry.register(agentURI)`). Needs a gas-funded wallet + registry address; refuses to run unconfigured. |
-| `npm test` | 40 offline tests (crypto, edge cases, A2A, revocation, Web Bot Auth incl. the published key directory and the signature freshness window). |
+| `npm test` | 223 offline tests across 19 files (crypto, edge cases, A2A client + server, MCP over stdio and HTTP, Web Bot Auth incl. the published key directory, the Cloudflare interop and the freshness window, revocation, credential binding, audit, ERC-8004, status list, x402, discovery, the transpiled wasm component, the MCP Registry manifest, the hosted bundle, and the signed agent card). |
 
 ## Two eligibility-gate modes
 

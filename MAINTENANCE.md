@@ -36,8 +36,20 @@ node verify.mjs
 
 Runs, in order: the contract's Rust unit tests on the host, a wasm component
 build, the agent's Node tests, and the Playwright end-to-end suite that drives
-the *real* Rust decision function through the QA console. It prints its own total — 118 at the time of writing, and the number comes
-from the runners rather than from this sentence. Zero credits, no network, no key.
+the *real* Rust decision function through the QA console. It prints its own
+total — 321 at the time of writing (48 Rust, 223 Node, 50 Playwright), and the
+number comes from the runners rather than from this sentence, so a stale figure
+here cannot become a false claim there. Zero credits, no network, no key.
+
+There is a second suite it deliberately excludes, because it needs the network:
+
+```bash
+cd qa-console && npm run test:site   # 27 checks — the deployed site, the
+                                     # published card and key directory, and the
+                                     # hosted A2A + MCP doors, signed and unsigned
+```
+
+No API key for that one either; it only needs the internet and the deployment.
 
 It is the same set CI runs (`.github/workflows/ci.yml`). If it passes, the
 logic is intact; anything still broken is environmental, and §5 lists those.

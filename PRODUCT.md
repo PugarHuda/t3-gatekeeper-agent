@@ -46,10 +46,12 @@ verified both ways against Cloudflare's reference implementation.
   card, the ERC-8004 registration file, the Web Bot Auth key directory, and
   the revocation status list from `/.well-known/` and `/status/`.
 - QA console: `qa-console/index.html`, served by `qa-console/server.mjs`;
-  driven by Playwright (`qa-console/e2e.test.mjs`, 38 checks) and screenshotted
+  driven by Playwright (`qa-console/e2e.test.mjs`, 42 checks) and screenshotted
   by `qa-console/shots.mjs` into the submission.
-- Offline suite: `node verify.mjs` — 277 checks (47 Rust, 191 Node,
-  38 Playwright), no API key, no credits.
+- Offline suite: `node verify.mjs` — 321 checks (48 Rust, 223 Node,
+  50 Playwright), no API key, no credits.
+- Live suite: `cd qa-console && npm run test:site` — 27 checks against the
+  deployed site and the hosted A2A/MCP doors. Needs the network, not a key.
 - Submission artefacts (`submission/SUBMISSION.md`, Google Doc, docx) embed
   the same screenshots the site shows.
 

@@ -1,5 +1,13 @@
 # Terminal 3 ADK — Agent ID, test credits & first Rust contract
 
+> **Archive — round 2** (Superteam Earn / LOL ventures, "Agent ID, free tokens,
+> first Rust contract", submitted August 2026; placed 2nd). Kept as the record of
+> what was submitted then. Contract ids, version numbers and test counts below
+> are as they stood on 8 August and are deliberately **not** updated. For the
+> current state see [`SUBMISSION.md`](SUBMISSION.md): the live contract is
+> `gate@0.10.0` = `contract_id 749`, and `node verify.mjs` prints 321 offline
+> checks.
+
 **Superteam Earn bounty submission — "Create Agent ID, claim free tokens, & deploy first RUST contract on the network" (LOL ventures)**
 
 | | |
