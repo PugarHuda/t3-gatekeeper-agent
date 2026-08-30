@@ -1,7 +1,7 @@
 # Paste-ready messages
 
 Everything below is written to be sent as-is, in the order listed. Nothing here
-is sent automatically. Numbers are as of 2026-08-28, head `0d87437`, and every
+is sent automatically. Numbers are as of 2026-08-30, head `a4490d0`, and every
 one of them is printed by a command in the repo rather than typed from memory.
 
 ---
@@ -12,12 +12,14 @@ The doc already exists in your Drive, generated from `SUBMISSION.md` with all
 32 screenshots embedded (current: hosted A2A/MCP doors, the wasm component host,
 the MCP Registry listing, signed card + did:web, A2A streaming, axe, 321 checks):
 
-**v4 — submit this one:**
-https://docs.google.com/document/d/1vePUoZeXRC-_Dj3C2v_Uq2Gq47bSPu7Yki3XiFdakD0/edit
+**v5 — submit this one:**
+https://docs.google.com/document/d/1W0EHiVu26P4t76Gw6pVSwDTGi5PPJyDvN5MNie3bW-0/edit
 
 Share → *Anyone with the link* → Viewer → copy link. Open it in a private
 window before submitting: a doc only you can open is the most common way to
-lose a submission. (v1–v3 are renamed "OLD … do not submit".)
+lose a submission — as of 2026-08-30 this doc is still owner-only, so this step
+has not been done yet. (v1–v4 are renamed "OLD … do not submit"; v5 is the only
+one with the signed card, did:web, A2A streaming and the 321-check count.)
 
 Fallbacks, both tested by `qa-console/doc.test.mjs` / `docx.test.mjs`:
 `submission/submission.docx` (Drive → upload → Open with Google Docs) or
