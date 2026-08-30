@@ -1,7 +1,7 @@
 # Paste-ready messages
 
 Everything below is written to be sent as-is, in the order listed. Nothing here
-is sent automatically. Numbers are as of 2026-08-30, head `a4490d0`, and every
+is sent automatically. Numbers are as of 2026-08-31, head `b80ae10`, and every
 one of them is printed by a command in the repo rather than typed from memory.
 
 ---
@@ -17,8 +17,9 @@ https://docs.google.com/document/d/1W0EHiVu26P4t76Gw6pVSwDTGi5PPJyDvN5MNie3bW-0/
 
 Share → *Anyone with the link* → Viewer → copy link. Open it in a private
 window before submitting: a doc only you can open is the most common way to
-lose a submission — as of 2026-08-30 this doc is still owner-only, so this step
-has not been done yet. (v1–v4 are renamed "OLD … do not submit"; v5 is the only
+lose a submission — re-checked 2026-08-31 and this doc is STILL owner-only, so
+this step has not been done yet. The form says so too: "Make sure this link is
+accessible by everyone!" (v1–v4 are renamed "OLD … do not submit"; v5 is the only
 one with the signed card, did:web, A2A streaming and the 321-check count.)
 
 Fallbacks, both tested by `qa-console/doc.test.mjs` / `docx.test.mjs`:
@@ -64,6 +65,91 @@ and MAINTENANCE.md is the handover.
 
 Repo: https://github.com/PugarHuda/t3-gatekeeper-agent
 Evidence: https://gatekeeper-evidence.vercel.app
+
+### The form's actual fields, in order
+
+The Superteam form asks for six things. Paste-ready, one per field.
+
+**1. Link to Your Submission** *(the form warns "make sure this link is
+accessible by everyone" — do step 1 above first, then open it in a private
+window)*
+
+```
+https://docs.google.com/document/d/1W0EHiVu26P4t76Gw6pVSwDTGi5PPJyDvN5MNie3bW-0/edit
+```
+
+**2. Tweet Link**
+
+```
+https://x.com/BangDropID/status/2092653732848976141
+```
+
+**3. Email address**
+
+```
+hudapugar@gmail.com
+```
+
+**4. What is your DID generated from the page?**
+
+```
+did:t3n:3d7dd668ccf58ff2ac0fa8662572e12d35aad05f
+```
+
+**5. Would you want to continue running this / pass it to us to run it?**
+
+```
+I would rather hand it over — a reference agent belongs with the people who own
+the platform it demonstrates. I would keep contributing to it. If you would
+prefer I keep running it I am glad to, and would apply to the startup program.
+
+The handover work is already done, because "can someone else run this?" was the
+design constraint this round rather than a paragraph at the end. Nothing personal
+is in the running path: no personal wallet, no hardcoded DID, no committed key,
+no database, no cron, no background worker. Every canonical map name is derived
+at runtime from tenant_did() inside the enclave, so the code does not know whose
+tenant it is running in.
+
+Six steps, full version in MAINTENANCE.md §6: (1) claim your own tenant key and
+DID — and do NOT take my Ethereum key, provision a scoped revocable agent key
+with `agent create` instead; (2) `npm run setup` re-registers the contract under
+your tenant; (3) the mandate is JSON, the only business config; (4) set
+BROKER_API_KEY — your secrets map ACL names your contract id, so my key is
+unreadable to you and yours to me; (5) generate a fresh Web Bot Auth key and
+publish the JWKS; (6) `npx vercel deploy --prod` from the repo root for the site
+and the hosted doors.
+
+`node verify.mjs` before and after. If it passes the logic is intact, and
+MAINTENANCE.md §5 lists the five environmental failures with their fixes.
+```
+
+**6. Anything Else?**
+
+```
+Repo: https://github.com/PugarHuda/t3-gatekeeper-agent
+Evidence site: https://gatekeeper-evidence.vercel.app
+Hosted doors: /api/a2a (A2A v1.0) and /api/mcp (MCP Streamable HTTP), signed
+requests only — the card and the ERC-8004 registration both name them.
+
+Verify it without an account: `node verify.mjs` — 321 checks, no API key, no
+network, no credits. Add `cd qa-console && npm run test:site` for 27 live checks
+against the deployment (network, still no key).
+
+On chain: ERC-8004 agent #201 on Sepolia, tx 0x37965ccd…; an x402 payment
+settled on Base Sepolia through a public facilitator, tx 0x52b164d133…, both
+balances checked at explicit block tags rather than from the receipt.
+
+Bugs: 29 reports with repros in submission/BUGS.md, re-tested against the
+refreshed docs. Three are fixed, one likely, one half-adopted. The three worth
+your team's time are also emailed to devrel@terminal3.io: two core contracts
+(tee:vc, tee:agent-connect) that the node serves, no doc mentions, and that
+cannot be called at all (#27, #28); audit.get-mine empty while activity.log has
+everything (#29); and the per-minute fuel budget charged at the per-call maximum,
+capping every tenant at 10 calls a minute (#23).
+
+This is a returning project — it placed 2nd in the previous round. What is new
+is in §0 of the doc, aimed at the maintainability criterion.
+```
 
 ---
 
